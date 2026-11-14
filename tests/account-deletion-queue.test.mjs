@@ -1,8 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { deletionDatabase } from "./helpers/account-deletion-database.mjs";
+import { deletionWorkerDatabase } from "./helpers/account-deletion-database.mjs";
 import { createAccountDeletionQueue } from "../src/lib/account-deletion-queue.server.ts";
 import {
   deletionPhases,
@@ -45,21 +44,7 @@ function transport(reply) {
 }
 
 async function fixture() {
-  const db = await deletionDatabase();
-  await db.exec(`alter table auth.users add column deleted_at timestamptz,add column banned_until timestamptz;
-    create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id) on delete cascade,not_after timestamptz);
-    create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
-    create function auth.uid() returns uuid language sql stable as $$select nullif(auth.jwt()->>'sub','')::uuid$$;
-    grant usage on schema auth to anon,authenticated;`);
-  await db.exec(
-    readFileSync(
-      new URL(
-        "../supabase/migrations/20261113120000_account_access_boundaries.sql",
-        import.meta.url,
-      ),
-      "utf8",
-    ),
-  );
+  const db = await deletionWorkerDatabase();
   const bridge = transport(async (name, args) => {
     let result;
     switch (name) {
@@ -85,6 +70,17 @@ async function fixture() {
             args._lease,
             args._phase,
             args._code,
+          ])
+        ).rows[0].value;
+        break;
+      case "account_deletion_lease_current":
+        assert.deepEqual(Object.keys(args).sort(), ["_id", "_lease", "_phase", "_user"]);
+        result = (
+          await db.query("select account_deletion_lease_current($1,$2,$3,$4) value", [
+            args._id,
+            args._user,
+            args._lease,
+            args._phase,
           ])
         ).rows[0].value;
         break;
@@ -286,6 +282,7 @@ test("every cleanup adapter is required before starting and neither phases nor t
     const retries = [];
     const queue = {
       claim: async () => target,
+      isCurrent: async () => true,
       assertBoundaries: async () => {
         checks++;
       },
@@ -330,4 +327,186 @@ test("every cleanup adapter is required before starting and neither phases nor t
     assert.equal(writes, 0);
     assert.equal(retries.at(-1), "verification_failed");
   }
+});
+
+test("live database lease checks bind the target, phase and token, honor the operator switch and stay private", async () => {
+  const { db, queue } = await fixture();
+  const user = randomUUID();
+  try {
+    await db.query("insert into auth.users(id) values($1)", [user]);
+    await db.query("select mobile_request_deletion($1)", [user]);
+    await db.exec("update account_deletion_controls set worker_enabled=true");
+    const claimed = await queue.claim(),
+      signal = new AbortController().signal;
+    assert.equal(await queue.isCurrent(claimed, signal), true);
+    for (const patch of [
+      { id: randomUUID() },
+      { user_id: randomUUID() },
+      { lease_token: randomUUID() },
+      { phase: "media" },
+    ])
+      assert.equal(await queue.isCurrent({ ...claimed, ...patch }, signal), false);
+    await db.exec("update account_deletion_controls set worker_enabled=false");
+    assert.equal(await queue.isCurrent(claimed, signal), false);
+    assert.equal(
+      await queue.advance(claimed, true),
+      false,
+      "SQL must refuse a checkpoint even if a worker skipped its read guard",
+    );
+    assert.equal(await queue.claim(), null);
+    await db.exec("update account_deletion_controls set worker_enabled=true");
+    assert.equal(await queue.isCurrent(claimed, signal), true);
+    for (const role of ["anon", "authenticated"]) {
+      await db.exec(`set role ${role}`);
+      await assert.rejects(
+        db.query("select account_deletion_lease_current($1,$2,$3,$4)", [
+          claimed.id,
+          claimed.user_id,
+          claimed.lease_token,
+          claimed.phase,
+        ]),
+        /permission denied/,
+      );
+      await db.exec("reset role");
+    }
+    await db.exec("set role service_role");
+    assert.equal(await queue.isCurrent(claimed, signal), true);
+    await db.exec("reset role");
+    await db.query(
+      "update account_deletion_jobs set lease_until=now()-interval '1 second' where id=$1",
+      [claimed.id],
+    );
+    assert.equal(
+      await queue.isCurrent(
+        { ...claimed, lease_until: new Date(Date.now() + 3600000).toISOString() },
+        signal,
+      ),
+      false,
+    );
+    const recovered = await queue.claim();
+    assert.notEqual(recovered.lease_token, claimed.lease_token);
+    assert.equal(await queue.isCurrent(claimed, signal), false);
+    assert.equal(await queue.isCurrent(recovered, signal), true);
+    assert.equal(await queue.advance(claimed, true), false);
+  } finally {
+    await db.close();
+  }
+});
+
+test("disabling work during a phase prevents its checkpoint, including final verification after Auth removal", async () => {
+  for (const phase of ["inventory", "verification"]) {
+    const { db, queue } = await fixture();
+    const user = randomUUID();
+    try {
+      await db.query("insert into auth.users(id) values($1)", [user]);
+      await db.query("select mobile_request_deletion($1)", [user]);
+      await db.query("update account_deletion_jobs set phase=$1", [phase]);
+      await db.exec("update account_deletion_controls set worker_enabled=true");
+      if (phase === "verification") await db.query("delete from auth.users where id=$1", [user]);
+      let started = 0;
+      const work = workFor(async () => {
+        started++;
+        await db.exec("update account_deletion_controls set worker_enabled=false");
+        return { done: true };
+      });
+      assert.deepEqual(await runAccountDeletion(queue, work), { status: "lease_lost", phase });
+      assert.equal(started, 1);
+      const pending = (await db.query("select status,phase,user_id from account_deletion_jobs"))
+        .rows[0];
+      assert.deepEqual(pending, { status: "processing", phase, user_id: user });
+      assert.equal(await queue.claim(), null);
+    } finally {
+      await db.close();
+    }
+  }
+});
+
+test("a fabricated or disabled claim reaches no cleanup even when its client-side expiry looks valid", async () => {
+  const { db, queue } = await fixture();
+  const user = randomUUID();
+  try {
+    await db.query("insert into auth.users(id) values($1)", [user]);
+    await db.query("select mobile_request_deletion($1)", [user]);
+    await db.exec("update account_deletion_controls set worker_enabled=true");
+    const claimed = await queue.claim();
+    let calls = 0;
+    const work = workFor(async () => {
+      calls++;
+      return { done: true };
+    });
+    for (const patch of [{ user_id: randomUUID() }, { lease_token: randomUUID() }])
+      assert.equal(
+        (
+          await runAccountDeletion(
+            { ...queue, claim: async () => ({ ...claimed, ...patch }) },
+            work,
+          )
+        ).status,
+        "lease_lost",
+      );
+    await db.exec("update account_deletion_controls set worker_enabled=false");
+    assert.equal(
+      (await runAccountDeletion({ ...queue, claim: async () => claimed }, work)).status,
+      "lease_lost",
+    );
+    assert.equal(calls, 0);
+  } finally {
+    await db.close();
+  }
+});
+
+test("malformed lease responses, missing guards and cancellation cannot authorize work or leak provider details", async () => {
+  const target = job(),
+    signal = new AbortController().signal;
+  for (const value of [undefined, null, "true", 1, {}, { current: true }]) {
+    const queue = createAccountDeletionQueue(transport(async () => value));
+    await assert.rejects(queue.isCurrent(target, signal), coded("worker_failed"));
+  }
+  for (const value of [true, false])
+    assert.equal(
+      await createAccountDeletionQueue(transport(async () => value)).isCurrent(target, signal),
+      value,
+    );
+  const db = transport(async () => {
+    throw Error("private@example.invalid signed-token=SECRET");
+  });
+  const queue = createAccountDeletionQueue(db);
+  await assert.rejects(queue.isCurrent(target, signal), coded("worker_failed"));
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(queue.isCurrent(target, controller.signal), coded("worker_failed"));
+  await assert.rejects(
+    queue.isCurrent({ ...target, user_id: "invalid" }, signal),
+    coded("worker_failed"),
+  );
+  assert.equal(db.calls.length, 1);
+  let calls = 0,
+    retries = 0;
+  const missing = {
+    claim: async () => target,
+    assertBoundaries: async () => {
+      calls++;
+    },
+    advance: async () => {
+      throw Error("must not advance");
+    },
+    retry: async () => {
+      retries++;
+      return true;
+    },
+  };
+  assert.equal(
+    (
+      await runAccountDeletion(
+        missing,
+        workFor(async () => {
+          calls++;
+          return { done: true };
+        }),
+      )
+    ).status,
+    "retry",
+  );
+  assert.equal(calls, 0);
+  assert.equal(retries, 1);
 });

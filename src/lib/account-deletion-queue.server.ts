@@ -10,7 +10,8 @@ type QueueRpc =
   | "claim_account_deletion"
   | "advance_account_deletion"
   | "retry_account_deletion"
-  | "account_access_coverage";
+  | "account_access_coverage"
+  | "account_deletion_lease_current";
 type QueueResponse = { data: unknown; error: unknown };
 export type AccountDeletionQueueDatabase = {
   rpc(
@@ -78,6 +79,16 @@ export function createAccountDeletionQueue(db: AccountDeletionQueueDatabase): De
         !expected.every((key) => (value as Record<string, unknown>)[key] === 0)
       )
         throw new DeletionStepError("verification_failed");
+    },
+    async isCurrent(job, signal) {
+      const args = jobArgs(job);
+      const current = await call(
+        "account_deletion_lease_current",
+        { ...args, _user: job.user_id },
+        signal,
+      );
+      if (typeof current !== "boolean") throw new DeletionStepError("worker_failed");
+      return current;
     },
     async advance(job, done) {
       const args = jobArgs(job);

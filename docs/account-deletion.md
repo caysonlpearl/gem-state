@@ -295,3 +295,38 @@ buckets/permissions, strict authorization, cancellation, scrubbed metadata,
 read-only verification and private-error suppression. These tests use an
 in-memory provider; they do not establish live R2 behavior. No real object or
 account was erased, no new migration was installed and the worker remains disabled.
+
+## Live lease and operator control — November 14, 2026
+
+`20261113130000_account_deletion_live_lease.sql` adds a service-only check that
+matches the job, target account, phase and lease token against the database's
+current processing row. The server's clock must show an unexpired lease and the
+operator control must remain enabled. A client-supplied future expiry cannot
+authorize a stale or reassigned job. The queue requires an actual boolean result;
+missing RPCs, malformed responses, errors and cancellation cannot authorize work.
+
+The processor requires this guard before starting a phase and again before
+checkpointing it, including final verification after Auth removal. The SQL claim
+and checkpoint functions also take a short shared lock on the enabled control
+row. They wait for a pending operator disable transaction and refuse new claims
+or checkpoints once that disable commits. These locks cover only database
+operations, never an external provider request. Retry bookkeeping remains possible
+without granting permission to perform cleanup.
+
+This guard proves only current job authority and the operator setting. It does
+not prove media ownership, inventory completeness, shared-reference safety or
+writer suppression. It cannot cancel a provider operation already accepted before
+the switch changed. Domain adapters must check authority around each bounded
+operation and implement their own durable barriers. The photo transport is still
+unbound; this read guard alone is not sufficient to authorize production erasure.
+
+Disposable SQL/processor tests cover replaced targets and tokens, server-side
+expiry, operator disable during work, final-verification suppression, private RPC
+permissions and malformed/cancelled guards. The separate real PostgreSQL gate
+uses independent connections to prove that claims and checkpoints wait for an
+uncommitted disable and refuse progress after it commits.
+
+This migration must precede use of the updated queue adapter. It has not been
+installed in production, enables no worker, and starts no scheduler or cleanup.
+The six real cleanup adapters and independent verifier remain required. No real
+account or object was erased by this batch.

@@ -5,9 +5,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, mkdir, readdir, access, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { readFileSync } from "node:fs";
 import pg from "pg";
-import { installDeletionSchema } from "./helpers/account-deletion-database.mjs";
+import { installDeletionWorkerSchema } from "./helpers/account-deletion-database.mjs";
 const exec = promisify(execFile);
 async function binaries() {
   const choices = [];
@@ -27,7 +26,7 @@ async function binaries() {
   throw Error("PostgreSQL server tools are required for the deletion concurrency gate");
 }
 test(
-  "real concurrent deletion claims skip locked work and reject an expired worker after recovery",
+  "real deletion workers skip locked jobs, reject stale leases and serialize operator pauses",
   {
     skip:
       process.env.BLUEBIRD_DELETION_PG !== "1"
@@ -79,14 +78,14 @@ test(
       a = new pg.Client(config);
       b = new pg.Client(config);
       await Promise.all([a.connect(), b.connect()]);
-      await installDeletionSchema({
+      await installDeletionWorkerSchema({
         exec: (sql) => a.query(sql),
         query: (sql, args) => a.query(sql, args),
       });
       for (const c of [a, b]) await c.query("set statement_timeout='3s'");
       const users = [randomUUID(), randomUUID(), randomUUID()];
       for (const user of users.slice(0, 2)) {
-        await a.query("insert into auth.users values($1)", [user]);
+        await a.query("insert into auth.users(id) values($1)", [user]);
         await a.query("select mobile_request_deletion($1)", [user]);
       }
       await a.query("update account_deletion_controls set worker_enabled=true");
@@ -102,6 +101,29 @@ test(
       const first = (await a.query("select * from claim_account_deletion()")).rows[0];
       assert.equal(first.user_id, users[0]);
       assert.notEqual(first.id, second.id);
+      const current = async (c, j) =>
+        (
+          await c.query("select account_deletion_lease_current($1,$2,$3,$4) ok", [
+            j.id,
+            j.user_id,
+            j.lease_token,
+            j.phase,
+          ])
+        ).rows[0].ok;
+      assert.equal(await current(b, first), true);
+      await a.query("update account_deletion_controls set worker_enabled=false");
+      assert.equal(await current(b, first), false);
+      assert.equal(
+        (
+          await b.query("select advance_account_deletion($1,$2,$3,true) ok", [
+            first.id,
+            first.lease_token,
+            first.phase,
+          ])
+        ).rows[0].ok,
+        false,
+      );
+      await a.query("update account_deletion_controls set worker_enabled=true");
       await a.query(
         "update account_deletion_jobs set lease_until=now()-interval '1 second' where id=$1",
         [first.id],
@@ -109,6 +131,8 @@ test(
       const recovered = (await b.query("select * from claim_account_deletion()")).rows[0];
       assert.equal(recovered.id, first.id);
       assert.notEqual(recovered.lease_token, first.lease_token);
+      assert.equal(await current(a, first), false);
+      assert.equal(await current(a, recovered), true);
       const checkpoint = async (c, j) =>
         (
           await c.query("select advance_account_deletion($1,$2,$3,true) ok", [
@@ -129,7 +153,7 @@ test(
         false,
       );
       assert.equal(await checkpoint(b, recovered), true);
-      await a.query("insert into auth.users values($1)", [users[2]]);
+      await a.query("insert into auth.users(id) values($1)", [users[2]]);
       await a.query("select mobile_request_deletion($1)", [users[2]]);
       const simultaneous = await Promise.all([
         a.query("select * from claim_account_deletion()"),
@@ -141,24 +165,14 @@ test(
         2,
         "Simultaneous connections never claim one logical job twice",
       );
-      await a.query(`alter table auth.users add column deleted_at timestamptz,add column banned_until timestamptz;
-        create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id) on delete cascade,not_after timestamptz);
-        create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
-        create function auth.uid() returns uuid language sql stable as $$select nullif(auth.jwt()->>'sub','')::uuid$$;
-        create function real_boundary_fixture(_value integer default 12) returns integer language plpgsql stable security definer as $$begin return _value;exception when others then return -1;end\r\n\t $$;`);
+      await a.query(
+        `create function real_boundary_fixture(_value integer default 12) returns integer language plpgsql stable security definer as $$begin return _value;exception when others then return -1;end\r\n\t $$;`,
+      );
+      await a.query("select protect_account_access_boundaries()");
       const member = randomUUID(),
         session = randomUUID();
       await a.query("insert into auth.users(id)values($1)", [member]);
       await a.query("insert into auth.sessions(id,user_id)values($1,$2)", [session, member]);
-      await a.query(
-        readFileSync(
-          new URL(
-            "../supabase/migrations/20261113120000_account_access_boundaries.sql",
-            import.meta.url,
-          ),
-          "utf8",
-        ),
-      );
       await a.query("select set_config('request.jwt.claims',$1,false)", [
         JSON.stringify({ sub: member, session_id: session, role: "authenticated" }),
       ]);
@@ -179,6 +193,52 @@ test(
         unguarded_tables: 0,
         helper_privilege_gaps: 0,
       });
+      await a.query("reset role");
+      const active = simultaneous[0].rows[0];
+      for (const operation of ["claim", "checkpoint"]) {
+        await a.query("update account_deletion_controls set worker_enabled=true");
+        await a.query("begin");
+        await a.query("update account_deletion_controls set worker_enabled=false");
+        let settled = false;
+        const pending = (
+          operation === "claim"
+            ? b.query("select * from claim_account_deletion()")
+            : b.query("select advance_account_deletion($1,$2,$3,true) ok", [
+                active.id,
+                active.lease_token,
+                active.phase,
+              ])
+        ).then((result) => {
+          settled = true;
+          return result;
+        });
+        // Keep a failing fixture from leaving an unhandled query rejection while
+        // finally closes the clients. The awaited promise below still rejects.
+        pending.catch(() => {});
+        const deadline = Date.now() + 2000;
+        let blocked = false;
+        while (Date.now() < deadline && !settled) {
+          // Activity snapshots can be cached for this control transaction.
+          await a.query("select pg_stat_clear_snapshot()");
+          blocked =
+            (
+              await a.query(
+                "select wait_event_type='Lock' blocked from pg_stat_activity where pid=$1",
+                [b.processID],
+              )
+            ).rows[0]?.blocked === true;
+          if (blocked) break;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        assert(
+          blocked && !settled,
+          operation + " must serialize with a pending disable transaction",
+        );
+        await a.query("commit");
+        const result = await pending;
+        if (operation === "claim") assert.deepEqual(result.rows, []);
+        else assert.equal(result.rows[0].ok, false);
+      }
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);
       if (initialized) {

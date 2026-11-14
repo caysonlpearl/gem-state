@@ -39,6 +39,7 @@ export type DeletionWork = {
 export type DeletionQueue = {
   claim(): Promise<DeletionJob | null>;
   assertBoundaries(signal: AbortSignal): Promise<void>;
+  isCurrent(job: DeletionJob, signal: AbortSignal): Promise<boolean>;
   advance(job: DeletionJob, done: boolean): Promise<boolean>;
   retry(job: DeletionJob, code: DeletionFailureCode): Promise<boolean>;
 };
@@ -61,10 +62,16 @@ export async function runAccountDeletion(
   // The operation must honor cancellation; do not race an unresolved destructive operation.
   const signal = AbortSignal.timeout(Math.min(45000, remaining));
   try {
-    if (!deletionPhases.every((phase) => typeof work?.[phase] === "function"))
+    if (
+      typeof queue.isCurrent !== "function" ||
+      !deletionPhases.every((phase) => typeof work?.[phase] === "function")
+    )
       throw new DeletionStepError("worker_failed");
     await queue.assertBoundaries(signal);
     signal.throwIfAborted();
+    const currentBefore = await queue.isCurrent(job, signal);
+    signal.throwIfAborted();
+    if (currentBefore !== true) return { status: "lease_lost", phase: job.phase };
     const result = await work[job.phase](job, signal);
     if (signal.aborted) throw new DeletionStepError("worker_failed");
     if (!result || typeof result.done !== "boolean") throw new DeletionStepError("worker_failed");
@@ -72,6 +79,9 @@ export async function runAccountDeletion(
     // schema/permission change. The final verification phase uses the same gate.
     await queue.assertBoundaries(signal);
     signal.throwIfAborted();
+    const currentAfter = await queue.isCurrent(job, signal);
+    signal.throwIfAborted();
+    if (currentAfter !== true) return { status: "lease_lost", phase: job.phase };
     const saved = await queue.advance(job, result.done);
     return {
       status: saved ? (result.done ? "advanced" : "continued") : "lease_lost",
