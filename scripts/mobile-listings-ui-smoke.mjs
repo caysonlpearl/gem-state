@@ -71,6 +71,10 @@ try {
   ]) {
     const page = await browser.newPage({ viewport });
     page.setDefaultTimeout(15000);
+    await page.addInitScript(() => {
+      Object.defineProperty(AbortSignal, "any", { configurable: true, value: undefined });
+      Object.defineProperty(AbortSignal, "timeout", { configurable: true, value: undefined });
+    });
     page.on("pageerror", (e) => errors.push(e.message));
     await page.addInitScript(
       ({ first, sessions }) =>

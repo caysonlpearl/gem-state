@@ -84,6 +84,11 @@ try {
       },
       { sessions: { [a]: session(a), [b]: session(b) }, first: a },
     );
+    if (process.env.BLUEBIRD_RUNTIME_COMPAT_MODE === "true")
+      await page.addInitScript(() => {
+        Object.defineProperty(AbortSignal, "any", { value: undefined, configurable: true });
+        Object.defineProperty(AbortSignal, "timeout", { value: undefined, configurable: true });
+      });
     const headers = {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": origin,

@@ -28,6 +28,15 @@ export default defineConfig(({ mode }) => {
       alias: { "@": fileURLToPath(new URL("../../src", import.meta.url)) },
       dedupe: ["react", "react-dom"],
     },
-    build: { sourcemap: false },
+    build: {
+      sourcemap: false,
+      target: ["safari16.4", "chrome111"],
+      rolldownOptions: {
+        input: {
+          app: fileURLToPath(new URL("index.html", import.meta.url)),
+          update: fileURLToPath(new URL("webview-update.html", import.meta.url)),
+        },
+      },
+    },
   };
 });

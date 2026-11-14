@@ -48,13 +48,7 @@ export function NativeManageListing({
     const c = new AbortController();
     setError("");
     setData(null);
-    api<Snapshot>(
-      `account/listings/${listingId}/editor`,
-      "GET",
-      undefined,
-      AbortSignal.any([c.signal, AbortSignal.timeout(20000)]),
-      actor,
-    )
+    api<Snapshot>(`account/listings/${listingId}/editor`, "GET", undefined, c.signal, actor)
       .then((r) => {
         if (c.signal.aborted || actor.installId !== installIdentifier()) return;
         if (r.ownerId !== ownerId || r.editor.id !== listingId || !/^[0-9a-f]{64}$/.test(r.version))

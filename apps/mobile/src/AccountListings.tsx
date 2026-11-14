@@ -56,7 +56,7 @@ export function NativeAccountListings({
   const current = () => mounted.current && actor.installId === installIdentifier();
   useEffect(() => {
     const c = new AbortController(),
-      signal = AbortSignal.any([c.signal, AbortSignal.timeout(20000)]);
+      signal = c.signal;
     setLoaded(null);
     setError("");
     api<MobileAccountListings>("account/listings", "GET", undefined, signal, actor)
@@ -244,7 +244,7 @@ function OwnedThumbnail({ ownerId, listingId }: { ownerId: string; listingId: st
       `account/listings/${listingId}/thumbnail`,
       "GET",
       undefined,
-      AbortSignal.any([c.signal, AbortSignal.timeout(20000)]),
+      c.signal,
       actor,
     )
       .then((r) => {
