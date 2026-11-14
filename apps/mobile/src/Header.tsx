@@ -147,17 +147,20 @@ export function NativeHeader({
         </div>
       </header>
       {path === "/" && (
-        <NativeHomeShortcuts
-          onBrowse={(scope) =>
-            onNavigate(
-              browseDestination({
-                ...parseLocationSearch(area),
-                q: query.trim() || undefined,
-                ...scope,
-              }),
-            )
-          }
-        />
+        <>
+          <NativeHomeShortcuts
+            onBrowse={(scope) =>
+              onNavigate(
+                browseDestination({
+                  ...parseLocationSearch(area),
+                  q: query.trim() || undefined,
+                  ...scope,
+                }),
+              )
+            }
+          />
+          <p className="native-home-tagline">Find your next Idaho gem.</p>
+        </>
       )}
     </>
   );

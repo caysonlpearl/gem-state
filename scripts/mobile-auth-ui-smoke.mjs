@@ -131,6 +131,19 @@ try {
       "The inventory section starts near the top",
     );
     const shortcuts = page.getByRole("navigation", { name: "Shop by category", exact: true });
+    const tagline = page.getByText("Find your next Idaho gem.", { exact: true });
+    const taglineBox = await tagline.boundingBox(),
+      shortcutsBox = await shortcuts.boundingBox();
+    assert(taglineBox && shortcutsBox && taglineBox.y >= shortcutsBox.y + shortcutsBox.height - 1);
+    assert(
+      taglineBox.y + taglineBox.height <= leadBox.y,
+      "The quiet tagline sits in the category-to-inventory gap",
+    );
+    const taglineStyle = await tagline.evaluate((line) => ({
+      size: parseFloat(getComputedStyle(line).fontSize),
+      style: getComputedStyle(line).fontStyle,
+    }));
+    assert(taglineStyle.size >= 11 && taglineStyle.size <= 13 && taglineStyle.style === "italic");
     assert.equal(await shortcuts.getByRole("button").count(), 6);
     assert.equal(await shortcuts.getByRole("button", { name: /Firearms/ }).count(), 0);
     for (const chip of await shortcuts.getByRole("button").all()) {

@@ -574,7 +574,7 @@ export function ListingCardView({
               <Price listing={listing} showRetail={false} />
             )}
           </div>
-          <h3 className="mt-1 line-clamp-2 min-h-[32px] text-[12.5px] font-semibold leading-4 group-hover:text-primary">
+          <h3 className="mt-1 line-clamp-2 text-[12.5px] font-semibold leading-4 group-hover:text-primary">
             {listing.vehicle
               ? [listing.vehicle.year, listing.vehicle.make, listing.vehicle.model]
                   .filter(Boolean)
