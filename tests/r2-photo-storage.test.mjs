@@ -9,6 +9,30 @@ const config = {
   secretAccessKey: "c".repeat(64),
   buckets: { "listing-media": "bluebird-listing-media", "ask-evidence": "bluebird-ask-evidence" },
 };
+test("R2 store fingerprints and provider destinations stay pinned to copied configuration", async () => {
+  const supplied = { ...config, buckets: { ...config.buckets } },
+    requests = [];
+  const store = m.createR2PhotoStore(supplied, async (req) => {
+    requests.push(req);
+    return new Response(null, { status: 200 });
+  });
+  const fingerprint = store.fingerprint("listing-media");
+  assert.equal(
+    fingerprint,
+    m.photoSha256(
+      JSON.stringify(["photo-erasure-v1", config.accountId, config.buckets["listing-media"]]),
+    ),
+  );
+  supplied.accountId = "f".repeat(32);
+  supplied.buckets["listing-media"] = "different-bucket";
+  supplied.accessKeyId = "e".repeat(32);
+  assert.equal(store.fingerprint("listing-media"), fingerprint);
+  await store.available("listing-media");
+  const url = new URL(requests[0].url);
+  assert.equal(url.hostname, config.accountId + ".r2.cloudflarestorage.com");
+  assert.equal(url.pathname, "/" + config.buckets["listing-media"]);
+  assert.equal(JSON.stringify({ fingerprint }).includes(config.secretAccessKey), false);
+});
 
 test("immutable card URLs remain reusable across workers within an hour without extending expiry", async () => {
   let now = Date.parse("2026-11-03T03:05:00Z");
