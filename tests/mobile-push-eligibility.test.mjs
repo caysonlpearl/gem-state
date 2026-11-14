@@ -19,7 +19,9 @@ function fixture() {
     shopping_controls: [{ id: true, notifications: true }],
     shopping_accounts: [{ user_id: user, shopping_alerts: true, history_after: "1970-01-01" }],
     mobile_account_deletions: [],
-    shopping_privacy: [{ subject: "u:" + user, personalization: true }],
+    shopping_privacy: [
+      { subject: "u:" + user, personalization: true, history_after: "1970-01-01" },
+    ],
     shopping_queue: [
       {
         id: qid,
@@ -45,22 +47,63 @@ function fixture() {
     partner_job_reports: [],
     partner_vehicle_reports: [],
     published_feed: [{ id: "car" }],
-    shopping_events: [],
+    shopping_events: [
+      {
+        id: randomUUID(),
+        subject: "u:" + user,
+        session_id: randomUUID(),
+        kind: "view",
+        listing_id: listing,
+        occurred_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+      },
+    ],
+    saved_interests: [],
     shopping_favorites: [],
     saved_searches: [],
     account_notification_preferences: [],
     asks: [],
   };
   const db = {
-    rpc: async (name) => {
+    rpc: (name) => {
       if (name === "read_published_dealer_inventory")
         return { data: { vehicles: rows.published_feed } };
       assert.equal(name, "shopping_saved_interests");
-      return { data: [] };
+      let start = 0,
+        end = 499;
+      const q = {
+        select() {
+          return q;
+        },
+        order() {
+          return q;
+        },
+        range(a, b) {
+          start = a;
+          end = b;
+          return q;
+        },
+        abortSignal() {
+          return q;
+        },
+        retry(v) {
+          assert.equal(v, false);
+          return q;
+        },
+        then(resolve) {
+          resolve({
+            data: rows.saved_interests.slice(start, end + 1),
+            count: rows.saved_interests.length,
+            error: null,
+          });
+        },
+      };
+      return q;
     },
     from(table) {
       assert(table in rows, "Unexpected data/provider " + table);
-      let selected = rows[table];
+      let selected = rows[table],
+        start = 0,
+        end = Infinity;
       const value = (r, k) => k.split(".").reduce((o, key) => o?.[key], r);
       const q = {
         select() {
@@ -89,13 +132,29 @@ function fixture() {
         order() {
           return q;
         },
+        abortSignal() {
+          return q;
+        },
+        retry(v) {
+          assert.equal(v, false);
+          return q;
+        },
+        range(a, b) {
+          start = a;
+          end = b;
+          return q;
+        },
         limit() {
           return q;
         },
-        single: async () => ({ data: selected[0] ?? null }),
-        maybeSingle: async () => ({ data: selected[0] ?? null }),
+        single: async () => ({ data: selected[0] ?? null, error: null }),
+        maybeSingle: async () => ({ data: selected[0] ?? null, error: null }),
         then(resolve) {
-          return Promise.resolve({ data: selected, error: null }).then(resolve);
+          return Promise.resolve({
+            data: selected.slice(start, end + 1),
+            error: null,
+            count: selected.length,
+          }).then(resolve);
         },
       };
       return q;
@@ -153,6 +212,7 @@ test("phone reminders stop during the seven-day exact-listing contact pause", as
     at = new Date(Date.now() - 25 * 3600000).toISOString();
   f.rows.shopping_queue[0].kind = "reminder";
   f.rows.shopping_queue[0].payload = { interest_at: Date.parse(at), step: 1 };
+  f.rows.saved_interests = [{ listing_id: f.listing, saved_at: at }];
   f.rows.shopping_events.push({
     id: randomUUID(),
     subject: "u:" + f.user,
@@ -203,6 +263,7 @@ test("phone reminders share durable stop rules without suppressing their own ema
   const item = f.rows.shopping_queue[0];
   item.kind = "reminder";
   item.payload = { interest_at: anchor, step: 1 };
+  f.rows.saved_interests = [{ listing_id: f.listing, saved_at: new Date(anchor).toISOString() }];
   f.rows.shopping_events.push({
     id: randomUUID(),
     subject: "u:" + f.user,
@@ -232,4 +293,29 @@ test("pending deletion suppresses phone shopping even when an earlier notificati
   assert.equal(await f.allowed(), true, "Another account cannot suppress this shopper");
   f.rows.mobile_account_deletions.push({ user_id: f.user, status: "requested" });
   assert.equal(await f.allowed(), false);
+});
+
+test("phone reminders and price alerts drop obsolete favorite copies after actual removal", async () => {
+  for (const kind of ["reminder", "price_drop"]) {
+    const f = fixture(),
+      at = new Date(Date.now() - 25 * 3600000).toISOString();
+    f.rows.shopping_events = [
+      {
+        id: randomUUID(),
+        subject: "u:" + f.user,
+        session_id: randomUUID(),
+        kind: "save",
+        listing_id: f.listing,
+        occurred_at: at,
+      },
+    ];
+    f.rows.saved_interests = [{ listing_id: f.listing, saved_at: at }];
+    f.rows.shopping_favorites = [{ subject: "u:" + f.user, listing_id: f.listing, saved_at: at }];
+    f.rows.shopping_queue[0].kind = kind;
+    if (kind === "reminder")
+      f.rows.shopping_queue[0].payload = { interest_at: Date.parse(at), step: 1 };
+    assert.equal(await f.allowed(), true);
+    f.rows.saved_interests = [];
+    assert.equal(await f.allowed(), false);
+  }
 });

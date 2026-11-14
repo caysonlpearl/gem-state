@@ -53,7 +53,7 @@ export function createMobileHandler(
       "X-Request-Id": requestId,
       Vary: "Origin",
       "X-Bluebird-API-Version": "1",
-      "X-Bluebird-API-Release": "2026-11-13-shopping-rows",
+      "X-Bluebird-API-Release": "2026-11-14-favorite-authority",
       "Access-Control-Expose-Headers":
         "X-Request-Id, X-Bluebird-API-Version, X-Bluebird-API-Release",
     });

@@ -41,3 +41,58 @@ Embedding compute is isolated from the website and inventory VPS. Jobs are bound
 Validation: production code tests cover browser event allowlists, trusted purchase isolation, filtering, ranking, reminder thresholds, RLS, consent audit/withdrawal, preserved saved alerts, retry deduplication, multiple deliveries per day, recipient handoff races, and rendering-time unavailability. PGlite tests substitute array distance for pgvector/HNSW; validate the actual extension/index on production or a real pgvector database before enabling vector retrieval.
 
 Sources: [SigLIP 2 model](https://huggingface.co/google/siglip2-base-patch16-224), [Transformers SigLIP 2 documentation](https://huggingface.co/docs/transformers/model_doc/siglip2), [Google Measurement Protocol](https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference).
+
+## Favorite authority and removals — November 14, 2026
+
+Signed-in favorite state now comes from the actual member watchlist and saved
+partner vehicles/homes/jobs through the existing private
+`shopping_saved_interests` read. A delayed analytics save or an obsolete
+`shopping_favorites` row cannot recreate a removed bookmark's favorite boost.
+Historical save events contribute only while that reference is actually saved;
+member unsave events no longer act as a second bookmark database. Legitimate
+views, contacts, trusted outcomes and requested saved searches keep their own
+meaning. Current saves retain their original reminder anchor, including a later
+real save event; removing and genuinely saving again creates renewed interest.
+History clear keeps real bookmarks while excluding older optional interests.
+
+Delivery checks load complete sent-reminder progress and history before taking their final recipient, queue, search and inventory snapshots; a withdrawal during a slower history read also suppresses discretionary alternatives. Sent steps use the same bounded, exact-count pages and ownership checks as durable choices. A capped or malformed ledger is unavailable, never treated as permission to repeat an older reminder.
+
+The reader validates the subject, checks personalization/deletion state before
+and after the read, and discards the earlier snapshot if permission/history
+changes. Its existing 1,500-event browsing sample now uses deterministic pages
+rather than silently inheriting a 1,000-row API cap. Current saves and durable
+choices are complete, exact-count reads in 500-row pages, with a 5,000-row review
+ceiling. A single eight-second deadline, disabled SDK retries, stable counts,
+duplicate/owner checks and explicit source errors prevent incomplete reads from
+falling back to stale favorites. Bookmark truth is fetched after history/choice
+pages so a removal during slower reads is visible to the subsequent delivery
+check. No provider request or model inference is added.
+
+Price-drop generation and immediate provider-handoff checks require current
+positive interest as well as a confirmed current price change. A removed
+favorite alone no longer qualifies. Independent browsing can still qualify;
+removing a favorite is not a general shopping unsubscribe. Requested matching
+alerts keep their separate permission/search checks. Once a provider has
+accepted a message, later changes cannot recall it.
+
+Member activity stops writing the redundant favorite cache; guest behavior is
+separate. Migration `20261114140000_prune_member_favorite_cache.sql` only prepares
+a service-only cleanup function. It is not installed or executed on production.
+After publishing/verifying the authoritative reader, an operator can retire
+recognized member-cache rows in batches of at most 100. Each brief operator transaction holds a schema/write lock and refuses unreviewed children, deletion hooks, rules or inheritance before touching data. `remaining: true`
+includes rows locked by another transaction, so a zero-deletion batch is not
+proof of completion. Guest favorites, actual bookmark tables, history, choices
+and unrecognized subjects are preserved; unknown subjects require separate
+review. No cleanup scheduler or deletion worker is enabled. The runtime fix
+uses the already-installed saved-interest RPC and does not depend on this
+cleanup migration.
+
+Synthetic tests reproduce the former ghost-favorite behavior, execute the real
+bookmark RPC against member/partner records, cover removal/resave, anchors,
+multiple accounts, unavailable asks, paginated saves/choices/history, malformed
+or capped reads, privacy changes, guest isolation and stalled bodies. Delivery
+fixtures remove a bookmark during rendering and verify no provider handoff.
+The real two-connection PostgreSQL gate verifies locked-cache skipping,
+remaining-work reporting, preserved guest rows and unchanged deletion-boundary
+coverage. These are source/fixture checks, not production-member or physical
+phone journey evidence. No real bookmark, optional record or email was changed.

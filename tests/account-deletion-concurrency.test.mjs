@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, mkdir, readdir, access, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readdir, access, rm, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import pg from "pg";
 import {
@@ -995,6 +995,65 @@ test(
           [privateActive],
         ),
         /Private account records unavailable/,
+      );
+      await a.query(
+        await readFile(
+          new URL(
+            "../supabase/migrations/20261114140000_prune_member_favorite_cache.sql",
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+      );
+      // Retiring the duplicate analytics cache neither adds lifecycle hooks nor
+      // changes the deletion components' current schema contract.
+      assert.equal(
+        (await a.query("select account_deletion_private_barrier_current() ok")).rows[0].ok,
+        true,
+      );
+      assert.deepEqual(
+        (await a.query("select account_access_coverage() coverage")).rows[0].coverage,
+        { unguarded_functions: 0, unguarded_tables: 0, helper_privilege_gaps: 0 },
+      );
+      await a.query("delete from shopping_favorites");
+      const cachedA = randomUUID(),
+        cachedB = randomUUID(),
+        guest = "g:" + randomUUID();
+      await a.query("insert into auth.users(id) values($1),($2)", [cachedA, cachedB]);
+      await a.query(
+        "insert into shopping_privacy(subject,personalization) values($1,true),($2,true),($3,true)",
+        ["u:" + cachedA, "u:" + cachedB, guest],
+      );
+      await a.query(
+        "insert into shopping_favorites(subject,listing_id) values($1,'dealerfeed-locked'),($2,'dealerfeed-other'),($3,'dealerfeed-guest')",
+        ["u:" + cachedA, "u:" + cachedB, guest],
+      );
+      await a.query("begin");
+      await a.query("select 1 from shopping_favorites where subject=$1 for update", [
+        "u:" + cachedA,
+      ]);
+      assert.deepEqual(
+        (await b.query("select prune_member_favorite_cache(1) result")).rows[0].result,
+        { deleted: 1, remaining: true },
+        "a locked member cache row is skipped without being called complete",
+      );
+      assert.equal(
+        (
+          await b.query("select count(*)::int n from shopping_favorites where subject=$1", [
+            "u:" + cachedA,
+          ])
+        ).rows[0].n,
+        1,
+      );
+      await a.query("commit");
+      assert.deepEqual(
+        (await b.query("select prune_member_favorite_cache(1) result")).rows[0].result,
+        { deleted: 1, remaining: false },
+      );
+      assert.equal(
+        (await b.query("select count(*)::int n from shopping_favorites where subject=$1", [guest]))
+          .rows[0].n,
+        1,
       );
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);

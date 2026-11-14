@@ -1,3 +1,4 @@
+import * as activityReads from "../src/lib/shopping-activity.server.ts";
 import * as deletionAccess from "../src/lib/account-deletion-access.server.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -22,6 +23,7 @@ function load(source, modules) {
 }
 const shared = load(compile("shopping.server.ts"), {
   "./shopping-contract.ts": contract,
+  "./shopping-activity.server.ts": activityReads,
   "./account-deletion-access.server.ts": deletionAccess,
 });
 const handle = load(compile("mobile-shopping.server.ts"), {
@@ -51,7 +53,7 @@ function fixture() {
   const other = { ...car, id: "dealerfeed-other" },
     weapon = { ...car, id: "dealerfeed-weapon", categorySlug: "firearms", title: "A rifle" };
   const tables = {
-    shopping_privacy: [{ subject, personalization: true }],
+    shopping_privacy: [{ subject, personalization: true, history_after: "1970-01-01" }],
     shopping_controls: [
       { id: true, tracking: true, recommendations: true, model_version: "rules-v1" },
     ],
@@ -99,7 +101,9 @@ function fixture() {
     },
     from(name) {
       assert(name in tables, "Unexpected table " + name);
-      let rows = tables[name];
+      let rows = tables[name],
+        start = 0,
+        end = Infinity;
       const q = {
         select() {
           return q;
@@ -123,6 +127,18 @@ function fixture() {
         order() {
           return q;
         },
+        abortSignal() {
+          return q;
+        },
+        retry(value) {
+          assert.equal(value, false);
+          return q;
+        },
+        range(a, b) {
+          start = a;
+          end = b;
+          return q;
+        },
         limit(n) {
           rows = rows.slice(0, n);
           return q;
@@ -130,10 +146,14 @@ function fixture() {
         upsert() {
           return q;
         },
-        maybeSingle: async () => ({ data: rows[0] ?? null }),
-        single: async () => ({ data: rows[0] ?? null }),
+        maybeSingle: async () => ({ data: rows[0] ?? null, error: null }),
+        single: async () => ({ data: rows[0] ?? null, error: null }),
         then(resolve) {
-          return Promise.resolve({ data: rows, error: null }).then(resolve);
+          return Promise.resolve({
+            data: rows.slice(start, end + 1),
+            error: null,
+            count: rows.length,
+          }).then(resolve);
         },
       };
       return q;
