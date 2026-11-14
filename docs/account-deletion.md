@@ -615,3 +615,52 @@ before the full deletion processor is operational. Tests use synthetic SQL and
 intercepted signed HTTP; two real PostgreSQL connections also verify concurrent
 R2 replay produces only one receipt/object observation. No live account, file or
 provider credential was used.
+
+## Bounded private shopping-data erasure — November 14, 2026
+
+`20261114100000_account_deletion_shopping_erasure.sql` and the private
+`createAccountDeletionShoppingErasure` adapter implement actual row removal for
+`shopping_events`, `shopping_choices`, `shopping_favorites`,
+`shopping_experiments`, `shopping_ad_outbox` and `shopping_privacy`.
+They are not connected to a request route or scheduler, and the migration never
+enables the deletion worker. This source batch remains undeployed.
+
+Each call requires the matching records-phase job, user, unexpired lease, enabled
+worker and complete access boundaries. It deletes at most 100 rows from one
+reviewed table in a short transaction, locks the job against concurrent workers,
+and returns only a source/count/pass receipt. Choice children precede their
+privacy parent. Unknown incoming foreign-key relationships require review rather
+than triggering an unbounded/unreviewed cascade. Lost acknowledgements resume
+from remaining rows; no private content, member IDs or raw database errors are
+returned in progress receipts. Contradictory subject/user ownership stops the
+batch instead of erasing another member's rows.
+
+Six insert/update guards prevent late member collection or export writes from
+restoring the erased data. They reuse the request/job insertion lock and check
+the live account/deletion state, including for service-role writes. Guest and
+other-member activity remains independent. Existing status-only export
+suppression and false/false privacy choices remain permitted so deletion-request
+suppression still works. The guard/shared-writer function definitions and enabled
+trigger definitions are checked against a private pinned contract before/after cleanup; missing,
+disabled or changed guards refuse progress. Worker/member roles cannot change
+that contract. Normal table permissions are not expanded.
+
+A false/false privacy write holds an Auth key-share lock until commit. Auth
+removal therefore waits for an earlier decline write, and a later write cannot
+recreate privacy state after the identity has gone. A completed records pass
+can still be followed by such an earlier-in-flight decline. The full identity
+adapter **must call this component again after Auth removal**, using the identity
+phase and current lease, before advancing to verification. The independent
+verification RPC requires an absent identity and checks that all six sources
+remain empty; it never repairs a failed result. `passDone` is only this component's
+pass result, never permission to advance the whole records/identity phase.
+
+This does not remove financial records, consent evidence, public authored
+content, general analytics, conversations, native retry receipts, other account
+tables, provider credentials, media or shared business assets. Their respective
+cleanup/retention adapters and the complete processor still remain necessary.
+Synthetic tests verify target-only removal, bounded choice cascades, preserved
+financial fixtures, permission loss, changed guards, unknown relationships,
+account isolation and late opt-outs. Real PostgreSQL connections verify
+request/write ordering, operator pause, concurrent cleanup and identity/decline
+ordering. No production account or member data was used or deleted.
