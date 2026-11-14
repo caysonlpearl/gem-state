@@ -27,20 +27,26 @@ try {
         if (url.origin === "https://onbluebird.com" && url.pathname.startsWith("/api/mobile/v1/")) {
           // The packaged app uses this native origin. The public preview origin is
           // deliberately rejected by production; this read-only harness adapts it.
-          const response = await route.fetch({
-            headers: {
-              ...route.request().headers(),
-              origin: "capacitor://localhost",
-              "user-agent": "Bluebird (https://onbluebird.com)",
-            },
-          });
-          return route.fulfill({
-            response,
-            headers: {
-              ...response.headers(),
-              "access-control-allow-origin": new URL(page.url()).origin,
-            },
-          });
+          try {
+            const response = await route.fetch({
+              headers: {
+                ...route.request().headers(),
+                origin: "capacitor://localhost",
+                "user-agent": "Bluebird (https://onbluebird.com)",
+              },
+            });
+            return await route.fulfill({
+              response,
+              headers: {
+                ...response.headers(),
+                "access-control-allow-origin": new URL(page.url()).origin,
+              },
+            });
+          } catch {
+            // Navigation can cancel a background read. Never print request headers.
+            if (!page.isClosed()) await route.abort("failed").catch(() => {});
+            return;
+          }
         }
         return route.continue();
       }
@@ -67,9 +73,18 @@ try {
     await page.screenshot({ path: resolve(output, `browse-${viewport.width}.png`) });
     await page.evaluate(() => window.scrollTo(0, 150));
     const previousScroll = await page.evaluate(() => window.scrollY);
+    const listingTitle = await page
+      .locator(".listing-card")
+      .first()
+      .getByRole("heading", { level: 3 })
+      .innerText();
     await page.locator(".listing-card").first().click();
     await page.waitForURL("**/#/listings/*");
-    await page.getByRole("main").getByRole("heading", { level: 1 }).waitFor({ timeout: 60000 });
+    await page
+      .getByRole("main")
+      .getByRole("heading", { level: 1, name: listingTitle, exact: true })
+      .waitFor({ timeout: 60000 });
+    await page.getByRole("region", { name: "Listing contact actions", exact: true }).waitFor();
     await page.screenshot({ path: resolve(output, `listing-${viewport.width}.png`) });
     await page.getByRole("button", { name: "Go back", exact: true }).click();
     await page.getByRole("heading", { name: "Cars & Trucks", exact: true }).waitFor();
