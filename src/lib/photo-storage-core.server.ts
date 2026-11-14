@@ -11,6 +11,7 @@ import {
   type PhotoSourceMetadata,
   type PhotoStorageMode,
   type PhotoThumbnail,
+  type PhotoWriteIntent,
 } from "./photo-storage";
 import {
   photoObjectKey,
@@ -32,6 +33,7 @@ export type PhotoSource = {
   copy(bucket: PhotoBucket, source: string, destination: string): Promise<void>;
 };
 export type PhotoReceipts = {
+  plan(intents: readonly PhotoWriteIntent[]): Promise<void>;
   read(bucket: PhotoBucket, paths: string[]): Promise<PhotoReceipt[]>;
   record(receipt: PhotoReceipt): Promise<void>;
   reserve(id: string, bytes: number): Promise<void>;
@@ -195,15 +197,32 @@ export function createPhotoStorage(deps: {
     const key = photoObjectKey(path, sha256);
     const thumbHash = thumbnail ? photoSha256(thumbnail.bytes) : null;
     const thumbKey = thumbHash ? photoObjectKey(path, thumbHash, true) : null;
+    const target = r2();
     await deps.receipts.reserve(
       photoSha256(`${bucket}/${path}/${sha256}`),
       bytes.byteLength + (thumbnail?.bytes.byteLength ?? 0),
     );
-    await r2().put(bucket, key, bytes, contentType);
-    await r2().verify(bucket, key, bytes.byteLength, sha256);
+    const storeFingerprint = target.fingerprint(bucket);
+    await deps.receipts.plan([
+      { bucket, path, variant: "original", sha256, bytes: bytes.byteLength, storeFingerprint },
+      ...(thumbnail && thumbHash
+        ? [
+            {
+              bucket,
+              path,
+              variant: "thumbnail" as const,
+              sha256: thumbHash,
+              bytes: thumbnail.bytes.byteLength,
+              storeFingerprint,
+            },
+          ]
+        : []),
+    ]);
+    await target.put(bucket, key, bytes, contentType);
+    await target.verify(bucket, key, bytes.byteLength, sha256);
     if (thumbnail && thumbKey && thumbHash) {
-      await r2().put(bucket, thumbKey, thumbnail.bytes, thumbnail.contentType);
-      await r2().verify(bucket, thumbKey, thumbnail.bytes.byteLength, thumbHash);
+      await target.put(bucket, thumbKey, thumbnail.bytes, thumbnail.contentType);
+      await target.verify(bucket, thumbKey, thumbnail.bytes.byteLength, thumbHash);
     }
     const receipt: PhotoReceipt = {
       bucket,

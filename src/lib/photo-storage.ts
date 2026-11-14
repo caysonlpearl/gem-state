@@ -1,6 +1,14 @@
 export const PHOTO_BUCKETS = ["listing-media", "ask-evidence"] as const;
 export type PhotoBucket = (typeof PHOTO_BUCKETS)[number];
 export type PhotoStorageMode = "supabase" | "mirror" | "r2";
+export type PhotoWriteIntent = Readonly<{
+  bucket: PhotoBucket;
+  path: string;
+  variant: "original" | "thumbnail";
+  sha256: string;
+  bytes: number;
+  storeFingerprint: string;
+}>;
 export const MAX_PHOTO_BYTES = 50 * 1024 * 1024;
 export const MAX_THUMBNAIL_BYTES = 512 * 1024;
 export const PHOTO_THUMBNAIL_WIDTH = 640;

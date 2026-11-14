@@ -69,6 +69,9 @@ export function photoStorageFixture(mode = "r2", controls = {}) {
       ...["listing-media", "ask-evidence"].map((bucket) => [`${bucket}/${path}`, content]),
     ]),
     records: new Map(),
+    plans: [],
+    failPlan: false,
+    beforePlan: null,
     r2: new Map(),
     sourceSigns: [],
     sourceCopies: [],
@@ -110,6 +113,12 @@ export function photoStorageFixture(mode = "r2", controls = {}) {
     },
   };
   const receipts = {
+    async plan(intents) {
+      if (state.failPlan)
+        throw new Error("Photo write planning is unavailable. Retry your upload.");
+      await state.beforePlan?.(intents);
+      state.plans.push(...intents.map((value) => ({ ...value })));
+    },
     async read(bucket, paths) {
       state.receiptReads++;
       if (state.failReceipts) throw new Error("offline");
@@ -124,6 +133,9 @@ export function photoStorageFixture(mode = "r2", controls = {}) {
     },
   };
   const r2 = {
+    fingerprint(bucket) {
+      return photoSha256(JSON.stringify(["fixture-store", bucket]));
+    },
     async available() {
       return state.healthy;
     },
