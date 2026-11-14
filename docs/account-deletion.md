@@ -415,6 +415,16 @@ account must not acquire ownership of catalog media merely through a coincident
 identifier. Product images, model files and model posters must all be included
 in the eventual shared-media inventory and ownership plan before any erasure.
 
+This correction does not authorize catalog or financial erasure.
+
+Deploy the original write-barrier migration and this correction in one atomic
+installation when neither is installed, journaling both exact sources. Neither
+has been installed on production by this source batch. The tests now include
+parent/uploader columns, legacy reference keys, parent-only retargeting and
+catalog UUID/public-path namespaces, in addition to the actual upload/receipt and
+photo-runner SQL. Real PostgreSQL still checks request/write ordering with two
+connections. The cleanup worker remains disabled.
+
 ## Private media reference inventory — November 14, 2026
 
 The next source batch adds a durable, service-only inventory of database media
@@ -459,12 +469,36 @@ pagination/rescans, physical-key history, privacy exclusions, pending upload and
 copy metadata, access controls, lease rollback and premature completion. The real
 two-connection PostgreSQL gate also checks concurrent page retry and operator
 pause ordering. No production member, message, file or account is used as a test.
-This correction does not authorize catalog or financial erasure.
 
-Deploy the original write-barrier migration and this correction in one atomic
-installation when neither is installed, journaling both exact sources. Neither
-has been installed on production by this source batch. The tests now include
-parent/uploader columns, legacy reference keys, parent-only retargeting and
-catalog UUID/public-path namespaces, in addition to the actual upload/receipt and
-photo-runner SQL. Real PostgreSQL still checks request/write ordering with two
-connections. The cleanup worker remains disabled.
+## Storage metadata write ordering — November 14, 2026
+
+The existing session boundary already covers `storage.objects` and
+`storage.buckets`. Its stable session predicate alone does not serialize an
+authorized, uncommitted metadata write with a concurrent deletion request. A
+two-connection PostgreSQL reproduction demonstrated a record becoming visible
+only after the request committed, too late for an intervening inventory read.
+
+The next additive migration strengthens only the authenticated INSERT/UPDATE
+check on `storage.objects`. A volatile, account-derived writer helper takes the
+same shared advisory lock as the member-photo pipeline, then rechecks the current
+session. Request/job insertion takes the matching exclusive lock. An earlier
+accepted metadata write must finish before the request, or a later write waits
+and is rejected after the request commits. Retained repeatable-read/serializable
+snapshots are rejected. No folder prefix is treated as proof of file ownership;
+existing permissive bucket/folder rules and the restrictive read/delete session
+predicate remain in force.
+
+The boundary installer retains this stronger check when recreating a missing
+Storage policy. Its existing policy fingerprint registry and worker coverage
+contract detect policy drift without changing the worker API. Installation
+requires a disabled worker, the prior member-photo write barrier, complete access
+coverage, and the reviewed existing installer body hash; unexpected source changes
+abort rather than being overwritten.
+
+This is metadata ordering, not cancellation or proof of physical erasure for an
+HTTP upload/copy already accepted by a provider. Provider reconciliation, signed
+upload expiry/late-copy handling, retained versions and final media verification
+remain required. The migration is not installed on production and enables no
+worker or deletion. Synthetic tests cover active/other/pending/revoked accounts,
+retained snapshots, denied guest access, policy drift/repair, installation refusal,
+and both write/request orders in real PostgreSQL. No live file is a test fixture.

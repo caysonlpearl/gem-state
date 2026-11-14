@@ -11,6 +11,10 @@ import {
   memberPhotoReceipt,
 } from "./helpers/account-deletion-photo-database.mjs";
 import { installInventorySources } from "./helpers/account-deletion-inventory-database.mjs";
+import {
+  installStorageAccessFixture,
+  storageWriterMigration,
+} from "./helpers/account-deletion-storage-database.mjs";
 const exec = promisify(execFile);
 async function binaries() {
   const choices = [];
@@ -424,6 +428,88 @@ test(
       await assert.rejects(
         a.query("select scan_account_deletion_media_inventory($1,$2,$3,1)", inventoryArgs),
         /Deletion inventory unavailable/,
+      );
+      await installStorageAccessFixture({ exec: (sql) => a.query(sql) }, { applyMigration: false });
+      const storageMember = async () => {
+        const user = randomUUID(),
+          session = randomUUID();
+        await a.query("insert into auth.users(id) values($1)", [user]);
+        await a.query("insert into auth.sessions(id,user_id) values($1,$2)", [session, user]);
+        return { user, session };
+      };
+      const beginMember = async (client, member) => {
+        await client.query("begin");
+        await client.query("select set_config('request.jwt.claims',$1,true)", [
+          JSON.stringify({ role: "authenticated", sub: member.user, session_id: member.session }),
+        ]);
+        await client.query("set local role authenticated");
+      };
+      // Reproduce the old RLS-only race: an earlier authorized metadata insert
+      // remains invisible to inventory until after the deletion request commits.
+      const unguarded = await storageMember(),
+        oldPath = `${unguarded.user}/old-race.jpg`;
+      await beginMember(a, unguarded);
+      await a.query("insert into storage.objects(bucket_id,name) values('listing-media',$1)", [
+        oldPath,
+      ]);
+      await a.query("reset role");
+      await b.query("select mobile_request_deletion($1)", [unguarded.user]);
+      assert.equal(
+        (await b.query("select count(*)::int n from storage.objects where name=$1", [oldPath]))
+          .rows[0].n,
+        0,
+      );
+      await a.query("commit");
+      assert.equal(
+        (await b.query("select count(*)::int n from storage.objects where name=$1", [oldPath]))
+          .rows[0].n,
+        1,
+        "before the fix, an accepted file write can appear after the request/inventory boundary",
+      );
+      await a.query(storageWriterMigration());
+      const early = await storageMember(),
+        earlyPath = `${early.user}/before-request.jpg`;
+      await beginMember(a, early);
+      await a.query("insert into storage.objects(bucket_id,name) values('listing-media',$1)", [
+        earlyPath,
+      ]);
+      await a.query("reset role");
+      const waitingRequest = b.query("select mobile_request_deletion($1)", [early.user]);
+      waitingRequest.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "deletion waits for an already authorized Storage write to commit",
+      );
+      await a.query("commit");
+      await waitingRequest;
+      assert.equal(
+        (await a.query("select count(*)::int n from storage.objects where name=$1", [earlyPath]))
+          .rows[0].n,
+        1,
+      );
+      const late = await storageMember(),
+        latePath = `${late.user}/after-request.jpg`;
+      await a.query("begin");
+      await a.query("select mobile_request_deletion($1)", [late.user]);
+      await beginMember(b, late);
+      const lateStorage = b.query(
+        "insert into storage.objects(bucket_id,name) values('listing-media',$1)",
+        [latePath],
+      );
+      lateStorage.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "a later Storage write waits for the pending deletion request",
+      );
+      await a.query("commit");
+      await assert.rejects(lateStorage, /row-level security policy|Account access is unavailable/);
+      await b.query("rollback");
+      assert.equal(
+        (await a.query("select count(*)::int n from storage.objects where name=$1", [latePath]))
+          .rows[0].n,
+        0,
       );
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);
