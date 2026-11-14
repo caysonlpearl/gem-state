@@ -66,17 +66,42 @@ try {
     const firstHomeCard = home.locator(".listing-card").first();
     await firstHomeCard.waitFor({ timeout: 60000 });
     const firstListingBox = await firstHomeCard.boundingBox();
+    const homeCardGeometry = await home
+      .locator(".homepage-lead-vehicles .listing-card")
+      .evaluateAll((cards) =>
+        cards.map((card) => {
+          const box = card.getBoundingClientRect();
+          return {
+            title: card.querySelector("h3")?.textContent,
+            text: card.textContent,
+            x: box.x,
+            y: box.y,
+            width: box.width,
+            height: box.height,
+            rowDisplay: getComputedStyle(card.parentElement.parentElement).display,
+            rowWrap: getComputedStyle(card.parentElement.parentElement).flexWrap,
+          };
+        }),
+      );
     assert(
       firstListingBox && firstListingBox.y < 380,
       "Real listings appear near the top without a hero",
     );
+    const secondHomeCard = home.locator(".homepage-lead-vehicles .listing-card").nth(1);
+    await secondHomeCard.waitFor();
+    const secondHomeBox = await secondHomeCard.boundingBox();
+    assert(firstListingBox.width < viewport.width / 2);
+    assert(firstListingBox.height < (viewport.width < 640 ? 250 : 310));
+    assert(secondHomeBox && secondHomeBox.x + secondHomeBox.width <= viewport.width - 11);
+    assert.equal(await home.getByText("Buy and sell locally.", { exact: true }).count(), 0);
+    assert.equal(await home.getByRole("link", { name: "MarketCheck", exact: true }).count(), 0);
     await page.waitForFunction(() => {
       const region = document.querySelector('section[aria-label="Marketplace homepage"]');
       const image = region?.querySelector(".listing-card img");
       return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0;
     });
     await page.screenshot({ path: resolve(output, `home-${viewport.width}.png`) });
-    await page.getByRole("button", { name: "All cars & trucks", exact: true }).click();
+    await page.getByRole("button", { name: "See all vehicles", exact: true }).click();
     await page.getByRole("heading", { name: "Cars & Trucks", exact: true }).waitFor();
     const browse = page.getByRole("region", { name: "Browse listings", exact: true });
     await browse.locator(".listing-card").first().waitFor({ timeout: 60000 });
@@ -87,8 +112,9 @@ try {
     const listingTitle = await browse
       .locator(".listing-card")
       .first()
-      .getByRole("heading", { level: 3 })
-      .innerText();
+      .getByRole("link", { name: /^View listing:/ })
+      .getAttribute("aria-label")
+      .then((label) => label.replace(/^View listing: /, ""));
     await browse.locator(".listing-card").first().click();
     await page.waitForURL("**/#/listings/*");
     await page
@@ -129,6 +155,7 @@ try {
       viewport,
       cards,
       firstListingTop: firstListingBox.y,
+      homeCardGeometry,
       compactHome: true,
       detailOpened: true,
       backRestoresCategoryAndScroll: true,

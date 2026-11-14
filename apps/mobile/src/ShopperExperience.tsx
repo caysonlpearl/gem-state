@@ -46,8 +46,10 @@ export function ListingTile({
   learning,
   onOpen,
   view = "grid",
+  density = "standard",
 }: {
   view?: "grid" | "list";
+  density?: "standard" | "compact";
   card: MobileListing;
   position: number;
   placement?: string;
@@ -121,6 +123,7 @@ export function ListingTile({
   return (
     <OpenListing.Provider value={open}>
       <View
+        {...(view === "grid" ? { density } : {})}
         className="listing-card"
         listing={listingPresentation(card)}
         elementRef={ref}

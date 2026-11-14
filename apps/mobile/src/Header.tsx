@@ -60,11 +60,6 @@ export function NativeHeader({
               />
             )}
           </div>
-          {path === "/" && (
-            <p className="mt-0.5 text-[12px] leading-4 text-muted-foreground">
-              Buy and sell locally.
-            </p>
-          )}
         </div>
       </div>
       <header

@@ -119,9 +119,9 @@ try {
       await page.locator(".classifieds-hero-shell, .homepage-featured-categories").count(),
       0,
     );
-    await page.getByText("Buy and sell locally.", { exact: true }).waitFor();
+    assert.equal(await page.getByText("Buy and sell locally.", { exact: true }).count(), 0);
     const lead = page.getByRole("heading", {
-      name: "Cars & trucks for sale in Idaho",
+      name: "Vehicles",
       exact: true,
     });
     await lead.waitFor();
