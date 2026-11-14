@@ -98,13 +98,14 @@ try {
     });
     await page.goto(origin);
     if (missing === "abort-statics") {
-      await page.getByPlaceholder("Search for anything", { exact: true }).waitFor();
+      await page.getByRole("heading", { name: "Vehicles", exact: true }).waitFor();
+      assert.equal(await page.getByText("Connecting to Bluebird…", { exact: true }).count(), 0);
       assert(remote.some((u) => u.endsWith("/bootstrap")));
       assert(requests.some((u) => /\/assets\/main-.*\.js$/.test(u)));
       assert.equal(new URL(page.url()).pathname, "/");
       assert.equal(await page.evaluate(() => typeof AbortSignal.any), "undefined");
       assert.equal(await page.evaluate(() => typeof AbortSignal.timeout), "undefined");
-      results.push({ missing, compiledAppLoads: true });
+      results.push({ missing, compiledAppLoads: true, marketplaceContentLoaded: true });
     } else {
       await page
         .getByRole("heading", { name: "Your phone’s browser needs an update", exact: true })
