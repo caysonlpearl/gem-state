@@ -326,7 +326,24 @@ permissions and malformed/cancelled guards. The separate real PostgreSQL gate
 uses independent connections to prove that claims and checkpoints wait for an
 uncommitted disable and refuse progress after it commits.
 
-This migration must precede use of the updated queue adapter. It has not been
-installed in production, enables no worker, and starts no scheduler or cleanup.
-The six real cleanup adapters and independent verifier remain required. No real
-account or object was erased by this batch.
+This migration must precede use of the updated queue adapter. It enables no
+worker and starts no scheduler or cleanup. The six real cleanup adapters and
+independent verifier remain required. No real account or object was erased.
+
+### Production installation — November 14, 2026
+
+PR #224 passed 1,379 unique automated tests, the website and mobile browser
+regressions and the unsigned iPhone build. Merged main `fe573f7` has the same tree
+as the tested merge. Production preflight on GemList confirmed both previous
+worker function bodies matched the reviewed baseline, all three access-boundary
+counters were zero, processing was disabled and there were no requests or jobs.
+
+The installation committed at 03:46:32 UTC. Its transaction required the disabled
+control and unchanged baseline functions, checked the exact migration source
+hash, installed the migration and journaled that original source atomically.
+A separate read at 03:47:06 UTC confirmed the source and all three function-body
+hashes, denied guest/member execution, allowed service execution and rejected an
+unclaimed lease. Coverage remained zero, processing remained disabled and both
+request/job counts remained zero. These are point observations, not proof of
+operational cleanup or a completed deletion. Installation and release records
+are under `output/account-deletion-live-lease-20261114/`.

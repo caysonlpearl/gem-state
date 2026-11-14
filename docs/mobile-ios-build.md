@@ -72,3 +72,18 @@ Its test profiles expire after seven days, requiring a rebuild/reinstall. This
 does not provide App Store/TestFlight distribution or establish APNs delivery.
 The owner has an iPhone only; physical Android testing still needs another
 tester/device before release.
+
+## Compact homepage signed build — November 14, 2026
+
+The latest bundled app was rebuilt from main `fe573f7`, including the compact
+homepage, floating controls and input-focus correction. Core-plugin sync,
+Personal Team device signing and deep/strict code-signature verification passed.
+Native advertising plugins remained disabled. This replaced the earlier stalled
+local build; logs and binary/bundled-index hashes are recorded under
+`output/mobile-device-checks-20261114/`.
+
+The owner reported Wi-Fi connectivity again, but CoreDevice and Device Hub still
+reported the paired iPhone unavailable. An installation attempt failed with
+CoreDevice 4016 before trusted device connectivity was available. This build has
+not been installed or visually verified on the physical phone. Keep it distinct
+from the previously installed version and recheck connectivity before retrying.
