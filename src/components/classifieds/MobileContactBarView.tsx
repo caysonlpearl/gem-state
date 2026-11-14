@@ -2,7 +2,7 @@ import type { trackSellerContact as SellerContactHandler } from "@/lib/analytics
 import { gunsComProfile } from "@/config/retailers";
 import { hasApprovedDealer } from "@/lib/vehicle-shopping";
 import { DeviceMobile, Phone } from "@phosphor-icons/react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { adoptionPriceLabel, formatClassifiedPrice } from "@/lib/classifieds-display";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
@@ -34,6 +34,7 @@ export function MobileContactBarView({
   aboveNavigation?: boolean;
 }) {
   const user = { id: userId };
+  const contact = useRef<HTMLDivElement>(null);
   const approvedDealer = hasApprovedDealer(listing);
   const seller = listing.seller;
   const isOwnListing = Boolean(isSignedIn && seller?.userId && seller.userId === user?.id);
@@ -69,6 +70,22 @@ export function MobileContactBarView({
     document.documentElement.classList.add("has-mobile-contact-bar");
     return () => document.documentElement.classList.remove("has-mobile-contact-bar");
   }, [hidden]);
+  useEffect(() => {
+    if (hidden || !aboveNavigation || !contact.current) return;
+    const property = "--bluebird-native-contact-height";
+    const measure = () =>
+      document.documentElement.style.setProperty(
+        property,
+        `${Math.ceil(contact.current?.getBoundingClientRect().height ?? 80)}px`,
+      );
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(contact.current);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty(property);
+    };
+  }, [hidden, aboveNavigation]);
 
   if (hidden) return null;
 
@@ -86,6 +103,7 @@ export function MobileContactBarView({
 
   return (
     <div
+      ref={contact}
       role="region"
       aria-label="Listing contact actions"
       className={`fixed inset-x-0 ${bottomClassName ?? (aboveNavigation ? "bottom-[var(--bluebird-native-navigation-height,calc(52px+env(safe-area-inset-bottom)))]" : "bottom-0")} z-40 border-t border-border bg-background/95 ${aboveNavigation ? "pb-3 pl-[calc(1rem+env(safe-area-inset-left))] pr-[calc(1rem+env(safe-area-inset-right))]" : "px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"} pt-3 backdrop-blur lg:hidden`}

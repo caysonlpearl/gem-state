@@ -1,6 +1,7 @@
 import { mobilePrimaryCategories } from "../../config/mobile-navigation";
 import type { ComponentType, ReactNode } from "react";
 import { CategoryArtwork } from "../classifieds/CategoryIcon";
+import { Plus } from "@phosphor-icons/react";
 
 export type MarketplaceMenuLinkProps = {
   to: "/browse" | "/create-listing" | "/notifications" | "/policies";
@@ -17,6 +18,7 @@ export function MarketplaceMobileMenu({
   renderLink: RenderLink,
   privacyAction,
   alwaysVisible = false,
+  compact = false,
 }: {
   categories?: readonly { slug: string; name: string; description: string; group?: string }[];
   isSignedIn: boolean;
@@ -24,6 +26,7 @@ export function MarketplaceMobileMenu({
   renderLink: ComponentType<MarketplaceMenuLinkProps>;
   privacyAction?: ReactNode;
   alwaysVisible?: boolean;
+  compact?: boolean;
 }) {
   return (
     <div
@@ -31,21 +34,23 @@ export function MarketplaceMobileMenu({
       className={`border-t border-border bg-surface ${alwaysVisible ? "" : "lg:hidden"}`}
     >
       <div className="mx-auto w-full min-w-0 max-w-[1360px] overflow-x-hidden px-4 py-4 sm:px-8">
-        <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Browse marketplace
-            </p>
-            <p className="mt-1 text-[13px] text-foreground">Find your next local gem.</p>
+        {!compact && (
+          <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                Browse marketplace
+              </p>
+              <p className="mt-1 text-[13px] text-foreground">Find your next local gem.</p>
+            </div>
+            <RenderLink
+              to="/create-listing"
+              onClick={onClose}
+              className="inline-flex min-h-10 max-w-[48%] shrink-0 items-center overflow-hidden rounded-full bg-accent px-3 text-[12px] font-semibold whitespace-nowrap text-ellipsis text-accent-foreground"
+            >
+              Post a listing
+            </RenderLink>
           </div>
-          <RenderLink
-            to="/create-listing"
-            onClick={onClose}
-            className="inline-flex min-h-10 max-w-[48%] shrink-0 items-center overflow-hidden rounded-full bg-accent px-3 text-[12px] font-semibold whitespace-nowrap text-ellipsis text-accent-foreground"
-          >
-            Post a listing
-          </RenderLink>
-        </div>
+        )}
 
         <ul className="grid grid-cols-2 gap-2" aria-label="Main categories">
           {categories.map((category) => (
@@ -74,18 +79,32 @@ export function MarketplaceMobileMenu({
               </RenderLink>
             </li>
           ))}
+          {compact && (
+            <li>
+              <RenderLink
+                to="/create-listing"
+                onClick={onClose}
+                className="flex min-h-[72px] w-full min-w-0 items-center gap-3 rounded-2xl border border-border bg-accent px-3 py-2.5 text-accent-foreground"
+              >
+                <Plus size={32} className="shrink-0" aria-hidden="true" />
+                <span className="text-[13px] font-semibold">Post a listing</span>
+              </RenderLink>
+            </li>
+          )}
         </ul>
 
         <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
-          <RenderLink
-            to="/browse"
-            search={{ sort: "newest" }}
-            onClick={onClose}
-            className="flex min-h-10 items-center rounded-xl border border-border bg-card px-3 text-[12px] font-medium"
-          >
-            Newest listings
-          </RenderLink>
-          {isSignedIn && (
+          {!compact && (
+            <RenderLink
+              to="/browse"
+              search={{ sort: "newest" }}
+              onClick={onClose}
+              className="flex min-h-10 items-center rounded-xl border border-border bg-card px-3 text-[12px] font-medium"
+            >
+              Newest listings
+            </RenderLink>
+          )}
+          {!compact && isSignedIn && (
             <RenderLink
               to="/notifications"
               onClick={onClose}

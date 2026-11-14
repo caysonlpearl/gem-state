@@ -39,7 +39,8 @@
     "test:mobile:storefronts:ui": "node --experimental-strip-types scripts/mobile-storefront-ui-smoke.mjs",
     "test:mobile:runtime:ui": "node scripts/mobile-runtime-ui-smoke.mjs",
     "test:mobile:startup:ui": "node scripts/mobile-startup-ui-smoke.mjs",
-    "test:mobile:home:ui": "node scripts/mobile-home-refresh-ui-smoke.mjs"
+    "test:mobile:home:ui": "node scripts/mobile-home-refresh-ui-smoke.mjs",
+    "test:mobile:polish:ui": "node --experimental-strip-types scripts/mobile-native-polish-ui-smoke.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

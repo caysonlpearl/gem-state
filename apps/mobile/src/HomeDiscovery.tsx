@@ -13,6 +13,7 @@ import { listingPresentation } from "./listing-presentation";
 import { ListingTile } from "./ShopperExperience";
 import { useEffect, useState } from "react";
 import { api } from "./client";
+import { refreshedHomeSelection } from "./home-refresh-selection";
 import {
   mobileListingAllowed,
   type MobileBrowse,
@@ -24,9 +25,11 @@ export function HomeDiscovery({
   learning,
   onBrowse,
   onOpen,
+  refreshSequence = 0,
 }: {
   home: MobileHome;
   learning: boolean;
+  refreshSequence?: number;
   onBrowse: (scope: Partial<Search>) => void;
   onOpen: (id: string) => void;
 }) {
@@ -56,9 +59,10 @@ export function HomeDiscovery({
   const recent = [
     ...new Map([...home.recent, ...cachedJobs].map((card) => [card.id, card])).values(),
   ];
+  const selection = refreshedHomeSelection({ motors: home.motors, recent }, refreshSequence);
   const adapted = {
-    motors: home.motors.map(listingPresentation),
-    recent: recent.map(listingPresentation),
+    motors: selection.motors.map(listingPresentation),
+    recent: selection.recent.map(listingPresentation),
     totalActive: recent.length,
     categoryCounts: {},
   };
@@ -172,7 +176,7 @@ export function HomeDiscovery({
                   card={card}
                   position={position}
                   placement="home:lead"
-                  model="browse-v1"
+                  model="home-discovery-v2"
                   learning={learning}
                   onOpen={onOpen}
                 />
@@ -221,7 +225,7 @@ export function HomeDiscovery({
                       card={card}
                       position={position}
                       placement={`home:${section.title}`}
-                      model="browse-v1"
+                      model="home-discovery-v2"
                       learning={learning}
                       onOpen={onOpen}
                     />

@@ -143,7 +143,7 @@ try {
       size: parseFloat(getComputedStyle(line).fontSize),
       style: getComputedStyle(line).fontStyle,
     }));
-    assert(taglineStyle.size >= 11 && taglineStyle.size <= 13 && taglineStyle.style === "italic");
+    assert(taglineStyle.size >= 11 && taglineStyle.size <= 13 && taglineStyle.style === "normal");
     assert.equal(await shortcuts.getByRole("button").count(), 6);
     assert.equal(await shortcuts.getByRole("button", { name: /Firearms/ }).count(), 0);
     for (const chip of await shortcuts.getByRole("button").all()) {
@@ -254,7 +254,9 @@ try {
     );
     await page.getByRole("button", { name: "Vehicles", exact: true }).click();
     await featuredVehicleRequest;
-    await page.getByRole("heading", { name: "Vehicles", exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "Find your next gem on wheels.", exact: true })
+      .waitFor();
     await primary.getByRole("link", { name: "Home", exact: true }).click();
     await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     await page.getByRole("button", { name: "Open categories", exact: true }).click();
@@ -280,7 +282,9 @@ try {
         location.hash.startsWith("#/search?") &&
         new URLSearchParams(location.hash.split("?")[1]).get("group") === "motors",
     );
-    await page.getByRole("heading", { name: "Vehicles", exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "Find your next gem on wheels.", exact: true })
+      .waitFor();
     await primary.getByRole("link", { name: "Sell", exact: true }).click();
     await page
       .getByRole("heading", { name: "Sign in to post your listing", exact: true })

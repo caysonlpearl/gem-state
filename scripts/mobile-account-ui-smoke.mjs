@@ -648,6 +648,7 @@ try {
       fullPage: true,
     });
     await page.getByRole("button", { name: "View saved listings", exact: true }).click();
+    await page.waitForURL((url) => url.hash === "#/saved");
     assert.equal(new URL(page.url()).hash, "#/saved");
     await page.getByRole("heading", { name: "Saved for later", exact: true }).waitFor();
     savedReady = true;

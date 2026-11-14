@@ -4,6 +4,7 @@ import {
   MARKETCHECK_ID,
   canonicalMarketCheckId,
   dedupeMarketCheckImages,
+  finalizeMarketCheckListing,
   freshMarketCheckInventory,
   marketCheckCachePageKeys,
   marketCheckImages,
@@ -165,6 +166,32 @@ test("an incomplete cached gallery does not hide original photos", () => {
   assert.deepEqual(marketCheckImages(listing), listing.media.photoLinksCached);
   listing.media.photoLinksCached = ["https://cache.example/photo?api_key=private"];
   assert.deepEqual(marketCheckImages(listing), listing.media.photoLinks);
+});
+
+test("repairs galleries previously collapsed in cache without an upstream read", () => {
+  const links = ["front", "inside", "back"].map(
+    (id) => `https://images.example/photo?id=${id}&width=1200`,
+  );
+  const listing = normalizeMarketCheckListing(
+    { ...payload, media: { photo_links: links } },
+    "dealer",
+  );
+  listing.media = { photoLinks: [links[0]], photoLinksCached: [] };
+  const repaired = finalizeMarketCheckListing(listing);
+  assert.deepEqual(marketCheckImages(repaired), links);
+  assert.equal(listing.media.photoLinks.length, 1, "Repair does not mutate saved/shared input");
+  assert.equal(repaired.raw, listing.raw, "The existing payload is reused, not fetched");
+});
+
+test("cache repair keeps newer normalized galleries and strips key-bearing raw photos", () => {
+  const listing = normalizeMarketCheckListing(
+    { ...payload, media: { photo_links: ["https://images.example/private?api_key=secret"] } },
+    "dealer",
+  );
+  const links = ["https://images.example/front.jpg", "https://images.example/inside.jpg"];
+  listing.media = { photoLinks: links, photoLinksCached: [] };
+  assert.deepEqual(marketCheckImages(finalizeMarketCheckListing(listing)), links);
+  assert(!JSON.stringify(finalizeMarketCheckListing(listing).media).includes("secret"));
 });
 
 test("keeps provider failures separate from a confirmed missing listing", () => {

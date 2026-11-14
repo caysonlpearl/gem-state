@@ -34,7 +34,6 @@ import {
 import type { ClassifiedDetail } from "../../../src/lib/classifieds.functions";
 import { rememberContactIntent } from "../../../src/lib/listing-contact-events";
 import { listingIdFromParam, listingPath } from "../../../src/lib/listing-url";
-import { mobileListingDetail } from "../../../src/lib/mobile-listing-detail";
 import type { VehiclePriceInsight } from "../../../src/lib/vehicle-price-insights";
 import { trackAdvertising } from "./advertising";
 import { rememberNativeAuthDestination } from "./auth-destination";
@@ -50,6 +49,8 @@ import { ListingTile, ShoppingRows } from "./ShopperExperience";
 import { trackShopping } from "./shopping";
 import { useListingActivity } from "./shopping-activity";
 import { NativeListingPhotos } from "./ListingPhotos";
+import { peekNativeScreen, readNativeDetail, type NativeDetailResult } from "./screen-resources";
+import { finishLaunchScreen } from "./launch-screen";
 export type MobileDetailResult = {
   listing: ClassifiedDetail;
   stats: { views: number; favorites: number } | null;
@@ -309,36 +310,22 @@ export function NativeListingDetail({
   revision: number;
   applicationsReady?: boolean;
 }) {
-  const [data, setData] = useState<MobileDetailResult | null>(null),
-    [error, setError] = useState(""),
+  const listingId = listingIdFromParam(id);
+  const initial = peekNativeScreen<NativeDetailResult>("detail", listingId, owner);
+  const [data, setData] = useState<MobileDetailResult | null>(initial?.data ?? null),
+    [error, setError] = useState(initial?.error ?? ""),
     [attempt, setAttempt] = useState(0);
   const [queryClient] = useState(
     () => new QueryClient({ defaultOptions: { queries: { retry: false } } }),
   );
-  const listingId = listingIdFromParam(id);
   useEffect(() => {
     const c = new AbortController();
-    setData(null);
-    setError("");
-    api<MobileDetailResult>(
-      `listings/${encodeURIComponent(listingId)}/detail`,
-      "GET",
-      undefined,
-      c.signal,
-    )
+    if (!initial?.data) setData(null);
+    if (!initial?.error || attempt > 0) setError("");
+    readNativeDetail(listingId, owner, c.signal, attempt > 0)
       .then((value) => {
         if (!c.signal.aborted) {
-          const safe = mobileListingDetail(value.listing);
-          if (!safe) {
-            setError("This listing is unavailable in the app.");
-            return;
-          }
-          setData({
-            ...value,
-            listing: safe,
-            canSave: !safe.ended && value.canSave,
-            canMessage: !safe.ended && value.canMessage,
-          });
+          setData(value);
           void trackAdvertising("listing_viewed", value.listing.categorySlug ?? "general");
         }
       })
@@ -347,7 +334,10 @@ export function NativeListingDetail({
           setError(e instanceof Error ? e.message : "This listing could not be loaded.");
       });
     return () => c.abort();
-  }, [listingId, attempt]);
+  }, [listingId, owner, attempt]);
+  useEffect(() => {
+    if (data || error) void finishLaunchScreen();
+  }, [data, error]);
   useEffect(() => {
     const update = (event: Event) => {
       const next = (
@@ -438,6 +428,7 @@ export function NativeListingDetail({
           {createPortal(
             <MobileContactBarView
               aboveNavigation
+              bottomClassName="native-listing-contact bottom-[calc(var(--bluebird-native-navigation-height,68px)+10px)]"
               listing={data.listing}
               isSignedIn={Boolean(owner)}
               userId={owner}

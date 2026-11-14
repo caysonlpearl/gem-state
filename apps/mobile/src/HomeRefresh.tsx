@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ArrowClockwise, ArrowDown } from "@phosphor-icons/react";
 import type { MobileHome } from "../../../src/lib/mobile-contract";
 import { readPublicHome } from "./home-startup";
@@ -14,6 +15,30 @@ export function HomeRefresh({ onData }: { onData: (home: MobileHome) => void }) 
   const apply = useRef(onData),
     request = useRef<AbortController | null>(null);
   apply.current = onData;
+  useEffect(() => {
+    const page = document.getElementById("native-page-surface");
+    if (!page) return;
+    const distance = busy ? 72 : pull;
+    if (!distance && !page.style.transform) return;
+    page.style.transition = pull > 0 && !busy ? "none" : "transform 180ms ease-out";
+    page.style.transform = `translateY(${distance}px)`;
+    const timer =
+      distance === 0
+        ? setTimeout(() => {
+            page.style.removeProperty("transform");
+            page.style.removeProperty("transition");
+          }, 200)
+        : undefined;
+    return () => clearTimeout(timer);
+  }, [pull, busy]);
+  useEffect(
+    () => () => {
+      const page = document.getElementById("native-page-surface");
+      page?.style.removeProperty("transform");
+      page?.style.removeProperty("transition");
+    },
+    [],
+  );
   const refresh = useRef<() => Promise<void>>(async () => {});
   useEffect(() => {
     let alive = true,
@@ -116,25 +141,31 @@ export function HomeRefresh({ onData }: { onData: (home: MobileHome) => void }) 
       >
         Refresh homepage listings
       </button>
-      {(busy || pull > 0) && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+12px)] z-[45] flex min-h-11 items-center gap-2 rounded-full bg-card px-4 py-2 text-xs font-medium text-primary shadow-lg"
-          style={{ transform: `translate(-50%, ${busy ? 12 : pull * 0.4}px)` }}
-        >
-          {busy ? (
-            <ArrowClockwise size={18} className="animate-spin motion-reduce:animate-none" />
-          ) : (
-            <ArrowDown size={18} />
-          )}
-          {busy
-            ? "Refreshing listings…"
-            : pull >= threshold
-              ? "Release to refresh"
-              : "Pull to refresh"}
-        </div>
-      )}
+      {(busy || pull > 0) &&
+        createPortal(
+          <div
+            role="status"
+            aria-live="polite"
+            className="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+16px)] z-0 flex h-11 w-11 -translate-x-1/2 items-center justify-center text-primary"
+          >
+            {busy ? (
+              <ArrowClockwise size={24} className="animate-spin motion-reduce:animate-none" />
+            ) : (
+              <ArrowDown
+                size={24}
+                style={{ transform: `rotate(${Math.min(180, (pull / threshold) * 180)}deg)` }}
+              />
+            )}
+            <span className="sr-only">
+              {busy
+                ? "Refreshing listings…"
+                : pull >= threshold
+                  ? "Release to refresh"
+                  : "Pull to refresh"}
+            </span>
+          </div>,
+          document.body,
+        )}
       {error && (
         <p role="alert" className="mx-3 mt-3 text-sm text-destructive">
           {error}{" "}
