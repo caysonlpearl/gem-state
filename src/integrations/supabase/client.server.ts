@@ -4,6 +4,7 @@
 // For user-authenticated queries (with RLS), use the auth middleware instead.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import { withFetchSignal } from "../../lib/scoped-fetch.server";
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -32,7 +33,7 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-function createSupabaseAdminClient() {
+export function createSupabaseAdminClient(signal?: AbortSignal) {
   // Lovable reserves SUPABASE_* names for its managed backend. Prefer the
   // Bluebird names in hosted environments, with legacy names retained for
   // local development and any existing deployments.
@@ -52,7 +53,7 @@ function createSupabaseAdminClient() {
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     global: {
-      fetch: createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY),
+      fetch: withFetchSignal(createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY), signal),
     },
     auth: {
       storage: undefined,

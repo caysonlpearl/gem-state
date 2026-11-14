@@ -263,8 +263,14 @@ function harness({
       },
     },
     "./photo-storage.server": {
-      signPrivatePhotoUrls: async (bucket, paths, duration, thumbnail) => {
-        reads.push({ table: "sign-owned", bucket, paths, thumbnail });
+      signPrivatePhotoUrls: async (bucket, paths, duration, thumbnail, signal) => {
+        reads.push({
+          table: "sign-owned",
+          bucket,
+          paths,
+          thumbnail,
+          bounded: signal instanceof AbortSignal,
+        });
         return new Map(paths.map((p) => [p, "https://images.fixture.invalid/signed.jpg"]));
       },
     },
@@ -1467,6 +1473,7 @@ test("owned listing reads use live actor scope and ignore forged owner query par
   assert.equal((await h.request(`account/listings/${id}/thumbnail`)).status, 200);
   assert.equal(h.reads.find((r) => r.table === "sign-owned").bucket, "listing-media");
   assert.equal(h.reads.find((r) => r.table === "sign-owned").thumbnail, true);
+  assert.equal(h.reads.find((r) => r.table === "sign-owned").bounded, true);
   assert.equal((await h.request(`account/listings/${id}/editor`)).status, 503);
   assert(!h.reads.some((r) => r.table === "owned-snapshot"));
 });
@@ -1490,6 +1497,7 @@ test("owned listing editor projects one version and signed media without raw sna
   assert(!JSON.stringify(body).includes("storage_path"));
   assert(!JSON.stringify(body).includes("fixture.jpg"));
   assert.equal(h.reads.find((r) => r.table === "sign-owned").thumbnail, false);
+  assert.equal(h.reads.find((r) => r.table === "sign-owned").bounded, true);
 });
 test("listing changes require exact actions, revisions, header IDs, strict caller-free scope and the independent capability", async () => {
   const id = crypto.randomUUID(),

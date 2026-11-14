@@ -677,6 +677,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         paths,
         3600,
         kind === "thumbnail",
+        AbortSignal.timeout(8000),
       );
     if (kind === "thumbnail")
       return (await import("./mobile-account-listings.server")).loadMobileOwnedThumbnail(

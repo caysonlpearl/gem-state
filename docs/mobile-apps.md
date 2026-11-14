@@ -853,15 +853,25 @@ The service-only capability is versioned separately from existing messaging flag
 
 The private server adapters use explicit caller/operation IDs, ownership and
 result validation, disabled automatic retries and eight/15-second client read/write
-budgets. The SQL requests statement limits and a one-second lock-wait timeout;
-verify the effective PostgREST/database timeouts in the deployment preflight.
+budgets. The SQL requests statement limits and a one-second lock-wait timeout.
+The November 14 owner-dashboard inspection found an eight-second statement
+timeout for both `authenticated` and `authenticator`; the write's requested
+15-second function limit does not promise a longer effective HTTP/database budget.
 A timeout remains uncertain: the app must retain the same original request and
 payload. A stale snapshot receives a reload conflict, and private database/provider
 diagnostics are never exposed. The editor API projects the shared domain editor from a single versioned
 snapshot and signs scoped media; raw snapshots and storage paths stay private.
 Version-only reads do not sign images. Visible rows request one thumbnail each,
-separately from the metadata read. Existing storage signing still needs its
-effective transport timeout checked during production preflight.
+separately from the metadata read. Native seller-thumbnail/editor signing now
+supplies one eight-second operation signal to a request-local storage client.
+That signal reaches Supabase receipt/signing transport and the R2 health/object
+checks, preserving shorter SDK and per-object deadlines. It also aborts response
+body reads and prevents subsequent photo batches after expiry. A final signal
+check rejects cancellation even when a lower fallback layer returned an empty map.
+Request-local clients/stores never replace the shared website/background cache.
+The scoped path has its own health/object caches, so real owner-thumbnail/editor
+latency and storage usage still need measuring before activation. No upload,
+deletion, bucket, privilege or provider-configuration behavior is changed.
 
 Before activation: recheck schema drift and deployment prerequisites, rehearse
 the exact additive installation/history transaction, apply and verify
