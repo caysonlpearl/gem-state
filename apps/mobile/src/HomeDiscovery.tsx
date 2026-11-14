@@ -2,7 +2,6 @@ import { MarketplaceVehicleLeadHeader } from "../../../src/components/classified
 import { selectDiscoveryCards } from "../../../src/lib/discovery-ranking";
 import { ArrowRight } from "@phosphor-icons/react";
 import { MarketplaceListingSection } from "../../../src/components/classifieds/MarketplaceListingSection";
-import { CategoryArtwork } from "../../../src/components/classifieds/CategoryIcon";
 import { allocateHomepageRows } from "../../../src/lib/homepage-initial-payload";
 import type { ListingCardSummary } from "../../../src/lib/listing-card-summary";
 import type { MobileHome } from "../../../src/lib/mobile-contract";
@@ -81,30 +80,7 @@ export function HomeDiscovery({
   );
   return (
     <>
-      <div className="homepage-featured-categories mt-5 grid grid-cols-2 gap-2.5 sm:gap-4">
-        {[
-          { slug: "pets", title: "Pets & adoption", tone: "bg-brand-blue/7" },
-          {
-            slug: "cars-trucks",
-            title: "Vehicles",
-            group: "motors" as const,
-            tone: "bg-brand-warm/10",
-          },
-        ].map((category) => (
-          <button
-            key={category.slug}
-            onClick={() =>
-              onBrowse(category.slug, "group" in category ? category.group : undefined)
-            }
-            className={`group flex min-w-0 items-center gap-3 rounded-[20px] border border-primary/15 p-3.5 text-left shadow-sm ${category.tone}`}
-          >
-            <CategoryArtwork slug={category.slug} size={40} />
-            <span className="min-w-0 text-[15px] font-bold leading-tight">{category.title}</span>
-            <ArrowRight size={14} className="ml-auto hidden shrink-0 min-[360px]:block" />
-          </button>
-        ))}
-      </div>
-      <section className="homepage-lead-vehicles mt-6 sm:mt-14">
+      <section className="homepage-lead-vehicles mt-2 sm:mt-5">
         <MarketplaceVehicleLeadHeader
           action={
             <button
