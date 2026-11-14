@@ -611,8 +611,9 @@ browser fixtures, not real-device or production-account activity.
 ## Compact app homepage — November 13, 2026
 
 The owner approved replacing the app's large rotating hero with a small brand
-row and a compact Search area button. A proposed “Buy and sell locally.” tagline
-was removed at the owner's November 14 review. The existing pinned search is the homepage's only
+row and a compact Search area button. A small “Find your next Idaho gem.” line
+now sits below the category shortcuts, in the former introduction gap. The
+existing pinned search is the homepage's only
 query field. A single horizontally scrollable row provides All, Vehicles, Homes,
 Pets & adoption, Jobs and Services shortcuts, with at least 44px touch targets.
 Vehicles retains the full motors group; restricted app categories are absent.
@@ -663,3 +664,17 @@ Browser checks cover complete adjacent cards, compact height/text, header and
 footer reachability, category navigation, permission enforcement and overflow.
 The separate public-catalog journey allows reads only. Source/build/browser proof
 does not establish installation or physical iPhone/Android verification.
+
+### Idaho introduction and natural card height — November 14, 2026
+
+The small introduction uses a 12px system serif italic with a 16px line height.
+It replaces the first inventory section's former 16px top margin, keeping
+listings at the same initial height. It scrolls with the home content and appears
+only on Home. There is no new font download or external service.
+
+Compact card titles retain their two-line maximum, with no reserved minimum
+height. One-line titles place the location directly below the title; longer
+models retain their second line. Cards follow their content height. Standard
+website, saved and search presenters retain their existing title spacing.
+Browser checks verify the tagline's placement/size and that a one-line compact
+title occupies only one line, alongside existing navigation and privacy checks.

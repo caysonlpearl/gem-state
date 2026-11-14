@@ -1,6 +1,22 @@
 @import "../../../src/styles.css";
 @source "./";
 
+/* Fill the existing introduction gap without pushing listings down. */
+.native-home-tagline {
+  margin: 0 12px;
+  color: var(--muted-foreground);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 12px;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 16px;
+  letter-spacing: 0.015em;
+  text-align: center;
+}
+.mobile-home > .homepage-lead-vehicles:first-of-type {
+  margin-top: 0;
+}
+
 /* iPhone focus zoom on smaller fields can leave the whole app clipped after
    navigation. Keep native iOS controls readable without changing shared web or
    Android styles, or disabling the viewport's accessibility zoom settings. */

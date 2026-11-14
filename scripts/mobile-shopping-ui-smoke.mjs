@@ -255,6 +255,17 @@ try {
       await homeCards.nth(0).getByRole("heading", { level: 3 }).innerText(),
       "2024 Ford Explorer",
     );
+    const titleHeight = await homeCards
+      .nth(0)
+      .getByRole("heading", { level: 3 })
+      .evaluate((title) => ({
+        height: title.getBoundingClientRect().height,
+        line: parseFloat(getComputedStyle(title).lineHeight),
+      }));
+    assert(
+      titleHeight.height <= titleHeight.line + 1,
+      "A one-line title must not reserve an empty second line",
+    );
     const homeCardText = await homeCards.nth(0).innerText();
     assert(homeCardText.includes("$10,000") && homeCardText.includes("Boise, ID"));
     assert(
