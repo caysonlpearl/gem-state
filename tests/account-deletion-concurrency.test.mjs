@@ -26,7 +26,7 @@ async function binaries() {
   throw Error("PostgreSQL server tools are required for the deletion concurrency gate");
 }
 test(
-  "real concurrent deletion claims skip locked work and reject an expired worker after recovery",
+  "real deletion workers skip locked jobs, reject stale leases and serialize operator pauses",
   {
     skip:
       process.env.BLUEBIRD_DELETION_PG !== "1"
@@ -212,9 +212,14 @@ test(
           settled = true;
           return result;
         });
+        // Keep a failing fixture from leaving an unhandled query rejection while
+        // finally closes the clients. The awaited promise below still rejects.
+        pending.catch(() => {});
         const deadline = Date.now() + 2000;
         let blocked = false;
         while (Date.now() < deadline && !settled) {
+          // Activity snapshots can be cached for this control transaction.
+          await a.query("select pg_stat_clear_snapshot()");
           blocked =
             (
               await a.query(
