@@ -17,6 +17,7 @@ import {
 } from "./photo-storage";
 import { createR2PhotoStore, photoSha256, readR2PhotoConfig } from "./r2-photo-storage.server";
 import { serverEnv } from "./runtime-env.server";
+import { createSupabasePhotoWritePlanner } from "./photo-write-intents.server";
 
 export function currentPhotoMode() {
   return photoMode(serverEnv("BLUEBIRD_PHOTO_STORAGE_MODE"));
@@ -73,6 +74,7 @@ export function photoReceiptRow(receipt: PhotoReceipt) {
 
 export function createSupabasePhotoReceipts(db: SupabaseClient): PhotoReceipts {
   return {
+    plan: createSupabasePhotoWritePlanner(db).plan,
     async read(bucket, paths) {
       const rows: PhotoReceipt[] = [];
       // PostgREST encodes `in` filters in the URL. A homepage's hundreds of

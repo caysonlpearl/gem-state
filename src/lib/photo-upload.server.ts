@@ -12,6 +12,7 @@ import {
 } from "./photo-storage";
 import { photoObjectKey, photoSha256, type R2PhotoStore } from "./r2-photo-storage.server";
 import { createSupabasePhotoReceipts, createSupabasePhotoSource } from "./photo-storage.server";
+import { createSupabasePhotoWritePlanner } from "./photo-write-intents.server";
 
 type UploadPayload = PrivatePhotoUploadInput & { key: string; thumbnailKey: string };
 
@@ -19,10 +20,22 @@ export async function createPrivatePhotoUpload(
   db: SupabaseClient,
   r2: R2PhotoStore,
   userId: string,
-  input: PrivatePhotoUploadInput,
+  suppliedInput: PrivatePhotoUploadInput,
   mode: PhotoStorageMode,
 ): Promise<PrivatePhotoUploadTicket> {
   if (mode === "supabase") throw new Error("Photo storage changed; retry your upload.");
+  const input = Object.freeze({
+    extension: suppliedInput.extension,
+    bytes: suppliedInput.bytes,
+    contentType: suppliedInput.contentType,
+    sha256: suppliedInput.sha256,
+    evidence: suppliedInput.evidence,
+    thumbnail: Object.freeze({
+      bytes: suppliedInput.thumbnail.bytes,
+      contentType: suppliedInput.thumbnail.contentType,
+      sha256: suppliedInput.thumbnail.sha256,
+    }),
+  });
   const id = crypto.randomUUID();
   const path = `${userId}/${crypto.randomUUID()}.${input.extension}`;
   const key = photoObjectKey(path, input.sha256);
@@ -42,6 +55,24 @@ export async function createPrivatePhotoUpload(
     .abortSignal(AbortSignal.timeout(5000))
     .retry(false);
   if (error) throw new Error("The photo-upload allowance is unavailable. Try again later.");
+  await createSupabasePhotoWritePlanner(db).plan([
+    ...buckets.map((bucket) => ({
+      bucket,
+      path,
+      variant: "original" as const,
+      sha256: input.sha256,
+      bytes: input.bytes,
+      storeFingerprint: r2.fingerprint(bucket),
+    })),
+    {
+      bucket: "listing-media",
+      path,
+      variant: "thumbnail",
+      sha256: input.thumbnail.sha256,
+      bytes: input.thumbnail.bytes,
+      storeFingerprint: r2.fingerprint("listing-media"),
+    },
+  ]);
   const uploads: PrivatePhotoUploadTicket["uploads"] = [];
   for (const bucket of buckets) {
     uploads.push({

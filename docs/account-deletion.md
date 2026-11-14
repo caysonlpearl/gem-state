@@ -693,8 +693,8 @@ write to handle, not a completed erasure. Known verified-receipt reconciliation
 continues separately. A completion guard refuses remaining member-prefix/linked
 intent evidence; this does not replace full legacy/shared ownership verification.
 
-This is the schema-first preparation batch. Existing upload/copy paths have
-**not yet been connected** to this ledger. The next runtime batch must require
+This is the schema-first preparation batch. Existing deployed upload/copy paths
+have **not yet been connected** to this ledger. The runtime release must require
 planning before every R2 PUT and before returning native upload links, after the
 schema and independently verified store pins have been installed. Deploying those
 runtime hooks before their database prerequisites would reject uploads. Old
@@ -711,3 +711,43 @@ exercise real SQL, exact replay, rollback, missing stores, changed stores,
 unavailable accounts, unfinished uploads, legacy references, Auth removal and
 permissions. Real PostgreSQL additionally orders concurrent intents and deletion
 requests using the existing account locks.
+
+## Required R2 write-planning runtime — prepared in draft
+
+The runtime follow-up adds `createSupabasePhotoWritePlanner`, binds it to the
+shared photo receipts adapter, and requires an acknowledged plan before the
+shared server upload/migration pipeline sends any R2 bytes. The provider instance
+used for the plan remains the one used for its PUTs and verification. Existing
+verified-photo receipts are still published only after bytes pass verification.
+R2-only planning failure rejects the operation; mirror mode preserves its
+existing retained-source fallback without sending unplanned R2 bytes.
+
+Native upload provisioning snapshots the complete ticket payload, commits the
+original/evidence/thumbnail intent batch and only then signs upload links. Caller
+mutation during the ticket reservation cannot change the planned/signed targets.
+An unavailable planner returns no native links, even if the upload allowance was
+already reserved. The private planner copies/allowlists fields, bounds batches,
+disables automatic RPC retries and replaces raw failures with a constant error.
+Copy operations that only reuse an existing verified R2 key create no physical
+PUT and retain their existing shared-reference checks.
+
+**Deployment hold:** keep this runtime change in draft until migration
+`20261114110000`, its prerequisite migrations and independently verified R2 store
+pins are installed on the production project. A missing planner or store pin
+intentionally rejects R2 uploads; do not publish these hooks ahead of the
+database. This dependency does not require paid app-store enrollment. Verify
+with disposable uploads against the actual service before claiming live coverage,
+and drain/reconcile older writers before enabling account erasure.
+
+This R2 work does not complete the managed Supabase source-write protocol.
+`20261114070000` serializes **authenticated** Storage metadata writes through RLS;
+service-role source uploads/copies need their own reviewed write boundary and
+provider verification. All media ownership, shared-asset handling, provider
+removal, intent cleanup, cache handling and final deletion-phase adapters remain
+required. Source tests and local SQL are not proof of production erasure.
+
+The runtime tests connect the actual planner, upload modules, private receipt
+adapter and SQL to synthetic provider operations. They verify plans exist before
+PUTs/link issuance, receipt ordering, failed-plan behavior, private error
+sanitization and immutable ticket scope. No production member or provider file is
+used in these tests.
