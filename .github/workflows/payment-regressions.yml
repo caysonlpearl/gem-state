@@ -44,6 +44,10 @@ jobs:
           BLUEBIRD_SKIP_RUNTIME_SCREENSHOTS: "true"
       - name: Verify native shopper privacy and recommendation screens
         run: npm run test:mobile:shopping:ui
+      - name: Verify overlapping public startup reads and session restoration
+        run: npm run test:mobile:startup:ui
+        env:
+          BLUEBIRD_SKIP_STARTUP_SCREENSHOTS: "true"
       - name: Verify shared website navigation and native authentication screens
         run: npm run test:mobile:auth:ui
       - name: Verify shared conversation screens and account-scoped message retries
@@ -62,5 +66,11 @@ jobs:
         run: npm run test:mobile:notifications:ui
       - name: Verify shared listing details and account-scoped contact actions
         run: npm run test:mobile:details:ui
+      - name: Verify homepage refresh, startup artwork, cached jobs and navigation cleanup
+        run: npm run test:mobile:home:ui
+        env:
+          BLUEBIRD_SKIP_HOME_SCREENSHOTS: "true"
       - name: Verify shared seller and dealership storefronts with private account isolation
         run: npm run test:mobile:storefronts:ui
+      - name: Verify prepared native navigation, page refresh, filters and automatic loading
+        run: npm run test:mobile:polish:ui

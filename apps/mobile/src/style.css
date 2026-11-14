@@ -1,14 +1,186 @@
 @import "../../../src/styles.css";
 @source "./";
 
+/* Keep the owner's cream surface continuous through the entire native app. */
+:root {
+  --background: #faf7ef;
+}
+body {
+  isolation: isolate;
+  background-image: none;
+  overflow-x: clip;
+}
+
+.native-detail-safe-area {
+  height: env(safe-area-inset-top);
+}
+.native-route-viewport {
+  overflow: clip;
+}
+#native-page-surface {
+  position: relative;
+  z-index: 1;
+  background: var(--background);
+}
+.native-route-progress {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--primary);
+  z-index: 60;
+  animation: bluebird-breathe 800ms ease-in-out infinite alternate;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  animation-name: native-page-out;
+}
+::view-transition-new(root) {
+  animation-name: native-page-in;
+}
+:root[data-route-direction="back"]::view-transition-old(root) {
+  animation-name: native-page-back-out;
+}
+:root[data-route-direction="back"]::view-transition-new(root) {
+  animation-name: native-page-back-in;
+}
+.native-floating-navigation {
+  view-transition-name: native-navigation;
+}
+.native-listing-contact {
+  view-transition-name: native-contact;
+  left: 12px;
+  right: 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 10px;
+}
+::view-transition-group(native-navigation),
+::view-transition-new(native-navigation) {
+  animation: none;
+}
+::view-transition-old(native-navigation) {
+  display: none;
+}
+@keyframes native-page-out {
+  to {
+    transform: translateX(-100%);
+  }
+}
+@keyframes native-page-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes native-page-back-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes native-page-back-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
+  :root[data-route-direction="back"]::view-transition-old(root),
+  :root[data-route-direction="back"]::view-transition-new(root) {
+    animation: none;
+  }
+  .native-route-progress {
+    animation: none;
+  }
+}
+.native-photo-slide {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 520px;
+}
+.native-photo-slide > img {
+  object-fit: cover;
+}
+.native-browse-page > div.mt-8 {
+  margin-top: 0;
+}
+.native-browse-page > div > section.floating-card {
+  padding: 12px;
+}
+.native-browse-page > div > section.floating-card h1 {
+  font-size: 20px;
+}
+.native-photo-placeholder :is(.rounded-\[28px\]) {
+  border-radius: 0;
+  min-height: 280px;
+}
+[data-photo-first] > nav[aria-label="Breadcrumb"],
+[data-photo-first] > div:empty,
+[data-photo-first] .native-detail-grid > div:empty,
+[data-photo-first] .native-detail-body > div:empty,
+[data-photo-first] button[aria-label="Share listing"] {
+  display: none;
+}
+@media (max-width: 1023px) {
+  [data-photo-first] .native-detail-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-top: 16px;
+  }
+  [data-photo-first] .native-detail-body {
+    display: contents;
+  }
+  [data-photo-first] .native-detail-grid > header,
+  [data-photo-first] .native-detail-body > header {
+    order: -2;
+    margin-top: 0;
+  }
+  [data-photo-first] .native-detail-grid > aside {
+    order: -1;
+    width: 100%;
+  }
+  [data-photo-first] h1 {
+    font-size: 25px;
+    line-height: 1.2;
+  }
+}
+body::before {
+  content: none;
+}
+.native-brand-row {
+  background: transparent;
+}
+.native-search-header,
+.native-status-surface {
+  background: transparent;
+  transition: background-color 160ms ease;
+}
+.native-search-header[data-scrolled="true"],
+.native-status-surface[data-scrolled="true"] {
+  background: color-mix(in srgb, var(--color-background) 94%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .native-search-header,
+  .native-status-surface {
+    transition: none;
+  }
+}
+
 /* Fill the existing introduction gap without pushing listings down. */
 .native-home-tagline {
   margin: 0 12px;
   color: var(--muted-foreground);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 12px;
-  font-style: italic;
-  font-weight: 400;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 500;
   line-height: 16px;
   letter-spacing: 0.015em;
   text-align: center;
@@ -280,7 +452,10 @@ html[data-native-platform].has-mobile-contact-bar body {
 }
 @media (max-width: 1023px) {
   html[data-native-platform].has-mobile-contact-bar .mobile-content {
-    padding-bottom: calc(var(--bluebird-native-navigation-height, 68px) + 84px);
+    padding-bottom: calc(
+      var(--bluebird-native-navigation-height, 68px) + var(--bluebird-native-contact-height, 84px) +
+        24px
+    );
   }
 }
 

@@ -470,8 +470,27 @@ try {
       await page
         .getByRole("link", { name: /Fixture Ford 20k/ })
         .first()
+        .evaluate((link) =>
+          link.addEventListener(
+            "pointerdown",
+            () => {
+              window.fixtureDepartureScroll = window.scrollY;
+            },
+            { once: true },
+          ),
+        );
+      await page
+        .getByRole("link", { name: /Fixture Ford 20k/ })
+        .first()
         .click();
-      await page.getByRole("heading", { name: "Fixture Ford 20k", exact: true }).waitFor();
+      await page
+        .getByRole("heading", { name: "Fixture Ford 20k", exact: true, level: 1 })
+        .waitFor();
+      const departureScroll = await page.evaluate(() => window.fixtureDepartureScroll);
+      assert(
+        Number.isFinite(departureScroll),
+        "Record the actual departure after the browser positions the tap target",
+      );
       await page.evaluate(async () => {
         const { backWithinApp } = await import("/src/native-navigation.ts");
         if (!backWithinApp()) throw Error("Same-document app history was not recognized");
@@ -481,10 +500,26 @@ try {
         .first()
         .waitFor();
       assert.equal(await page.evaluate(() => location.hash), originalHash);
-      await page.waitForFunction(
-        (expected) => Math.abs(window.scrollY - expected) < 3,
-        originalScroll,
-      );
+      await page
+        .waitForFunction((expected) => Math.abs(window.scrollY - expected) < 3, departureScroll)
+        .catch(async (error) => {
+          console.log(
+            JSON.stringify({
+              scrollFailure: {
+                expected: departureScroll,
+                beforeTap: originalScroll,
+                viewport,
+                actual: await page.evaluate(() => ({
+                  y: scrollY,
+                  height: innerHeight,
+                  document: document.documentElement.scrollHeight,
+                  hash: location.hash,
+                })),
+              },
+            }),
+          );
+          throw error;
+        });
       await page.getByRole("button", { name: "Save this search", exact: true }).click();
       await page.getByLabel("Search name", { exact: true }).fill("Reliable Ford");
       await page

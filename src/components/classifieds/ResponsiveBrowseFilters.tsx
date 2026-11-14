@@ -7,6 +7,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
+  SheetClose,
 } from "@/components/ui/sheet";
 
 /** One copy of each category's controls: an inline desktop sidebar or a mobile drawer. */
@@ -63,9 +64,24 @@ export function ResponsiveBrowseFilters({
             )}
           </button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-full overflow-y-auto p-0 sm:max-w-lg">
-          <SheetHeader className="border-b border-border p-5 pr-14 text-left">
-            <SheetTitle>{title}</SheetTitle>
+        <SheetContent
+          side="left"
+          showCloseButton={false}
+          className="w-full overflow-y-auto p-0 pb-[env(safe-area-inset-bottom)] sm:max-w-lg"
+        >
+          <SheetHeader className="sticky top-0 z-10 border-b border-border bg-background p-5 pt-[calc(env(safe-area-inset-top)+1rem)] text-left">
+            <div className="flex items-center justify-between gap-3">
+              <SheetTitle>{title}</SheetTitle>
+              <SheetClose asChild>
+                <button
+                  type="button"
+                  aria-label="Close filters"
+                  className="flex min-h-11 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground"
+                >
+                  Done
+                </button>
+              </SheetClose>
+            </div>
             <SheetDescription>
               Narrow your search, then apply your filters to see matching listings.
             </SheetDescription>

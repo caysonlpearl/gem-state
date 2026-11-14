@@ -43,6 +43,8 @@ export type ListingDetailRuntime = {
   onPrint?: () => void;
   pageElement?: "main" | "article";
   vehicleHistoryPurchases?: boolean;
+  /** Native supplies one edge-to-edge gallery above the shared details. */
+  photoFirst?: boolean;
 };
 const Runtime = createContext<ListingDetailRuntime | null>(null);
 export const ListingDetailRuntimeProvider = Runtime.Provider;
@@ -129,6 +131,7 @@ export function ClaimBusinessPanel(
 
 /** Preserve one main landmark: native already owns the page's outer main element. */
 export function DetailPage(props: import("react").HTMLAttributes<HTMLElement>) {
-  const Tag = useListingDetailRuntime().pageElement ?? "main";
-  return <Tag {...props} />;
+  const runtime = useListingDetailRuntime();
+  const Tag = runtime.pageElement ?? "main";
+  return <Tag {...props} data-photo-first={runtime.photoFirst || undefined} />;
 }

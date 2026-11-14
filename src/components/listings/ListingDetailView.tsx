@@ -183,7 +183,8 @@ function QuickFact({ label, value, icon }: { label: string; value: string; icon:
 
 /** A listing with no photos: category art (or a partner employer's logo tile). */
 function Gallery({ listing }: { listing: ClassifiedDetail }) {
-  const { onPhoto } = useListingDetailRuntime();
+  const { onPhoto, photoFirst } = useListingDetailRuntime();
+  if (photoFirst) return null;
   return <ListingGallery listing={listing} onPhoto={(photo) => onPhoto(photo)} />;
 }
 
@@ -1252,8 +1253,8 @@ function ListingDetailContent({
           </div>
         </header>
       </div>
-      <div className="mt-4 grid items-start gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)]">
-        <div className="min-w-0 space-y-7">
+      <div className="native-detail-grid mt-4 grid items-start gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)]">
+        <div className="native-detail-body min-w-0 space-y-7">
           <div className="min-w-0">
             <Gallery listing={listing} />
           </div>
@@ -1613,6 +1614,8 @@ const wholeDollars = (dollars: number) =>
  * a "See all photos" button. Phones keep the swipeable gallery.
  */
 function HomePhotoCollage({ listing }: { listing: ClassifiedDetail }) {
+  const { photoFirst } = useListingDetailRuntime();
+  if (photoFirst) return null;
   const images = listing.images;
   if (images.length === 0) return <Gallery listing={listing} />;
   const rest = images.slice(1);
@@ -1904,11 +1907,13 @@ function HomeDetailSections({
     details.taxHistory.length > 0 ||
     details.zestimate != null ||
     details.rentZestimate != null;
+  const { photoFirst } = useListingDetailRuntime();
   const [active, setActive] = useState("overview");
-  const [headerOffset, setHeaderOffset] = useState(220);
+  const [headerOffset, setHeaderOffset] = useState(photoFirst ? 0 : 220);
   const sectionRoot = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const header = document.querySelector("header.sticky");
+    const header =
+      document.querySelector("header.sticky") ?? document.querySelector(".native-detail-safe-area");
     if (!header) return;
     const measure = () => setHeaderOffset(header.getBoundingClientRect().height);
     measure();
@@ -2287,8 +2292,8 @@ function HomeListingDetail({
         <HomePhotoCollage listing={listing} />
       </div>
 
-      <div className="mt-7 grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <div className="min-w-0 space-y-7">
+      <div className="native-detail-grid mt-7 grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <div className="native-detail-body min-w-0 space-y-7">
           <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border/70 pb-6">
             <div className="min-w-0">
               {details.community && (
@@ -2577,7 +2582,7 @@ function JobListingDetail({
       </nav>
 
       {/* Shared listing flow: heading, photos and details, with supporting cards on the right. */}
-      <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_auto] lg:items-start lg:gap-7">
+      <div className="native-detail-grid mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_auto] lg:items-start lg:gap-7">
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">
           <Gallery listing={listing} />
         </div>
@@ -3127,7 +3132,7 @@ function ServiceListingDetail({
       </nav>
 
       {/* Shared listing flow: heading, photos and details, with supporting cards on the right. */}
-      <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_auto] lg:items-start lg:gap-7">
+      <div className="native-detail-grid mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_auto] lg:items-start lg:gap-7">
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">
           <Gallery listing={listing} />
         </div>
@@ -3491,7 +3496,7 @@ function GeneralListingDetail({
       </nav>
 
       {/* Shared listing flow: heading, photos and details, with supporting cards on the right. */}
-      <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_auto] lg:items-start lg:gap-7">
+      <div className="native-detail-grid mt-5 grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_auto] lg:items-start lg:gap-7">
         <header className="border-b border-border/70 pb-5 lg:col-span-2 lg:row-start-1">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>

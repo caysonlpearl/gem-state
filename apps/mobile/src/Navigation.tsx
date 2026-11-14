@@ -62,9 +62,13 @@ export function NativeNavigation({
     const observer = new ResizeObserver(measure);
     observer.observe(nav);
     window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("scroll", measure);
       document.documentElement.style.removeProperty(property);
     };
   }, []);
@@ -134,6 +138,7 @@ export function NativeNavigation({
         >
           <MarketplaceMobileMenu
             alwaysVisible
+            compact
             categories={mobilePrimaryCategories.filter((category) =>
               mobileCategoryAllowed(category.slug),
             )}

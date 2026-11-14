@@ -287,6 +287,7 @@ export function ServicesFilterPage({
   onApply,
   onSave,
   onPost,
+  header,
 }: {
   renderListing: BrowseListingRenderer;
   search: Search;
@@ -296,6 +297,7 @@ export function ServicesFilterPage({
   onApply: (patch: Partial<Search>) => void;
   onSave: (patch?: Partial<Search>) => void;
   onPost: () => void;
+  header?: ReactNode;
 }) {
   const [term, setTerm] = useState(search.q ?? "");
   const [subcategory, setSubcategory] = useState(search.serviceSubcategory ?? "");
@@ -361,66 +363,68 @@ export function ServicesFilterPage({
   });
 
   return (
-    <div className="mt-8">
-      <section className="floating-card overflow-visible p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-          <div className="grid w-full max-w-[390px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
-            <button
-              type="button"
-              aria-pressed="true"
-              className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm"
-            >
-              Search Listings
-            </button>
-            <button
-              type="button"
-              onClick={onPost}
-              className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card"
-            >
-              Post a Listing
-            </button>
+    <div className={header ? "mt-0" : "mt-8"}>
+      {header ?? (
+        <section className="floating-card overflow-visible p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+            <div className="grid w-full max-w-[390px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
+              <button
+                type="button"
+                aria-pressed="true"
+                className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm"
+              >
+                Search Listings
+              </button>
+              <button
+                type="button"
+                onClick={onPost}
+                className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card"
+              >
+                Post a Listing
+              </button>
+            </div>
           </div>
-        </div>
-        <form
-          className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_minmax(0,1fr)_auto]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            apply();
-          }}
-        >
-          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
-            <MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" />
-            <span className="sr-only">Search services</span>
-            <input
-              value={term}
-              onChange={(event) => setTerm(event.target.value)}
-              placeholder="Search for a service, company, or description"
-              className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground"
+          <form
+            className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_minmax(0,1fr)_auto]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              apply();
+            }}
+          >
+            <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
+              <MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" />
+              <span className="sr-only">Search services</span>
+              <input
+                value={term}
+                onChange={(event) => setTerm(event.target.value)}
+                placeholder="Search for a service, company, or description"
+                className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground"
+              />
+            </label>
+            <ServiceOptionSelect
+              label="Subcategory"
+              value={subcategory}
+              options={serviceSubcategoryOptions}
+              onChange={setSubcategory}
             />
-          </label>
-          <ServiceOptionSelect
-            label="Subcategory"
-            value={subcategory}
-            options={serviceSubcategoryOptions}
-            onChange={setSubcategory}
-          />
-          <div className="grid grid-cols-2 gap-2 sm:contents">
-            <button
-              type="submit"
-              className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90"
-            >
-              Search
-            </button>
-            <button
-              type="button"
-              onClick={() => onSave(currentPatch())}
-              className="h-12 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
-            >
-              Save search
-            </button>
-          </div>
-        </form>
-      </section>
+            <div className="grid grid-cols-2 gap-2 sm:contents">
+              <button
+                type="submit"
+                className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90"
+              >
+                Search
+              </button>
+              <button
+                type="button"
+                onClick={() => onSave(currentPatch())}
+                className="h-12 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
+              >
+                Save search
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
       <div className="mt-7 grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         <ResponsiveBrowseFilters title="Service filters" resetKey={JSON.stringify(search)}>
@@ -682,6 +686,7 @@ export function JobsFilterPage({
   onApply,
   onSave,
   onPost,
+  header,
 }: {
   renderListing: BrowseListingRenderer;
   search: Search;
@@ -691,6 +696,7 @@ export function JobsFilterPage({
   onApply: (patch: Partial<Search>) => void;
   onSave: (patch?: Partial<Search>) => void;
   onPost: () => void;
+  header?: ReactNode;
 }) {
   const [term, setTerm] = useState(search.q ?? "");
   const [category, setCategory] = useState(search.jobCategory ?? "");
@@ -760,78 +766,80 @@ export function JobsFilterPage({
   });
 
   return (
-    <div className="mt-8">
-      <section className="floating-card overflow-visible p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-          <div className="grid w-full max-w-[390px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
-            <button
-              type="button"
-              aria-pressed="true"
-              className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm"
-            >
-              Search Jobs
-            </button>
-            <button
-              type="button"
-              onClick={onPost}
-              className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card"
-            >
-              Post a Job
-            </button>
+    <div className={header ? "mt-0" : "mt-8"}>
+      {header ?? (
+        <section className="floating-card overflow-visible p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+            <div className="grid w-full max-w-[390px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
+              <button
+                type="button"
+                aria-pressed="true"
+                className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm"
+              >
+                Search Jobs
+              </button>
+              <button
+                type="button"
+                onClick={onPost}
+                className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card"
+              >
+                Post a Job
+              </button>
+            </div>
           </div>
-        </div>
-        <form
-          className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_repeat(3,minmax(0,1fr))_auto]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            apply();
-          }}
-        >
-          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
-            <MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" />
-            <span className="sr-only">Search jobs</span>
-            <input
-              value={term}
-              onChange={(event) => setTerm(event.target.value)}
-              placeholder="Search for a job, company, or title"
-              className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground"
+          <form
+            className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_repeat(3,minmax(0,1fr))_auto]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              apply();
+            }}
+          >
+            <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
+              <MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" />
+              <span className="sr-only">Search jobs</span>
+              <input
+                value={term}
+                onChange={(event) => setTerm(event.target.value)}
+                placeholder="Search for a job, company, or title"
+                className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground"
+              />
+            </label>
+            <JobChecklist
+              label="Category"
+              value={category}
+              options={jobCategoryOptions}
+              onChange={setCategory}
             />
-          </label>
-          <JobChecklist
-            label="Category"
-            value={category}
-            options={jobCategoryOptions}
-            onChange={setCategory}
-          />
-          <JobChecklist
-            label="Job type"
-            value={jobType}
-            options={jobTypeOptions}
-            onChange={setJobType}
-          />
-          <JobSelect
-            label="Job pay range"
-            value={payType}
-            options={jobPayTypeOptions}
-            onChange={setPayType}
-          />
-          <div className="grid grid-cols-2 gap-2 sm:contents">
-            <button
-              type="submit"
-              className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90"
-            >
-              Search
-            </button>
-            <button
-              type="button"
-              onClick={() => onSave(currentPatch())}
-              className="h-12 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
-            >
-              Save search
-            </button>
-          </div>
-        </form>
-      </section>
+            <JobChecklist
+              label="Job type"
+              value={jobType}
+              options={jobTypeOptions}
+              onChange={setJobType}
+            />
+            <JobSelect
+              label="Job pay range"
+              value={payType}
+              options={jobPayTypeOptions}
+              onChange={setPayType}
+            />
+            <div className="grid grid-cols-2 gap-2 sm:contents">
+              <button
+                type="submit"
+                className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90"
+              >
+                Search
+              </button>
+              <button
+                type="button"
+                onClick={() => onSave(currentPatch())}
+                className="h-12 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
+              >
+                Save search
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
       <div className="mt-7 grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         <ResponsiveBrowseFilters title="Job filters" resetKey={JSON.stringify(search)}>
@@ -1702,6 +1710,7 @@ export function VehicleResultsPage({
   onApply,
   onSave,
   onSell,
+  header,
 }: {
   renderListing: BrowseListingRenderer;
   loadPreview: (search: Search, signal: AbortSignal) => Promise<{ total: number }>;
@@ -1711,6 +1720,7 @@ export function VehicleResultsPage({
   onApply: (patch: Partial<Search>) => void;
   onSave: (patch?: Partial<Search>) => void;
   onSell: () => void;
+  header?: ReactNode;
 }) {
   const [term, setTerm] = useState(search.q ?? "");
   const subtypeField = classifiedSubcategoryField(search.category ?? "cars-trucks");
@@ -1887,79 +1897,81 @@ export function VehicleResultsPage({
   }
 
   return (
-    <div className="mt-8">
-      <section className="floating-card overflow-visible p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-              Bluebird motors
-            </p>
-            <h1 className="mt-1 text-[28px] font-bold tracking-tight">
-              {classifiedCategories.find((category) => category.slug === search.category)?.name ??
-                "Vehicles"}
-            </h1>
-          </div>
-          <div className="grid w-full max-w-[330px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
+    <div className={header ? "mt-0" : "mt-8"}>
+      {header ?? (
+        <section className="floating-card overflow-visible p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+                Bluebird motors
+              </p>
+              <h1 className="mt-1 text-[28px] font-bold tracking-tight">
+                {classifiedCategories.find((category) => category.slug === search.category)?.name ??
+                  "Vehicles"}
+              </h1>
+            </div>
+            <div className="grid w-full max-w-[330px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
+              <button
+                type="button"
+                aria-pressed="true"
+                className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm"
+              >
+                Buy
+              </button>
+              <button
+                type="button"
+                onClick={onSell}
+                className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card"
+              >
+                Sell
+              </button>
+            </div>
             <button
               type="button"
-              aria-pressed="true"
-              className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm"
+              onClick={onClear}
+              className="text-[12px] font-semibold text-primary underline-offset-2 hover:underline"
             >
-              Buy
-            </button>
-            <button
-              type="button"
-              onClick={onSell}
-              className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card"
-            >
-              Sell
+              Clear filters
             </button>
           </div>
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-[12px] font-semibold text-primary underline-offset-2 hover:underline"
+          <form
+            className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              apply();
+            }}
           >
-            Clear filters
-          </button>
-        </div>
-        <form
-          className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            apply();
-          }}
-        >
-          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
-            <MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" />
-            <span className="sr-only">Search cars</span>
-            <input
-              value={term}
-              onChange={(event) => setTerm(event.target.value)}
-              placeholder="Search cars, trucks, and more"
-              className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground"
-            />
-          </label>
-          <button
-            type="submit"
-            className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90"
-          >
-            Search
-          </button>
-        </form>
-        <div className="mt-5 flex justify-end border-t border-border pt-4">
-          <div className="flex flex-wrap justify-end gap-2">
+            <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
+              <MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" />
+              <span className="sr-only">Search cars</span>
+              <input
+                value={term}
+                onChange={(event) => setTerm(event.target.value)}
+                placeholder="Search cars, trucks, and more"
+                className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground"
+              />
+            </label>
             <button
-              type="button"
-              onClick={() => onSave(currentPatch())}
-              className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
+              type="submit"
+              className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90"
             >
-              <BookmarkSimple size={15} aria-hidden="true" />
-              Save this search
+              Search
             </button>
+          </form>
+          <div className="mt-5 flex justify-end border-t border-border pt-4">
+            <div className="flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => onSave(currentPatch())}
+                className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
+              >
+                <BookmarkSimple size={15} aria-hidden="true" />
+                Save this search
+              </button>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <div className="mt-7 grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         <ResponsiveBrowseFilters title="Vehicle filters" resetKey={JSON.stringify(search)}>

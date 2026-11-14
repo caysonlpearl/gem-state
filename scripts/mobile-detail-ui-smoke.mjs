@@ -407,9 +407,26 @@ try {
         false,
         name + " overflows at " + viewport.width,
       );
-      await page.screenshot({ path: resolve(output, `${name}-${viewport.width}.png`) });
+      if (process.env.BLUEBIRD_SKIP_DETAIL_SCREENSHOTS !== "true")
+        await page.screenshot({ path: resolve(output, `${name}-${viewport.width}.png`) });
     }
     await open("general");
+    const photos = page.getByRole("region", { name: "Listing photos", exact: true });
+    const photoBox = await photos.boundingBox();
+    const titleBox = await page
+      .getByRole("heading", { name: "Garden patio table", exact: true })
+      .boundingBox();
+    assert(photoBox && titleBox && photoBox.y < titleBox.y, "Photos lead the detail page");
+    await photos.getByRole("button", { name: "Next listing photo", exact: true }).click();
+    await photos.getByRole("status").getByText("2 / 2", { exact: true }).waitFor();
+    await photos.getByRole("button", { name: "Previous listing photo", exact: true }).click();
+    await photos.getByRole("status").getByText("1 / 2", { exact: true }).waitFor();
+    await photos.getByRole("button", { name: "More listing options", exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Flag this listing", exact: true })
+      .waitFor();
+    await page.keyboard.press("Escape");
     const originalHash = await page.evaluate(() => location.hash);
     await page.locator('a[href="#main-content"]').focus();
     await page.keyboard.press("Enter");
