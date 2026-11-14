@@ -137,6 +137,8 @@ try {
       },
     );
     const openPrivacy = async () => {
+      await page.getByRole("navigation", { name: "Primary", exact: true }).waitFor();
+      await page.getByText("Connecting to Bluebird…", { exact: true }).waitFor({ state: "hidden" });
       const menu = page.getByRole("button", { name: "Open categories", exact: true });
       if (await menu.isVisible()) await menu.click();
       await page.getByRole("button", { name: "Privacy choices", exact: true }).click();

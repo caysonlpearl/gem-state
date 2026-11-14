@@ -17,7 +17,8 @@ const config: CapacitorConfig = {
   appendUserAgent: "Bluebird (https://onbluebird.com)",
   webDir: "dist",
   // Production always packages local assets. Never use server.url/live reload in release builds.
-  server: { androidScheme: "https" },
+  server: { androidScheme: "https", errorPath: "webview-update.html" },
+  android: { minWebViewVersion: 111 },
   // Shared header/tab-bar CSS already reserves the iPhone safe areas.
   // Native automatic insets would reserve the same space a second time.
   ios: { contentInset: "never" },

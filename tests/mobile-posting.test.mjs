@@ -1,3 +1,4 @@
+import { requestScope } from "../apps/mobile/src/request-scope.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -227,6 +228,7 @@ test("native photo uploads stop across an account switch between evidence and pu
     uploads = [];
   let actor = owner;
   const client = loadModule("../apps/mobile/src/photos.ts", {
+    "./request-scope": { requestScope },
     "./identity": { installIdentifier: () => "install" },
     "../../../src/lib/photo-thumbnail.browser": { browserPhotoThumbnail: async () => new Blob() },
     "../../../src/lib/photo-upload": {

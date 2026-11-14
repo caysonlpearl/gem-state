@@ -1,3 +1,4 @@
+import { requestScope } from "../apps/mobile/src/request-scope.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -18,6 +19,7 @@ function fixture() {
     "@capacitor/core": { Capacitor: { isNativePlatform: () => false } },
     "@capacitor/browser": {},
     "../../../src/lib/mobile-contract": {},
+    "./request-scope": { requestScope },
     "./identity": { installIdentifier: () => state.install },
   };
   const exports = {};

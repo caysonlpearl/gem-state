@@ -88,6 +88,10 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY= \
             build
+      - name: Verify the app minimum iPhone software version
+        run: |
+          actual=$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$RUNNER_TEMP/bluebird-ios-derived-data/Build/Products/Debug-iphonesimulator/App.app/Info.plist")
+          test "$actual" = "16.4"
       - name: Describe this build's verification boundary
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'SUMMARY'

@@ -817,3 +817,51 @@ switches, navigation, no horizontal overflow and excluded private analytics. The
 mechanical design check reported no findings. These are synthetic source/browser
 checks; physical iPhone/Android journeys and actual OS share sheets remain separate
 release gates. Publication and native installation require their own evidence.
+
+## Native runtime compatibility — November 14, 2026
+
+The app's former default iOS 15 deployment setting did not match the shared
+website's Tailwind 4 styling requirements. The actual native app floor is now
+**iOS 16.4**; Android keeps API 24 but requires a **Chrome-based WebView 111+**.
+The JavaScript build explicitly targets Safari 16.4 and Chrome 111. The Swift
+package's own iOS 15 minimum is a dependency floor, not the app's install floor.
+The iPhone CI checks the compiled app's `MinimumOSVersion`, not just source text.
+These requirements follow [Tailwind's browser support](https://tailwindcss.com/docs/compatibility)
+and the installed Capacitor Android runtime's minimum-WebView/error-page support.
+
+A small local startup module checks only functional CSS/JavaScript capabilities
+before importing the shared app. It does not read or parse a user agent, create
+an identifier, persist capabilities or send them anywhere. Missing required
+capabilities lead to a bundled update/help page; the app and its module-level
+shopping state do not evaluate, and account/shopping/advertising requests do not
+start. This also handles vendor WebView version numbering without guessing a
+Huawei-to-Chromium version mapping. Android's native minimum-engine check routes
+to the same page. The page uses basic CSS, an existing bundled logo/font and no
+React, Tailwind or native plugins. Updating the browser component or visiting the
+website is an explicit user action; nothing opens an app store automatically.
+
+The common request scope uses AbortController plus a cleared timer instead of
+`AbortSignal.timeout`/`AbortSignal.any`. API requests retain a 20-second bound even
+when a screen supplies a cancellation signal. The scope follows caller aborts,
+cleans listeners/timers in `finally`, and never aborts the caller's controller.
+Its deadline covers response-body reading; a lost/incomplete response stays an
+uncertain result so existing receipt-based write recovery remains in charge.
+Direct object uploads keep their 60-second HTTP bound with the same helper.
+Existing owner/install checks and request IDs remain in place. No global API
+polyfills, automatic retries or new identifiers are added.
+
+The compiled-app browser check removes the newer AbortSignal static methods and
+verifies normal startup. Separate missing CSS, UUID, AbortController and Object
+capabilities must reach the update page before app import or remote requests.
+The existing account journey runs with both newer AbortSignal static methods
+removed, including reviews, saves, account switching and security controls.
+Timed transport/body-abort and cleanup tests exercise the common request scope.
+The update page is checked at 320/390/1280 pixels for recovery links, readable
+contrast, focus and overflow. These are simulated missing-capability checks,
+**not certification on actual iOS 16.4 or an older Android device**. Real-device
+beta coverage, including supported older versions, remains required before launch.
+
+The mechanical design check flagged the recovery page's cream background. This
+is an intentional match to Bluebird's established shared palette and the owner's
+website-parity direction, not a new palette choice. No global detector ignores
+were introduced; the rendered page passed its contrast and layout checks.
