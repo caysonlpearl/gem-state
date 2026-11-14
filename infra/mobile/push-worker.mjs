@@ -44,6 +44,26 @@ async function googleToken(config) {
   googleAccess = { token: result.access_token, expires: Date.now() + result.expires_in * 1000 };
   return googleAccess.token;
 }
+export function apnsDeliveryOutcome(status, body) {
+  let error;
+  try {
+    error = JSON.parse(body);
+  } catch {
+    // Successful APNs responses have no body. Malformed failures never
+    // authorize removing a registration.
+  }
+  const invalidToken = status === 410 && ["Unregistered", "ExpiredToken"].includes(error?.reason);
+  return {
+    sent: status === 200,
+    invalidToken,
+    ...(invalidToken
+      ? {
+          invalidatedAt:
+            Number.isSafeInteger(error.timestamp) && error.timestamp > 0 ? error.timestamp : null,
+        }
+      : {}),
+  };
+}
 export function createPushSender(config) {
   return async (device, payload, eventId) => {
     if (device.platform === "android") {
@@ -120,16 +140,7 @@ export function createPushSender(config) {
       req.on("end", () => {
         clearTimeout(timeout);
         client.close();
-        let reason;
-        try {
-          reason = JSON.parse(body).reason;
-        } catch {
-          /* successful responses have no body */
-        }
-        resolve({
-          sent: status === 200,
-          invalidToken: status === 410 && reason === "Unregistered",
-        });
+        resolve(apnsDeliveryOutcome(status, body));
       });
       req.end(
         JSON.stringify({
@@ -150,7 +161,7 @@ async function eligiblePush(db, row, listing, now) {
       .maybeSingle(),
     db
       .from("mobile_push_devices")
-      .select("id,user_id,token,platform")
+      .select("id,user_id,token,platform,updated_at")
       .eq("id", row.device_id)
       .maybeSingle(),
     db.from("shopping_accounts").select("shopping_alerts").eq("user_id", row.user_id).maybeSingle(),
@@ -279,12 +290,28 @@ export async function runMobilePushWorker({
       }
       const outcome = await send(latest.device, latest.payload, row.id);
       if (outcome.invalidToken) {
+        const registeredAt = Date.parse(latest.device.updated_at);
+        // APNs' invalidation applies only until a later registration. Missing
+        // provider timestamps must not turn an uncertain failure into erasure.
+        if (
+          !Number.isFinite(registeredAt) ||
+          (latest.device.platform === "ios" &&
+            (!Number.isSafeInteger(outcome.invalidatedAt) || registeredAt > outcome.invalidatedAt))
+        )
+          throw Error("push_registration_changed");
         const removed = await db
           .from("mobile_push_devices")
           .delete()
           .eq("id", latest.device.id)
-          .eq("user_id", row.user_id);
-        if (removed.error) throw Error("push_device_cleanup_failed");
+          .eq("user_id", row.user_id)
+          .eq("token", latest.device.token)
+          .eq("updated_at", latest.device.updated_at)
+          .select("id");
+        if (removed.error || !Array.isArray(removed.data))
+          throw Error("push_device_cleanup_failed");
+        // A registration renewed during provider I/O stays intact. Retry the
+        // same logical delivery; its next claim rechecks ownership and consent.
+        if (!removed.data.length) throw Error("push_registration_changed");
         counts.suppressed++;
         continue;
       }
