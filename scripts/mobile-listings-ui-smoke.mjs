@@ -96,6 +96,7 @@ try {
       wrongOwner = false,
       drop = true,
       stale = false,
+      domainRejection = null,
       version = "a".repeat(64),
       status = "active",
       approvedAt = "2026-11-14T10:00:00Z",
@@ -274,6 +275,9 @@ try {
         const key = req.headers()["idempotency-key"];
         assert(key);
         actions.push({ key, body, actor });
+        if (domainRejection && !receipts.has(key)) {
+          return fail(domainRejection.status, domainRejection.message, domainRejection.code);
+        }
         if (stale && !receipts.has(key)) {
           stale = false;
           version = "e".repeat(64);
@@ -405,6 +409,46 @@ try {
     await page.waitForFunction(
       () => document.querySelector('input[minlength="3"]')?.value === "Latest website bicycle",
     );
+    // A lost response is uncertain until a post-receipt domain rejection proves
+    // no commit. Both production rejections must unlock the preserved draft.
+    for (const code of ["listing_source_removed", "listing_photos_required"]) {
+      domainRejection = {
+        status: 503,
+        code: "listing_management_unavailable",
+        message: "Fixture domain result unconfirmed.",
+      };
+      await page.getByLabel("Title", { exact: true }).fill("Preserved domain draft");
+      await page.getByRole("button", { name: "Save changes", exact: true }).click();
+      await page
+        .getByRole("alert")
+        .filter({ hasText: "Fixture domain result unconfirmed." })
+        .waitFor();
+      await page.reload();
+      domainRejection = {
+        status: 409,
+        code,
+        message: "Fixture domain change rejected; restore on website.",
+      };
+      await page.getByRole("button", { name: "Retry submission", exact: true }).click();
+      await page.getByRole("button", { name: "Reload latest listing", exact: true }).waitFor();
+      assert.equal(
+        await page.getByLabel("Title", { exact: true }).inputValue(),
+        "Preserved domain draft",
+      );
+      assert.equal(
+        await page.evaluate(
+          (owner) => sessionStorage.getItem(`bb-draft-listing-action-${owner}`),
+          a,
+        ),
+        null,
+      );
+      domainRejection = null;
+      page.once("dialog", (d) => d.accept());
+      await page.getByRole("button", { name: "Reload latest listing", exact: true }).click();
+      await page.waitForFunction(
+        () => document.querySelector('input[minlength="3"]')?.value === "Latest website bicycle",
+      );
+    }
     if (process.env.BLUEBIRD_SKIP_LISTING_SCREENSHOTS !== "true")
       await page.screenshot({
         path: resolve(output, `edit-listing-${viewport.width}.png`),
@@ -511,6 +555,8 @@ try {
         "retained photos",
         "persisted draft",
         "stale conflict reload",
+        "archived source rejection unlocks preserved draft",
+        "relist photo rejection unlocks preserved draft",
         "duplicate new photos",
         "read retry",
         "owner mismatch",

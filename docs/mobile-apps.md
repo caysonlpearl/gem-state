@@ -883,6 +883,15 @@ stale revisions, foreign ownership and revoked sessions. An archived import
 source rejects the edit under its existing rule, with no partial listing, event,
 flag or receipt write. It does not bypass that source guard.
 
+The server translates the exact archived-source and missing-relist-photo domain
+errors into safe, actionable conflicts. Both occur after the receipt lookup, so
+they prove no commit even when confirming an earlier uncertain attempt. The app
+clears that pending action while preserving the edit draft and offering reload.
+Actual-domain SDK tests verify these rejections and that an already committed
+relist still replays successfully after photos are later removed. Browser tests
+exercise uncertainty, reload, definitive rejection and preserved draft for both
+codes. Unknown SQL, session and transport failures keep their original receipt.
+
 `mobile-listing-production-concurrency.test.mjs` additionally runs the captured
 domain on an isolated PostgreSQL server with two real connections. A simultaneous
 retry waits for the original commit and replays one receipt without repeating

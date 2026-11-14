@@ -73,6 +73,12 @@ export function submitListingAttempt(owner: string, value: ListingAttempt) {
 /** These responses occur after the receipt lookup and prove this atomic write did not commit. */
 export const listingChanged = (e: unknown) =>
   e instanceof ApiError &&
-  ["listing_changed", "listing_state_changed", "listing_unavailable"].includes(e.code);
+  [
+    "listing_changed",
+    "listing_state_changed",
+    "listing_unavailable",
+    "listing_source_removed",
+    "listing_photos_required",
+  ].includes(e.code);
 export const listingDefinitelyRejected = (e: unknown) =>
   e instanceof ApiError && [400, 401, 403, 404, 409, 415].includes(e.status);

@@ -144,6 +144,27 @@ export async function commitOwnedMobileListing(
           "listing_state_changed",
           "This listing's status changed. Reload your listings before trying again.",
         );
+      // These exact domain rejections occur after the atomic receipt lookup.
+      // A committed retry would already have returned its receipt. They therefore
+      // prove no commit, unlike authentication, transport or unknown SQL failures.
+      if (
+        r.error.code === "P0001" &&
+        r.error.message === "This import was removed. Restore it before importing or refreshing"
+      )
+        throw new MobileApiError(
+          409,
+          "listing_source_removed",
+          "This listing's import source was removed. Restore the source on the website before changing this listing.",
+        );
+      if (
+        r.error.code === "P0001" &&
+        r.error.message === "Private evidence and a public listing photo are required"
+      )
+        throw new MobileApiError(
+          409,
+          "listing_photos_required",
+          "This listing needs its original photo evidence and a public photo before it can be relisted. Restore its photos on the website first.",
+        );
       throw unavailable();
     }
     const d = r.data;
