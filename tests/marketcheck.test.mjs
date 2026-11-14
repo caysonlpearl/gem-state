@@ -143,6 +143,30 @@ test("validates partner IDs", () => {
   assert.equal(parseMarketCheckId("marketcheck-auction-123"), null);
 });
 
+test("retains distinct query-addressed photos and opaque signatures", () => {
+  const photos = [
+    "https://images.example/photo?id=front&width=320",
+    "https://images.example/photo?width=1280&id=front",
+    "https://images.example/photo?id=interior&width=320",
+    "https://images.example/photo?id=interior&signature=abc",
+    "https://images.example/photo?id=interior&signature=def",
+  ];
+  assert.deepEqual(dedupeMarketCheckImages(photos), [photos[0], ...photos.slice(2)]);
+});
+
+test("an incomplete cached gallery does not hide original photos", () => {
+  const listing = normalizeMarketCheckListing(payload, "dealer");
+  listing.media = {
+    photoLinksCached: ["https://cache.example/front.jpg"],
+    photoLinks: ["https://images.example/front.jpg", "https://images.example/interior.jpg"],
+  };
+  assert.deepEqual(marketCheckImages(listing), listing.media.photoLinks);
+  listing.media.photoLinksCached.push("https://cache.example/interior.jpg");
+  assert.deepEqual(marketCheckImages(listing), listing.media.photoLinksCached);
+  listing.media.photoLinksCached = ["https://cache.example/photo?api_key=private"];
+  assert.deepEqual(marketCheckImages(listing), listing.media.photoLinks);
+});
+
 test("keeps provider failures separate from a confirmed missing listing", () => {
   assert.equal(marketCheckLookupStatus(404), "not-found");
   assert.equal(marketCheckLookupStatus(429), "limited");
@@ -194,7 +218,9 @@ test("never sends key-bearing photo links and fills a private seller's city", as
       heading: "2004 Toyota Prius",
       media: {
         photo_links: ["https://images.craigslist.org/a_1200x900.jpg"],
-        photo_links_cached: ["https://api.marketcheck.com/v2/image/cache/car/x/1?api_key=mc_live_secret"],
+        photo_links_cached: [
+          "https://api.marketcheck.com/v2/image/cache/car/x/1?api_key=mc_live_secret",
+        ],
       },
       dealer: { name: "Private Seller", city: "Moscow", state: "ID", zip: "83844" },
     },
@@ -210,7 +236,10 @@ test("never sends key-bearing photo links and fills a private seller's city", as
   const stale = {
     ...listing,
     location: { ...listing.location, city: "", state: "" },
-    media: { photoLinks: listing.media.photoLinks, photoLinksCached: ["https://x.test/1?api_key=k"] },
+    media: {
+      photoLinks: listing.media.photoLinks,
+      photoLinksCached: ["https://x.test/1?api_key=k"],
+    },
     raw: { dealer: { city: "Viola", state: "ID" } },
   };
   const fixed = finalizeMarketCheckListing(stale);

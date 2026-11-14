@@ -16,6 +16,12 @@ export function NativeHeader({
 }) {
   const [query, setQuery] = useState(() => browseLocation(window.location.hash).search.q ?? "");
   const [area, setArea] = useState("Idaho");
+  const [scrolled, setScrolled] = useState(() => window.scrollY > 8);
+  useEffect(() => {
+    const sync = () => setScrolled(window.scrollY > 8);
+    window.addEventListener("scroll", sync, { passive: true });
+    return () => window.removeEventListener("scroll", sync);
+  }, []);
   useEffect(() => {
     const sync = () => setQuery(browseLocation(window.location.hash).search.q ?? "");
     window.addEventListener("hashchange", sync);
@@ -26,11 +32,31 @@ export function NativeHeader({
     path.startsWith("/messages/") ||
     path.startsWith("/sellers/") ||
     path.startsWith("/dealers/");
+  // Listing controls live over its photos; the global capsule stays available.
+  if (path.startsWith("/listings/"))
+    return (
+      <>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-1.5 focus:text-primary-foreground"
+          onClick={(event) => {
+            event.preventDefault();
+            const main = document.getElementById("main-content");
+            main?.focus({ preventScroll: true });
+            main?.scrollIntoView({ block: "start" });
+          }}
+        >
+          Skip to main content
+        </a>
+        <div className="native-detail-safe-area" />
+      </>
+    );
   return (
     <>
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[env(safe-area-inset-top)] bg-card"
+        data-scrolled={scrolled}
+        className="native-status-surface pointer-events-none fixed inset-x-0 top-0 z-50 h-[env(safe-area-inset-top)] bg-card"
       />
       <div className="native-brand-row bg-card pt-[env(safe-area-inset-top)]">
         <div className="mx-auto max-w-[1400px] px-4 py-2">
@@ -64,6 +90,7 @@ export function NativeHeader({
       </div>
       <header
         aria-label="Search and saved listings"
+        data-scrolled={scrolled}
         className="native-search-header sticky top-[env(safe-area-inset-top)] z-40 bg-card/95 backdrop-blur-xl"
       >
         <a
@@ -159,7 +186,7 @@ export function NativeHeader({
               )
             }
           />
-          <p className="native-home-tagline">Find your next Idaho gem.</p>
+          <p className="native-home-tagline">Find your next gem in the gem state</p>
         </>
       )}
     </>

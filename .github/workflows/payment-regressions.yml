@@ -64,5 +64,9 @@ jobs:
         run: npm run test:mobile:notifications:ui
       - name: Verify shared listing details and account-scoped contact actions
         run: npm run test:mobile:details:ui
+      - name: Verify homepage refresh, startup artwork, cached jobs and navigation cleanup
+        run: npm run test:mobile:home:ui
+        env:
+          BLUEBIRD_SKIP_HOME_SCREENSHOTS: "true"
       - name: Verify shared seller and dealership storefronts with private account isolation
         run: npm run test:mobile:storefronts:ui

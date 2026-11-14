@@ -1,12 +1,23 @@
 import { selectDiscoveryCards } from "../../../src/lib/discovery-ranking";
+import type { Search } from "../../../src/lib/browse-search";
 import { ArrowRight } from "@phosphor-icons/react";
 import { MarketplaceListingSection } from "../../../src/components/classifieds/MarketplaceListingSection";
 import { allocateHomepageRows } from "../../../src/lib/homepage-initial-payload";
 import type { ListingCardSummary } from "../../../src/lib/listing-card-summary";
 import type { MobileHome } from "../../../src/lib/mobile-contract";
-import { ListingSourceCredits } from "./ListingSourceCredits";
+import {
+  LogoDevCredit,
+  PartnerJobsCredit,
+} from "../../../src/components/classifieds/ListingCardView";
 import { listingPresentation } from "./listing-presentation";
 import { ListingTile } from "./ShopperExperience";
+import { useEffect, useState } from "react";
+import { api } from "./client";
+import {
+  mobileListingAllowed,
+  type MobileBrowse,
+  type MobileListing,
+} from "../../../src/lib/mobile-contract";
 
 export function HomeDiscovery({
   home,
@@ -16,31 +27,52 @@ export function HomeDiscovery({
 }: {
   home: MobileHome;
   learning: boolean;
-  onBrowse: (category: string, group?: "motors") => void;
+  onBrowse: (scope: Partial<Search>) => void;
   onOpen: (id: string) => void;
 }) {
+  const [cachedJobs, setCachedJobs] = useState<MobileListing[]>([]);
+  const [jobsUnavailable, setJobsUnavailable] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    setCachedJobs([]);
+    setJobsUnavailable(false);
+    if (home.recent.some((card) => card.categorySlug === "jobs")) return;
+    // The snapshot may predate the current job cache. This existing search
+    // contract reads purchased inventory only; it cannot refresh a provider.
+    api<MobileBrowse>("search?category=jobs&state=ID&page=1", "GET", undefined, controller.signal)
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        if (!Array.isArray(result.items)) throw Error("Jobs unavailable");
+        setCachedJobs(
+          result.items.filter((card) => card.categorySlug === "jobs" && mobileListingAllowed(card)),
+        );
+        setJobsUnavailable(result.incomplete === true);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setJobsUnavailable(true);
+      });
+    return () => controller.abort();
+  }, [home]);
+  const recent = [
+    ...new Map([...home.recent, ...cachedJobs].map((card) => [card.id, card])).values(),
+  ];
   const adapted = {
     motors: home.motors.map(listingPresentation),
-    recent: home.recent.map(listingPresentation),
-    totalActive: home.recent.length,
+    recent: recent.map(listingPresentation),
+    totalActive: recent.length,
     categoryCounts: {},
   };
   const rows = allocateHomepageRows(adapted, {
     motors: adapted.motors.filter((c) => c.categorySlug === "cars-trucks"),
   });
-  const originals = new Map([...home.motors, ...home.recent].map((card) => [card.id, card]));
+  const originals = new Map([...home.motors, ...recent].map((card) => [card.id, card]));
   const sections: {
     title: string;
     eyebrow: string;
     category: string;
+    scope?: Partial<Search>;
     cards: ListingCardSummary[];
   }[] = [
-    {
-      title: "New vehicle arrivals",
-      eyebrow: "Bluebird motors",
-      category: "cars-trucks",
-      cards: rows.vehicleListings,
-    },
     {
       title: "Fresh local finds",
       eyebrow: "Bluebird classifieds",
@@ -51,7 +83,14 @@ export function HomeDiscovery({
       title: "Homes for sale",
       eyebrow: "Bluebird homes",
       category: "other-real-estate",
+      scope: { homeMode: "results", homeTab: "buy" },
       cards: rows.buyHomes,
+    },
+    {
+      title: "New vehicle arrivals",
+      eyebrow: "Bluebird motors",
+      category: "cars-trucks",
+      cards: rows.vehicleListings,
     },
     { title: "Local jobs", eyebrow: "Bluebird jobs", category: "jobs", cards: rows.jobRow },
     {
@@ -66,12 +105,38 @@ export function HomeDiscovery({
       category: "pets",
       cards: rows.petListings,
     },
-    {
-      title: "More local finds",
-      eyebrow: "Bluebird classifieds",
-      category: "",
-      cards: rows.feedStart.slice(0, 8),
-    },
+    ...[
+      { title: "Trucks & SUVs", category: "cars-trucks", cards: rows.truckListings },
+      {
+        title: "Vehicles for less",
+        category: "cars-trucks",
+        scope: { sort: "price_low" as const },
+        cards: rows.valueVehicleListings,
+      },
+      {
+        title: "Homes for rent",
+        category: "other-real-estate",
+        scope: { homeMode: "results" as const, homeTab: "rent" as const },
+        cards: rows.rentalHomes,
+      },
+      {
+        title: "New homes to explore",
+        category: "other-real-estate",
+        scope: { homeMode: "results" as const, homeTab: "build" as const },
+        cards: rows.buildHomes,
+      },
+      { title: "Flexible work", category: "jobs", cards: rows.flexibleJobs },
+      { title: "Help around the home", category: "services", cards: rows.homeServices },
+      { title: "More from local sellers", category: "", cards: rows.generalListings },
+      { title: "Toys & collectibles", category: "", cards: rows.toyAndCollectibleListings },
+      { title: "Finds under $100", category: "", scope: { priceMax: 100 }, cards: rows.valueFinds },
+      { title: "Local seller picks", category: "", cards: rows.localSellerPicks },
+    ]
+      .filter((row) => row.cards.length)
+      .map((row) => ({ ...row, eyebrow: "" })),
+    ...(rows.feedStart.length
+      ? [{ title: "More local finds", eyebrow: "", category: "", cards: rows.feedStart }]
+      : []),
   ];
   const lead = selectDiscoveryCards(
     adapted.motors.filter((c) => c.categorySlug === "cars-trucks"),
@@ -87,7 +152,7 @@ export function HomeDiscovery({
         action={
           <button
             aria-label="See all vehicles"
-            onClick={() => onBrowse("cars-trucks")}
+            onClick={() => onBrowse({ category: "cars-trucks" })}
             className="inline-flex min-h-11 shrink-0 items-center gap-1 border-0 bg-transparent p-0 text-[12.5px] font-semibold text-primary"
           >
             See all <ArrowRight size={12} />
@@ -115,12 +180,6 @@ export function HomeDiscovery({
             ) : null;
           })}
         </div>
-        <ListingSourceCredits
-          showVehicleCredit={false}
-          cards={lead.flatMap((summary) =>
-            originals.get(summary.id) ? [originals.get(summary.id)!] : [],
-          )}
-        />
         {!lead.length && (
           <p className="mt-5 text-[13px] text-muted-foreground">
             Vehicles appear here as local sellers post them.
@@ -136,14 +195,20 @@ export function HomeDiscovery({
           action={
             <button
               className="inline-flex min-h-11 shrink-0 items-center gap-1 border-0 bg-transparent p-0 text-[12.5px] font-semibold text-primary"
-              onClick={() => onBrowse(section.category)}
+              onClick={() => onBrowse({ category: section.category, ...section.scope })}
             >
               See all <ArrowRight size={12} />
             </button>
           }
         >
           {section.cards.length ? (
-            <div className="no-scrollbar mt-2 flex gap-2.5 overflow-x-auto pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible">
+            <div
+              className={
+                section.title === "More local finds"
+                  ? "mt-2 grid grid-cols-2 gap-x-2.5 gap-y-4 lg:grid-cols-4"
+                  : "no-scrollbar mt-2 flex gap-2.5 overflow-x-auto pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible"
+              }
+            >
               {section.cards.map((summary, position) => {
                 const card = originals.get(summary.id);
                 return card ? (
@@ -166,17 +231,22 @@ export function HomeDiscovery({
             </div>
           ) : (
             <p className="mt-5 rounded-2xl border border-dashed border-border px-5 py-4 text-[13px] text-muted-foreground">
-              Nothing here yet. New listings show up as soon as local sellers post them.
+              {section.category === "jobs"
+                ? jobsUnavailable
+                  ? "Jobs are temporarily unavailable. Pull to refresh or try See all."
+                  : "No jobs are available right now. Pull to refresh or try See all."
+                : "Nothing here yet. New listings show up as soon as local sellers post them."}
             </p>
           )}
-          <ListingSourceCredits
-            showVehicleCredit={false}
-            cards={section.cards.flatMap((summary) =>
-              originals.get(summary.id) ? [originals.get(summary.id)!] : [],
-            )}
-          />
         </MarketplaceListingSection>
       ))}
+      <footer
+        className="pb-6 pt-3 text-right text-[11px] text-muted-foreground"
+        aria-label="Listing source credits"
+      >
+        <PartnerJobsCredit listings={adapted.recent} />
+        {adapted.recent.some((card) => card.directory?.logoUrl) && <LogoDevCredit />}
+      </footer>
     </>
   );
 }

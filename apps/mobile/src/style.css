@@ -1,6 +1,91 @@
 @import "../../../src/styles.css";
 @source "./";
 
+/* One viewport-sized background avoids iOS tiling seams on long feeds. The
+   unscrolled search and brand share it with the category strip beneath them. */
+body {
+  isolation: isolate;
+  background-image: none;
+  overflow-x: clip;
+}
+
+.native-detail-safe-area {
+  height: env(safe-area-inset-top);
+}
+.native-route-viewport {
+  overflow: clip;
+}
+.native-photo-slide {
+  width: 100%;
+  height: min(100vw, 520px);
+}
+.native-photo-placeholder :is(.rounded-\[28px\]) {
+  border-radius: 0;
+  min-height: 280px;
+}
+[data-photo-first] > nav[aria-label="Breadcrumb"],
+[data-photo-first] > div:empty,
+[data-photo-first] .native-detail-grid > div:empty,
+[data-photo-first] .native-detail-body > div:empty,
+[data-photo-first] button[aria-label="Share listing"] {
+  display: none;
+}
+@media (max-width: 1023px) {
+  [data-photo-first] .native-detail-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-top: 16px;
+  }
+  [data-photo-first] .native-detail-body {
+    display: contents;
+  }
+  [data-photo-first] .native-detail-grid > header,
+  [data-photo-first] .native-detail-body > header {
+    order: -2;
+    margin-top: 0;
+  }
+  [data-photo-first] .native-detail-grid > aside {
+    order: -1;
+    width: 100%;
+  }
+  [data-photo-first] h1 {
+    font-size: 25px;
+    line-height: 1.2;
+  }
+}
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  background: radial-gradient(
+    circle at 100% 0%,
+    color-mix(in srgb, var(--color-brand-blue) 18%, transparent),
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+}
+.native-brand-row {
+  background: transparent;
+}
+.native-search-header,
+.native-status-surface {
+  background: transparent;
+  transition: background-color 160ms ease;
+}
+.native-search-header[data-scrolled="true"],
+.native-status-surface[data-scrolled="true"] {
+  background: color-mix(in srgb, var(--color-background) 94%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .native-search-header,
+  .native-status-surface {
+    transition: none;
+  }
+}
+
 /* Fill the existing introduction gap without pushing listings down. */
 .native-home-tagline {
   margin: 0 12px;

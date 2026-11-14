@@ -209,7 +209,17 @@ export function dedupeMarketCheckImages(values: unknown[]): string[] {
     let key = url;
     try {
       const parsed = new URL(url);
-      parsed.search = "";
+      // Keep image identity (id, photo, file, signed URLs, etc.). Some dealers
+      // serve their entire gallery from one path with a different query ID.
+      for (const [name, value] of [...parsed.searchParams]) {
+        if (
+          (/^(w|width|h|height|dpr|quality|q)$/i.test(name) && /^\d+(\.\d+)?$/.test(value)) ||
+          (/^size$/i.test(name) &&
+            /^(small|medium|large|original|thumb(nail)?|\d+(x\d+)?)$/i.test(value))
+        )
+          parsed.searchParams.delete(name);
+      }
+      parsed.searchParams.sort();
       parsed.hash = "";
       key = parsed.toString();
     } catch {
@@ -603,14 +613,13 @@ export function freshMarketCheckInventory(
 export function marketCheckImages(listing: MarketCheckListing): string[] {
   // MarketCheck exposes the same gallery twice: once through its cached image
   // host and once through the original photo links. Prefer the cached gallery
-  // when it exists so the detail page does not render the same photo twice
+  // when complete so the detail page does not render the same photo twice
   // under two different hosts or resize URLs. Fall back to the original links
-  // only when the cached gallery is absent.
+  // when the cached gallery is absent or still incomplete.
   // Cached links that carry the API key are never used.
-  const cached = withoutApiKeys(listing.media.photoLinksCached);
-  return withoutApiKeys(
-    dedupeMarketCheckImages(cached.length > 0 ? cached : listing.media.photoLinks),
-  );
+  const cached = dedupeMarketCheckImages(withoutApiKeys(listing.media.photoLinksCached));
+  const original = dedupeMarketCheckImages(withoutApiKeys(listing.media.photoLinks));
+  return original.length > cached.length ? original : cached;
 }
 
 export function marketCheckDescription(listing: MarketCheckListing): string | null {

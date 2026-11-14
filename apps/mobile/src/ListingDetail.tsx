@@ -1,4 +1,5 @@
 import { Share } from "@capacitor/share";
+import { createPortal } from "react-dom";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import {
   createContext,
@@ -48,6 +49,7 @@ import { CardSaveButton } from "./SavedCards";
 import { ListingTile, ShoppingRows } from "./ShopperExperience";
 import { trackShopping } from "./shopping";
 import { useListingActivity } from "./shopping-activity";
+import { NativeListingPhotos } from "./ListingPhotos";
 export type MobileDetailResult = {
   listing: ClassifiedDetail;
   stats: { views: number; favorites: number } | null;
@@ -362,13 +364,14 @@ export function NativeListingDetail({
     () => ({
       Link: NativeDetailLink,
       pageElement: "article",
+      photoFirst: true,
       vehicleHistoryPurchases: false,
       ListingActions: NativeListingActions,
       ListingCard: NativeEmbeddedCard,
-      PartnerHomeHeartButton: NativeDetailSave,
-      PartnerJobHeartButton: NativeDetailSave,
-      PartnerVehicleHeartButton: NativeDetailSave,
-      WatchHeartButton: NativeDetailSave,
+      PartnerHomeHeartButton: WebsiteOnlyAdministration,
+      PartnerJobHeartButton: WebsiteOnlyAdministration,
+      PartnerVehicleHeartButton: WebsiteOnlyAdministration,
+      WatchHeartButton: WebsiteOnlyAdministration,
       VehiclePriceInsight: NativePriceInsight,
       AdminBusinessPerformanceLink: WebsiteOnlyAdministration,
       FlagListingDialog: NativeDetailFlag,
@@ -395,26 +398,33 @@ export function NativeListingDetail({
         Loading listing…
       </p>
     );
+  const share = async () => {
+    try {
+      await Share.share({
+        title: listingDetailTitle(data.listing),
+        url: `${apiOrigin}${listingPath(data.listing)}`,
+      });
+    } catch (e) {
+      if (!(e instanceof Error && /cancel/i.test(e.message)))
+        toast.error("This listing could not be shared.");
+    }
+  };
   return (
     <QueryClientProvider client={queryClient}>
       <Detail.Provider value={{ data, owner, learning, applicationsReady }}>
         <div onClickCapture={handleNativePublicLink}>
           {data.listing.ended && <EndedListingBanner listing={data.listing} />}
-          <ListingDetailView
+          <NativeListingPhotos
+            key={data.listing.id}
             listing={data.listing}
-            runtime={runtime}
-            handleShare={async () => {
-              try {
-                await Share.share({
-                  title: listingDetailTitle(data.listing),
-                  url: `${apiOrigin}${listingPath(data.listing)}`,
-                });
-              } catch (e) {
-                if (!(e instanceof Error && /cancel/i.test(e.message)))
-                  toast.error("This listing could not be shared.");
-              }
-            }}
+            save={
+              <NativeDetailSave className="flex h-11 w-11 items-center justify-center rounded-full bg-card/95 text-primary shadow-sm" />
+            }
+            more={<NativeDetailFlag listingId={data.listing.id} isMock={data.listing.isMock} />}
+            onShare={share}
+            onPhoto={(photo) => trackShopping("photo", listingId, { photo })}
           />
+          <ListingDetailView listing={data.listing} runtime={runtime} handleShare={share} />
           <div className="mx-auto max-w-[1360px] px-4 pb-12 sm:px-7 lg:px-10">
             <ShoppingRows
               similarId={data.listing.id}
@@ -425,13 +435,16 @@ export function NativeListingDetail({
               }}
             />
           </div>
-          <MobileContactBarView
-            aboveNavigation
-            listing={data.listing}
-            isSignedIn={Boolean(owner)}
-            userId={owner}
-            onContact={onContact}
-          />
+          {createPortal(
+            <MobileContactBarView
+              aboveNavigation
+              listing={data.listing}
+              isSignedIn={Boolean(owner)}
+              userId={owner}
+              onContact={onContact}
+            />,
+            document.body,
+          )}
         </div>
       </Detail.Provider>
     </QueryClientProvider>

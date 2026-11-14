@@ -5,9 +5,82 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#1f3557" />
     <title>Bluebird</title>
+    <style>
+      #bluebird-launch {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+        color: #203b5e;
+        font: 16px system-ui;
+      }
+      .launch-background {
+        position: absolute;
+        inset: 0;
+        background: #faf8f4;
+        z-index: -1;
+      }
+      #bluebird-launch img {
+        width: min(280px, 72vw);
+        height: auto;
+        transform-origin: top left;
+        animation: bluebird-breathe 1.8s ease-in-out infinite alternate;
+      }
+      #bluebird-launch.is-ready img {
+        animation: none;
+      }
+      #bluebird-launch p {
+        text-align: center;
+        max-width: 280px;
+      }
+      #bluebird-launch .launch-status {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+      }
+      #bluebird-launch button {
+        border: 1px solid #203b5e;
+        border-radius: 24px;
+        background: white;
+        color: #203b5e;
+        padding: 12px 22px;
+        font: inherit;
+      }
+      @keyframes bluebird-breathe {
+        from {
+          opacity: 0.7;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #bluebird-launch img {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="bluebird-launch" role="status" aria-label="Opening Bluebird">
+      <div class="launch-background"></div>
+      <img
+        src="/images/brand/bluebird-marketplace-logo.webp"
+        width="640"
+        height="261"
+        alt="Bluebird Marketplace"
+        fetchpriority="high"
+      />
+      <p class="launch-status">Opening Bluebird…</p>
+      <button hidden type="button">Try again</button>
+    </div>
+    <div id="root" inert></div>
     <script type="module" src="/src/startup.ts"></script>
   </body>
 </html>
