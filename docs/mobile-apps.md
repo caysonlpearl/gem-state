@@ -131,7 +131,7 @@ The native footer remains on listing, posting, authentication and account screen
 
 Browser regressions cover the pinned search/footer, scrolling logo, five controls, search scope, Vehicles group, account/menu dismissal, listing contact clearance and iOS input font size at narrow/wide/landscape sizes. Fixture journeys do not touch production accounts or send email. A separate public-catalog browser check at 320/390/768 pixels verified real cached vehicle browsing, the actual detail title/contact bar, back/scroll restoration, spaced queries and the two signup choices with all writes blocked. Its preview-origin adapter uses the native public API origin; it does not prove physical WebView behavior. This source batch must be rebuilt and installed before claiming that these changes appear on the physical iPhone; wireless reachability was unavailable at the last check. Account enrollment, push delivery and real Android testing remain separate gates.
 
-Remaining parity work includes the account overview and the remaining account tabs, wider-screen header search/category controls, exact related-listing rails, seller dashboard/navigation/own-listing management and category landing pages. Profile and account/security now use shared website presenters. Do not describe the remaining sections as already migrated. Compare each screen at the same viewport, data and state before beta; record any difference and its reason. Necessary exceptions are permanent app catalog/payment restrictions, native permission prompts, device integrations and phone system boundaries. A proposed design simplification alone is not a reason to diverge.
+Remaining parity work includes the remaining account tabs, wider-screen header search/category controls, exact related-listing rails, seller dashboard/navigation/own-listing management and category landing pages. Overview, profile and account/security now use shared website presenters. Do not describe the remaining sections as already migrated. Compare each screen at the same viewport, data and state before beta; record any difference and its reason. Necessary exceptions are permanent app catalog/payment restrictions, native permission prompts, device integrations and phone system boundaries. A proposed design simplification alone is not a reason to diverge.
 
 The earlier text-only wordmark and separate listing-card/photo designs are replaced.
 The remaining account presenters and seller management must
@@ -200,7 +200,7 @@ Storage metadata is read only; files are not deleted by editing `storage.objects
 
 ## Shared notifications and unread navigation
 
-The app now reuses the website's actual `NotificationsSectionView`, `NotificationBellView` and `HeaderAccountMenuView`. Filtered activity, mark-one/mark-all controls, five-row bell previews, signed-in identity, keyboard/Escape handling and unread badges use the same presenters. The phone category menu's Notifications link reaches the native account center. Account overview, remaining saved/listing/review tabs, selling navigation and wider header controls are still pending parity work; the app does not expose a paid billing destination.
+The app now reuses the website's actual `NotificationsSectionView`, `NotificationBellView` and `HeaderAccountMenuView`. Filtered activity, mark-one/mark-all controls, five-row bell previews, signed-in identity, keyboard/Escape handling and unread badges use the same presenters. The phone category menu's Notifications link reaches the native account center. The remaining saved/listing/review tabs, selling navigation and wider header controls are still pending parity work; the app does not expose a paid billing destination.
 
 `features.notificationCenter` advertises the additive authenticated `GET notifications` and `PUT notifications/read` contract. Missing support stops the client before inbox reads. Reads derive the JWT owner, select that member's latest 60 notification rows and at most 100 recent conversation summaries, then validate referenced native listings, cached external inventory, current dealer publication, both participants' block states and job-application ownership. Metadata is batched; directory or listing-provider detail/refresh calls are never used. Read-only stages have five-second deadlines. Invalid references, restricted inventory, unscoped website dealer chats, expired shopping inventory, foreign recipients and website-only payment activity do not appear or contribute to badges. Existing authorized conversations about retained, eligible native listings remain readable after expiry; those same expired listings cannot generate shopping reminders. Native message-list checks batch minimal category facts instead of treating public availability as permission to view private history. Hard-deleted or unverifiable contexts still fail closed. Eligible seller review/application notices can remain readable after their own listing becomes unavailable, without a misleading public-listing link. Source failures return a retry state rather than a successful empty inbox.
 
@@ -224,7 +224,7 @@ Native resume uploads use immutable server-derived paths and no overwrite. Expli
 
 Browser fixtures exercise 14 source/category variants at 320/390/1280 pixels, guest authentication, saves/counts, canonical sharing, reporting, claims, messages, account switching, source failures, separate permissions and lost upload/application responses with one stored resume. Actual SQL is exercised in an isolated PostgreSQL runtime for replay, rollback, owner/catalog/file checks and employer-review preservation. These tests create no production members, files, applications, messages or email. Run `npm run test:mobile:details:ui`. Authenticated production, physical-device file/share behavior, cross-connection database concurrency and iPhone compilation remain unverified.
 
-Category landing layouts, account overview/remaining tabs, seller management and exact related rails remain in scope. Seller/dealer links now open the shared native storefront pages described below. Place links preserve canonical city/region, radius and collection filters while those landing presenters are pending. The app is not yet fully 1:1.
+Category landing layouts, the remaining account tabs, seller management and exact related rails remain in scope. Seller/dealer links now open the shared native storefront pages described below. Place links preserve canonical city/region, radius and collection filters while those landing presenters are pending. The app is not yet fully 1:1.
 
 ## Shared seller and dealership storefronts
 
@@ -691,3 +691,44 @@ models retain their second line. Cards follow their content height. Standard
 website, saved and search presenters retain their existing title spacing.
 Browser checks verify the tagline's placement/size and that a one-line compact
 title occupies only one line, alongside existing navigation and privacy checks.
+
+## Shared account overview — November 14, 2026
+
+The website and app now use `AccountOverviewView` for the welcome/profile card,
+completion indicator, saved/search/message/activity metrics, seller snapshot,
+recent activity and quick actions. The website keeps its existing navigation
+and billing actions. The app uses bundled routes and permanently omits billing;
+its Account menu opens the overview when `features.accountOverview` is published,
+with the prior profile screen as the compatibility fallback for older backends.
+Overview links reach saved listings, saved searches, messages, profile, browse
+and posting. The remaining listings/reviews account tabs and seller management
+are still separate work.
+
+`GET account/overview` derives the member from verified bearer/session identity
+and reads that member's asks, completed orders and watchlist through the
+member-scoped client. Counts reuse the website's seller-state helper and apply
+the permanent app catalog boundary to product taxonomy, title and description.
+Demo inventory is excluded. Completed sales require stored completed orders;
+contacts, removed listings and seller-marked sold status are not purchases.
+The saved metric matches the website overview's member watchlist count; cached
+partner saves remain available in the existing Saved destination. Saved-search
+counts and activity use the existing filtered app services.
+
+The count adapter reads at most 5,000 rows per source in 500-row pages, under one
+eight-second deadline with no automatic retries. Row caps, inconsistent counts,
+duplicate rows, foreign ownership and database errors produce an unavailable
+state rather than a partial count. There are no provider requests, photo signing,
+maintenance writes, payment details or content returned from those count reads.
+Notification failures have their own retry and do not appear as zero activity.
+Account/install checks and cancelled reads prevent a late prior-account response
+from updating the new account's overview. No shopper activity or advertising
+exports are added to private account screens.
+
+Synthetic SDK/HTTP/browser checks cover owner and deletion-pending boundaries,
+restricted/misplaced inventory, pagination, read errors/cancellation, ordinary
+empty results, capability fallback, native links, missing billing, activity retry
+and account switching. The browser fixtures use 320/390/1280-pixel viewports and
+create no real accounts or messages. Backend publication and a rebuilt installed
+app must be verified separately; these checks are not physical-device proof.
+
+A one-time server-render comparison against the pre-extraction website overview verified identical markup for seller/non-seller accounts with empty/populated activity. The browser screenshot round retained the incumbent fonts, spacing, profile card and responsive structure; no replacement account design was introduced.

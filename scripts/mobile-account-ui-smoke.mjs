@@ -136,6 +136,9 @@ try {
       consents.set(actor, { terms_version: "2026-11-12", shopping_alerts: false });
     }
     let accountControls = false,
+      overviewReady = false,
+      overviewOutage = false,
+      activityOutage = false,
       preferenceReads = 0,
       contactOutage = true,
       profileFailure = true,
@@ -205,6 +208,8 @@ try {
           categories: [],
           features: {
             accountControls,
+            accountOverview: overviewReady,
+            notificationCenter: overviewReady,
             push: false,
             advertising: false,
             paidUpgrades: false,
@@ -214,7 +219,33 @@ try {
         };
       else if (path === "account")
         data = { account: members.get(actor), consent: consents.get(actor) };
-      else if (path === "account/contact-preferences" && method === "GET") {
+      else if (path === "account/overview") {
+        if (overviewOutage) return fail(503, "Fixture overview unavailable.");
+        data = {
+          ownerId: actor,
+          watchlistCount: actor === a ? 3 : 8,
+          activeListings: 2,
+          pendingListings: 1,
+          completedSalesCount: 4,
+        };
+      } else if (path === "saved-searches") data = { items: [{ id: "fixture-search" }] };
+      else if (path === "notifications") {
+        if (activityOutage) return fail(503, "Fixture activity unavailable.");
+        data = {
+          ownerId: actor,
+          unread: 2,
+          unreadMessages: 1,
+          items: [
+            {
+              id: "fixture-notice",
+              title: actor === a ? "First account activity" : "Second account activity",
+              body: "Fixture update",
+              readAt: null,
+              createdAt: "2026-11-12T12:00:00Z",
+            },
+          ],
+        };
+      } else if (path === "account/contact-preferences" && method === "GET") {
         preferenceReads++;
         if (contactOutage) return fail(503, "Fixture contact settings unavailable.");
         data = contacts.get(actor);
@@ -440,6 +471,54 @@ try {
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
     );
+    overviewReady = true;
+    overviewOutage = true;
+    await page.goto(origin + "/#/account");
+    await page.reload();
+    await page.getByRole("alert").filter({ hasText: "Fixture overview unavailable." }).waitFor();
+    assert.equal(
+      await page.getByRole("heading", { name: "Seller snapshot", exact: true }).count(),
+      0,
+    );
+    overviewOutage = false;
+    await page.getByRole("button", { name: "Retry overview", exact: true }).click();
+    await page
+      .getByRole("heading", { name: "Welcome back, Updated fixture", exact: true })
+      .waitFor();
+    await page.getByText("First account activity", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Billing", exact: true }).count(), 0);
+    assert.equal(
+      await page.getByRole("button", { name: "Manage billing", exact: true }).count(),
+      0,
+    );
+    assert.equal(
+      await page.getByRole("link", { name: /Post a listing/ }).getAttribute("href"),
+      "#/post",
+    );
+    assert.equal(
+      await page
+        .getByRole("link", { name: "Browse classifieds", exact: true })
+        .getAttribute("href"),
+      "#/search",
+    );
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    await page.screenshot({
+      path: resolve(output, `shared-overview-${viewport.width}.png`),
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: "View saved listings", exact: true }).click();
+    assert.equal(new URL(page.url()).hash, "#/saved");
+    activityOutage = true;
+    await page.goto(origin + "/#/account");
+    await page.reload();
+    await page.getByText("Activity unavailable", { exact: true }).waitFor();
+    activityOutage = false;
+    await page.getByRole("button", { name: "Retry activity", exact: true }).click();
+    await page.getByText("First account activity", { exact: true }).waitFor();
+    await selectSettings();
     await page.getByRole("button", { name: "Delete account", exact: true }).click();
     await page.getByLabel("Type DELETE to confirm", { exact: true }).fill("NO");
     await page.getByRole("button", { name: "Request account deletion", exact: true }).click();
@@ -463,6 +542,12 @@ try {
       sessionStorage.removeItem("fixture.loggedout");
     }, b);
     await page.reload();
+    await page.goto(origin + "/#/account");
+    await page
+      .getByRole("heading", { name: "Welcome back, Second fixture", exact: true })
+      .waitFor();
+    await page.getByText("Second account activity", { exact: true }).waitFor();
+    assert.equal(await page.getByText("First account activity", { exact: true }).count(), 0);
     await page.goto(origin + "/#/account/profile");
     await page
       .getByRole("heading", { name: "Build trust before the first message", exact: true })
@@ -486,6 +571,8 @@ try {
     results.push({
       viewport,
       sharedProfileAndSettings: true,
+      sharedOverview: true,
+      overviewFailureAndActivityRetry: true,
       preferenceReadFailurePreventsOverwrite: true,
       profileAndContactFailurePreserveDrafts: true,
       avatarUploadAndRemoval: true,

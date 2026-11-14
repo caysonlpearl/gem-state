@@ -363,6 +363,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       supabaseKey,
       features: {
         accountControls: true,
+        accountOverview: true,
         fullSearch: true,
         notificationCenter: true,
         listingDetails: true,
@@ -650,6 +651,11 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     const { getMyAccount } = await import("./account.functions");
     return { account: await domain(getMyAccount), consent: await consent(user.id) };
   }
+  if (method === "GET" && path === "account/overview")
+    return (await import("./mobile-account-overview.server")).loadMobileAccountOverview(
+      client,
+      user.id,
+    );
   if (method === "GET" && path === "saved-searches") {
     const all = await domain((await import("./account-center.functions")).getMySavedSearches);
     return { items: all.filter(mobileSavedSearchAllowed) };

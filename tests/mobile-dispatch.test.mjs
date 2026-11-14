@@ -204,6 +204,18 @@ function harness({
     "./mobile-message-context.server": messageContext,
     "./mobile-write": mobileWrite,
     "./mobile-account-contract": accountContracts,
+    "./mobile-account-overview.server": {
+      loadMobileAccountOverview: async (_client, ownerId) => {
+        reads.push({ table: "overview", ownerId });
+        return {
+          ownerId,
+          watchlistCount: 2,
+          activeListings: 1,
+          pendingListings: 1,
+          completedSalesCount: 0,
+        };
+      },
+    },
     "./mobile-messaging.server": {
       mobileAttachmentsReady: async () => attachments,
       mobilePostingReady: async () => posting,
@@ -853,6 +865,29 @@ test("full search capability is additive for installed clients", async () => {
   assert.equal(features.advertising, false);
 });
 
+test("account overview is additive and derives its identity from verified authentication", async () => {
+  const h = harness();
+  assert.equal((await h.request("account/overview", "GET", undefined, null)).status, 401);
+  const invalid = harness({ valid: false });
+  assert.equal((await invalid.request("account/overview")).status, 401);
+  assert.equal(
+    invalid.reads.some((r) => r.table === "overview"),
+    false,
+  );
+  assert.equal(
+    h.reads.some((r) => r.table === "overview"),
+    false,
+  );
+  const response = await h.request("account/overview?ownerId=victim");
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).data.ownerId, h.user);
+  assert.deepEqual(
+    h.reads.find((r) => r.table === "overview"),
+    { table: "overview", ownerId: h.user },
+  );
+  assert.equal((await (await h.request("bootstrap")).json()).data.features.accountOverview, true);
+});
+
 test("saved-search dispatch authenticates reads, keeps reads during write outage and enforces server-owned scope", async () => {
   const off = harness();
   assert.equal((await off.request("saved-searches", "GET", undefined, null)).status, 401);
@@ -1221,6 +1256,7 @@ test("deletion-pending identities cannot read or mutate private native routes, w
   const h = harness({ deleted: true, attachments: true, posting: true, savedSearches: true });
   for (const [path, method, body] of [
     ["account", "GET"],
+    ["account/overview", "GET"],
     ["conversations", "GET"],
     ["notifications", "GET"],
     ["saved", "GET"],

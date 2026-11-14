@@ -601,6 +601,7 @@ function Application() {
                 <NativeAccount
                   controlsReady={bootstrap.features.accountControls === true}
                   storefrontsReady={bootstrap.features.storefronts === true}
+                  overviewReady={bootstrap.features.accountOverview === true}
                   key={session!.user.id}
                   ownerId={session!.user.id}
                   section={
@@ -610,7 +611,10 @@ function Application() {
                         ? "notifications"
                         : path === "/account/searches"
                           ? "searches"
-                          : "profile"
+                          : ["/account", "/account/overview"].includes(path) &&
+                              bootstrap.features.accountOverview === true
+                            ? "overview"
+                            : "profile"
                   }
                   policyVersion={bootstrap.policyVersion}
                   onNavigate={go}
