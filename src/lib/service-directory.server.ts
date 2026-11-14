@@ -60,15 +60,26 @@ export async function directoryCards(
   data: ClassifiedBrowseInput,
   offset: number,
   limit: number,
-  options: { failOnError?: boolean; includeExactCount?: boolean; signal?: AbortSignal } = {},
+  options: {
+    failOnError?: boolean;
+    includeExactCount?: boolean;
+    signal?: AbortSignal;
+    injectedDb?: any;
+  } = {},
 ): Promise<{ cards: ClassifiedCard[]; total: number }> {
   try {
-    let query = (await db())
+    // One budget covers both nearby IDs and their card read. A caller's signal
+    // may shorten this budget, but must not remove the normal read deadline.
+    const deadline = AbortSignal.timeout(8000);
+    const signal = options.signal ? AbortSignal.any([options.signal, deadline]) : deadline;
+    signal.throwIfAborted();
+    const client = options.injectedDb ?? (await db());
+    let query = client
       .from("service_directory")
       .select(DIRECTORY_COLUMNS, options.includeExactCount === false ? {} : { count: "exact" })
       .eq("hidden", false)
       .eq("state", "ID")
-      .abortSignal(options.signal ?? AbortSignal.timeout(8000))
+      .abortSignal(signal)
       .retry(false);
     // The directory only covers Idaho.
     if (data.state && !/^(id|idaho)$/i.test(data.state)) return { cards: [], total: 0 };
@@ -82,7 +93,16 @@ export async function directoryCards(
           : null;
     const q = data.q?.replace(/[%_,()]/g, " ").trim();
     if (center && data.radiusMiles != null && !data.region && !data.postalCode) {
-      return nearbyCards(center, data.radiusMiles, data.serviceSubcategory, q, offset, limit);
+      return await nearbyCards(
+        client,
+        center,
+        data.radiusMiles,
+        data.serviceSubcategory,
+        q,
+        offset,
+        limit,
+        signal,
+      );
     }
     if (data.city) {
       query = query.ilike("city", data.city.replace(/[%_]/g, ""));
@@ -114,6 +134,7 @@ export async function directoryCards(
       count,
       error,
     } = limit > 0 ? await query.range(offset, offset + limit - 1) : await query.limit(1);
+    signal.throwIfAborted();
     if (error) {
       if (options.failOnError) throw new Error("Saved services could not be read.");
       return { cards: [], total: 0 };
@@ -133,33 +154,46 @@ export async function directoryCards(
 
 /** Directory businesses within a true distance of a point, one page at a time. */
 async function nearbyCards(
+  client: any,
   center: { latitude: number; longitude: number },
   miles: number,
   trade: string | undefined,
   q: string | undefined,
   offset: number,
   limit: number,
+  signal: AbortSignal,
 ): Promise<{ cards: ClassifiedCard[]; total: number }> {
-  const client = await db();
-  const { data: hits, error } = await client.rpc("service_directory_nearby", {
-    p_lat: center.latitude,
-    p_lon: center.longitude,
-    p_miles: miles,
-    p_trade: trade ?? null,
-    p_q: q || null,
-    p_offset: offset,
-    p_limit: Math.max(limit, 1),
-  });
-  if (error) return { cards: [], total: 0 };
+  const { data: hits, error } = await client
+    .rpc("service_directory_nearby", {
+      p_lat: center.latitude,
+      p_lon: center.longitude,
+      p_miles: miles,
+      p_trade: trade ?? null,
+      p_q: q || null,
+      p_offset: offset,
+      p_limit: Math.max(limit, 1),
+    })
+    .abortSignal(signal)
+    .retry(false);
+  signal.throwIfAborted();
+  if (error) throw new Error("Saved services could not be read.");
   const page = (hits ?? []) as { id: string; total: number }[];
   const total = Number(page[0]?.total ?? 0);
   const ids = limit > 0 ? page.map((hit) => hit.id) : [];
   if (!ids.length) return { cards: [], total };
-  const { data: rows } = await client
+  const { data: rows, error: rowsError } = await client
     .from("service_directory")
     .select(DIRECTORY_COLUMNS)
-    .in("id", ids);
+    .in("id", ids)
+    .eq("hidden", false)
+    .abortSignal(signal)
+    .retry(false);
+  signal.throwIfAborted();
+  if (rowsError) throw new Error("Saved services could not be read.");
   const byId = new Map(((rows ?? []) as DirectoryRow[]).map((row) => [row.id, row]));
+  // A business removed/hidden between the two reads is an incomplete page,
+  // not proof that the original nearby result has no matching businesses.
+  if (ids.some((id) => !byId.has(id))) throw new Error("Saved services could not be read.");
   return {
     cards: ids.flatMap((id) => {
       const row = byId.get(id);
