@@ -328,6 +328,7 @@ export function NativeBrowse({
   return (
     <section aria-label="Browse listings" className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
       <BrowseResultsHeading
+        showSearch={false}
         search={search}
         motors={motors}
         homes={homes}

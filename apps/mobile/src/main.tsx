@@ -50,13 +50,11 @@ import { ListingSourceCredits } from "./ListingSourceCredits";
 import { HomeDiscovery } from "./HomeDiscovery";
 import type { MobileHome } from "../../../src/lib/mobile-contract";
 import { NativeHeader } from "./Header";
+import { NativeNavigation } from "./Navigation";
 import { SavedCardsProvider } from "./SavedCards";
 import { Post } from "./Post";
 import { NativeAuth } from "./Auth";
-import {
-  MobileTabBarView,
-  type MobileTabLinkProps,
-} from "../../../src/components/layout/MobileTabBarView";
+import { type MobileTabLinkProps } from "../../../src/components/layout/MobileTabBarView";
 import { useListingActivity, setShoppingForeground } from "./shopping-activity";
 import { ListingTile, ShoppingRows, PrivacyChoices } from "./ShopperExperience";
 import {
@@ -393,7 +391,11 @@ function Application() {
             ready={bootstrap?.features.notificationCenter === true && !needsTerms}
             revision={revision}
           >
-            <Toaster mobileOffset={{ bottom: "calc(68px + env(safe-area-inset-bottom))" }} />
+            <Toaster
+              mobileOffset={{
+                bottom: "calc(var(--bluebird-native-navigation-height, 68px) + 16px)",
+              }}
+            />
             <NativeSaveSearchDialog
               request={searchRequest?.owner === session?.user.id ? searchRequest : null}
               onClose={() => setSearchRequest(null)}
@@ -421,16 +423,7 @@ function Application() {
               }}
               userId={session?.user.id ?? null}
             />
-            <NativeHeader
-              path={path}
-              signedIn={Boolean(session)}
-              owner={session?.user.id}
-              account={account?.account.userId === session?.user.id ? account?.account : null}
-              onSignOut={() => signOut()}
-              signOutBusy={busy}
-              onNavigate={go}
-              onPrivacy={() => setPrivacyOpen(true)}
-            />
+            <NativeHeader path={path} onNavigate={go} />
             <main id="main-content" tabIndex={-1} className="mobile-content scroll-mt-20">
               {bootstrap && !needsTerms && (
                 <div hidden={path !== "/"}>
@@ -692,32 +685,17 @@ function Application() {
                 <Feed bootstrap={bootstrap} revision={revision} learning={learning} />
               )}
             </main>
-            {bootstrap &&
-              !needsTerms &&
-              !recovery &&
-              !(
-                path.startsWith("/listings/") ||
-                path === "/post" ||
-                (!session && ["/saved", "/messages", "/account"].some((p) => path.startsWith(p)))
-              ) && (
-                <MobileTabBarView
-                  pathname={
-                    path === "/saved" || path.startsWith("/messages")
-                      ? "/account"
-                      : path === "/search"
-                        ? "/browse"
-                        : path
-                  }
-                  section={
-                    path === "/saved"
-                      ? "saved"
-                      : path.startsWith("/messages")
-                        ? "messages"
-                        : undefined
-                  }
-                  renderLink={NativeTabLink}
-                />
-              )}
+            <NativeNavigation
+              path={path}
+              signedIn={Boolean(session)}
+              owner={session?.user.id}
+              account={account?.account.userId === session?.user.id ? account?.account : null}
+              onSignOut={() => signOut()}
+              signOutBusy={busy}
+              onNavigate={go}
+              onPrivacy={() => setPrivacyOpen(true)}
+              renderLink={NativeTabLink}
+            />
           </NativeNotificationsProvider>
         </LocationRequestProvider>
       </SavedSearchActions>
@@ -741,7 +719,11 @@ function NativeTabLink({ to, section, children, className }: MobileTabLinkProps)
       className={className}
       onClick={(event) => {
         event.preventDefault();
-        go(destination);
+        if (to === "/browse") {
+          // Retapping Search preserves the shopper's current filters and sort.
+          if (browseLocation(location.hash).path !== "/search") go(destination);
+          document.getElementById("native-header-search")?.focus();
+        } else go(destination);
       }}
     >
       {children}
@@ -1003,8 +985,8 @@ function Feed({
           home={home}
           learning={learning && active}
           onOpen={(id) => go(`/listings/${id}`)}
-          onBrowse={(value) => {
-            go(browseDestination({ category: value }));
+          onBrowse={(value, group) => {
+            go(browseDestination(group ? { group } : { category: value }));
           }}
         />
       ) : (

@@ -258,6 +258,18 @@ try {
       await page.getByRole("button", { name: "Account", exact: true }).click();
       const menu = page.getByRole("menu", { name: "Account menu" });
       await menu.getByText("First fixture", { exact: true }).waitFor();
+      const navigationBox = await page
+        .getByRole("navigation", { name: "Primary", exact: true })
+        .boundingBox();
+      const accountMenuBox = await menu.boundingBox();
+      assert(
+        navigationBox &&
+          accountMenuBox &&
+          accountMenuBox.x >= 0 &&
+          accountMenuBox.x + accountMenuBox.width <= viewport.width &&
+          accountMenuBox.y + accountMenuBox.height <= navigationBox.y,
+        "Account menu opens above persistent navigation",
+      );
       assert.equal(
         await menu
           .getByRole("menuitem", { name: /Messages/ })
@@ -338,33 +350,21 @@ try {
       for (let i = 0; i < 7; i++) f.add(a, "security", `Recent fixture ${i}`);
       await page.evaluate(() => window.dispatchEvent(new Event("focus")));
       await page.getByRole("heading", { name: "7 unread notifications", exact: true }).waitFor();
-      if (viewport.width >= 768) {
-        await page.getByRole("button", { name: "Notifications, 7 unread", exact: true }).click();
-        await page.getByRole("heading", { name: "2 unread notifications", exact: true }).waitFor();
-        await page.screenshot({ path: resolve(output, `bell-${viewport.width}.png`) });
-        await page
-          .getByRole("dialog", { name: "Recent notifications" })
-          .getByRole("button", { name: "Mark all read", exact: true })
-          .click();
-        await page.getByRole("heading", { name: "0 unread notifications", exact: true }).waitFor();
-        await page.keyboard.press("Escape");
-      } else {
-        await page.getByRole("button", { name: "Account", exact: true }).click();
-        assert.equal(
-          await page
-            .getByRole("menu")
-            .getByRole("menuitem", { name: /Notifications/ })
-            .getByLabel("7 unread")
-            .count(),
-          1,
-        );
+      await page.getByRole("button", { name: "Account", exact: true }).click();
+      assert.equal(
         await page
           .getByRole("menu")
           .getByRole("menuitem", { name: /Notifications/ })
-          .click();
-        await page.getByRole("button", { name: "Mark all read", exact: true }).click();
-        await page.getByRole("heading", { name: "0 unread notifications", exact: true }).waitFor();
-      }
+          .getByLabel("7 unread")
+          .count(),
+        1,
+      );
+      await page
+        .getByRole("menu")
+        .getByRole("menuitem", { name: /Notifications/ })
+        .click();
+      await page.getByRole("button", { name: "Mark all read", exact: true }).click();
+      await page.getByRole("heading", { name: "0 unread notifications", exact: true }).waitFor();
       const beforeBackground = requests.filter((r) => r.path === "notifications").length;
       await page.evaluate(async () => {
         const { setShoppingForeground } = await import("/src/shopping-activity.ts");
@@ -409,13 +409,13 @@ try {
       results.push({
         viewport: viewport.width,
         sharedCenter: true,
-        sharedHeaderMenu: true,
+        sharedBottomAccountMenu: true,
         safeCounts: true,
         markOneAndAll: true,
         lostResponseRetry: true,
         newArrivalNotConsumedByRetry: true,
         messageReadRefreshesBadge: true,
-        previewReadsOnlyShown: true,
+
         accountSwitchIsolation: true,
         readinessGate: true,
         foregroundPollingOnly: true,
