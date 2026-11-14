@@ -10,6 +10,7 @@ import {
   installDeletionPhotoWriterSchema,
   memberPhotoReceipt,
 } from "./helpers/account-deletion-photo-database.mjs";
+import { installInventorySources } from "./helpers/account-deletion-inventory-database.mjs";
 const exec = promisify(execFile);
 async function binaries() {
   const choices = [];
@@ -349,6 +350,81 @@ test(
         );
         await a.query("rollback");
       }
+      await installInventorySources({
+        exec: (sql) => a.query(sql),
+        query: (sql, args) => a.query(sql, args),
+      });
+      const inventoryUser = randomUUID();
+      await a.query("insert into auth.users(id) values($1)", [inventoryUser]);
+      await a.query("insert into profiles(id,avatar_url) values($1,$2)", [
+        inventoryUser,
+        `${inventoryUser}/avatar.jpg`,
+      ]);
+      await a.query("select mobile_request_deletion($1)", [inventoryUser]);
+      await a.query("update account_deletion_controls set worker_enabled=true");
+      // Claim just this synthetic job; older fixture jobs may still be due.
+      const inventoryJob = (
+        await a.query(
+          `update account_deletion_jobs set status='processing',phase='inventory',
+        lease_token=gen_random_uuid(),lease_until=clock_timestamp()+interval '5 minutes'
+        where user_id=$1 returning *`,
+          [inventoryUser],
+        )
+      ).rows[0];
+      const inventoryArgs = [inventoryJob.id, inventoryUser, inventoryJob.lease_token];
+      await a.query("begin");
+      const firstPage = (
+        await a.query(
+          "select scan_account_deletion_media_inventory($1,$2,$3,1) as page",
+          inventoryArgs,
+        )
+      ).rows[0].page;
+      assert.equal(firstPage.source, "profiles");
+      assert.equal(firstPage.read, 1);
+      const concurrent = b.query(
+        "select scan_account_deletion_media_inventory($1,$2,$3,1) as page",
+        inventoryArgs,
+      );
+      concurrent.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "another scanner must wait for the cursor transaction",
+      );
+      await a.query("commit");
+      const nextPage = (await concurrent).rows[0].page;
+      assert.equal(nextPage.source, "profiles");
+      assert.equal(
+        nextPage.read,
+        0,
+        "a lost acknowledgement/retry never overwrites or repeats the committed page",
+      );
+      assert.equal(
+        (
+          await a.query(
+            "select count(*)::int n from account_deletion_media_observations where job_id=$1",
+            [inventoryJob.id],
+          )
+        ).rows[0].n,
+        1,
+      );
+      await a.query("begin");
+      await a.query("select scan_account_deletion_media_inventory($1,$2,$3,1)", inventoryArgs);
+      const pauseInventory = b.query(
+        "update account_deletion_controls set worker_enabled=false where id",
+      );
+      pauseInventory.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "operator pause serializes with the short inventory transaction",
+      );
+      await a.query("commit");
+      await pauseInventory;
+      await assert.rejects(
+        a.query("select scan_account_deletion_media_inventory($1,$2,$3,1)", inventoryArgs),
+        /Deletion inventory unavailable/,
+      );
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);
       if (initialized) {
