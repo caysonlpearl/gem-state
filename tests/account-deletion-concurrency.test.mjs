@@ -6,7 +6,10 @@ import { promisify } from "node:util";
 import { mkdtemp, mkdir, readdir, access, rm } from "node:fs/promises";
 import { join } from "node:path";
 import pg from "pg";
-import { installDeletionWorkerSchema } from "./helpers/account-deletion-database.mjs";
+import {
+  installDeletionPhotoWriterSchema,
+  memberPhotoReceipt,
+} from "./helpers/account-deletion-photo-database.mjs";
 const exec = promisify(execFile);
 async function binaries() {
   const choices = [];
@@ -26,7 +29,7 @@ async function binaries() {
   throw Error("PostgreSQL server tools are required for the deletion concurrency gate");
 }
 test(
-  "real deletion workers skip locked jobs, reject stale leases and serialize operator pauses",
+  "real deletion workers and photo writes serialize requests, leases and operator pauses",
   {
     skip:
       process.env.BLUEBIRD_DELETION_PG !== "1"
@@ -78,11 +81,31 @@ test(
       a = new pg.Client(config);
       b = new pg.Client(config);
       await Promise.all([a.connect(), b.connect()]);
-      await installDeletionWorkerSchema({
+      await installDeletionPhotoWriterSchema({
         exec: (sql) => a.query(sql),
         query: (sql, args) => a.query(sql, args),
       });
-      for (const c of [a, b]) await c.query("set statement_timeout='3s'");
+      for (const c of [a, b]) {
+        await c.query("set statement_timeout='3s'");
+        await c.query("select set_config('request.jwt.claim.role','service_role',false)");
+      }
+      const waitsForLock = async () => {
+        const deadline = Date.now() + 2000;
+        while (Date.now() < deadline) {
+          await a.query("select pg_stat_clear_snapshot()");
+          if (
+            (
+              await a.query(
+                "select wait_event_type='Lock' blocked from pg_stat_activity where pid=$1",
+                [b.processID],
+              )
+            ).rows[0]?.blocked === true
+          )
+            return true;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        return false;
+      };
       const users = [randomUUID(), randomUUID(), randomUUID()];
       for (const user of users.slice(0, 2)) {
         await a.query("insert into auth.users(id) values($1)", [user]);
@@ -215,21 +238,7 @@ test(
         // Keep a failing fixture from leaving an unhandled query rejection while
         // finally closes the clients. The awaited promise below still rejects.
         pending.catch(() => {});
-        const deadline = Date.now() + 2000;
-        let blocked = false;
-        while (Date.now() < deadline && !settled) {
-          // Activity snapshots can be cached for this control transaction.
-          await a.query("select pg_stat_clear_snapshot()");
-          blocked =
-            (
-              await a.query(
-                "select wait_event_type='Lock' blocked from pg_stat_activity where pid=$1",
-                [b.processID],
-              )
-            ).rows[0]?.blocked === true;
-          if (blocked) break;
-          await new Promise((resolve) => setTimeout(resolve, 10));
-        }
+        const blocked = await waitsForLock();
         assert(
           blocked && !settled,
           operation + " must serialize with a pending disable transaction",
@@ -239,6 +248,54 @@ test(
         if (operation === "claim") assert.deepEqual(result.rows, []);
         else assert.equal(result.rows[0].ok, false);
       }
+      const deleting = randomUUID(),
+        writing = randomUUID();
+      for (const user of [deleting, writing])
+        await a.query("insert into auth.users(id) values($1)", [user]);
+      await a.query("begin");
+      await a.query("select mobile_request_deletion($1)", [deleting]);
+      const lateWrite = b.query("select record_private_photo($1)", [memberPhotoReceipt(deleting)]);
+      lateWrite.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "a new photo write must wait for an uncommitted request",
+      );
+      await a.query("commit");
+      await assert.rejects(lateWrite, /Photo account is unavailable/);
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from photo_object_receipts where path=$1", [
+            `${deleting}/photo.jpg`,
+          ])
+        ).rows[0].n,
+        0,
+      );
+
+      await a.query("begin");
+      await a.query("select record_private_photo($1)", [memberPhotoReceipt(writing)]);
+      const request = b.query("select mobile_request_deletion($1)", [writing]);
+      request.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "a deletion request must wait for an earlier durable photo write",
+      );
+      await a.query("commit");
+      await request;
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from photo_object_receipts where path=$1", [
+            `${writing}/photo.jpg`,
+          ])
+        ).rows[0].n,
+        1,
+        "the earlier receipt remains available to deletion inventory",
+      );
+      await assert.rejects(
+        a.query("select record_private_photo($1)", [memberPhotoReceipt(writing)]),
+        /Photo account is unavailable/,
+      );
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);
       if (initialized) {
