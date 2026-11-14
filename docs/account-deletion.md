@@ -347,3 +347,43 @@ unclaimed lease. Coverage remained zero, processing remained disabled and both
 request/job counts remained zero. These are point observations, not proof of
 operational cleanup or a completed deletion. Installation and release records
 are under `output/account-deletion-live-lease-20261114/`.
+
+## Member photo write barrier — November 14, 2026
+
+`20261114040000_account_deletion_photo_writes.sql` prevents new durable member
+photo writes after a deletion request, including service-role writes. Private
+upload tickets, verification receipts, claim manifests and background migration
+items check the active Auth account, request ledger and unfinished deletion job.
+Budget reservations with an identified member receive the same check. A missing,
+removed or banned member cannot register a new canonical member-prefixed photo.
+
+Request/job inserts take an exclusive per-account transaction lock; photo writes
+take its shared counterpart and check current state after waiting. A write that
+commits first remains available to inventory. A later write waits for the request
+and is refused after it commits. No lock spans provider HTTP. The real PostgreSQL
+gate tests both orders with separate connections, along with operator-control and
+job-lease races.
+
+New logical paths in listing/evidence/catalog/request/order media and import
+photo arrays also use this guard. Existing shared references can retain unrelated
+edits, be removed or be replaced with an active account's path. A claim cannot
+evade the barrier by changing its pending claimant. Failed migration bookkeeping
+can settle an earlier lease; a new copy lease or receipt cannot revive it. All
+new helper/trigger functions deny direct member, guest and service execution;
+existing authorized table/RPC writes execute the checks through their triggers.
+
+**This is a database write barrier, not complete media quiescence or ownership
+proof.** Legacy paths without a canonical member UUID retain their existing
+behavior and require explicit inventory/ownership review. The barrier does not
+revoke signed upload URLs, stop an HTTP operation already accepted, fence Storage
+versions or remove CDN/browser copies. Private inventory must preserve and cover
+unfinished tickets/claims/migrations before removing row references. Retained
+business/shared media needs its own ownership transition; a UUID prefix alone
+does not authorize erasure. Avatar/logo URLs and conversation attachments still
+need their own provider/retention handling. The R2 eraser remains unbound, the six
+cleanup adapters remain outstanding and processing remains disabled.
+
+Synthetic tests run the actual upload/receipt and current photo-runner migrations;
+the surrounding media-reference and claim relations are disposable fixtures. No
+production migration, account erasure or object change is performed by this
+source batch.
