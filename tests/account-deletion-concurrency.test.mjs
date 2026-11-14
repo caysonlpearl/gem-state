@@ -19,6 +19,7 @@ import { storageProviderMigration } from "./helpers/account-deletion-storage-pro
 import { r2InventoryMigration } from "./helpers/account-deletion-r2-database.mjs";
 import { installShoppingErasureSources } from "./helpers/account-deletion-shopping-database.mjs";
 import { photoWriteIntentMigration } from "./helpers/photo-write-intent-database.mjs";
+import { installPrivateRecordSources } from "./helpers/account-deletion-private-database.mjs";
 import { createHash } from "node:crypto";
 const exec = promisify(execFile);
 async function binaries() {
@@ -810,6 +811,190 @@ test(
           ])
         ).rows[0].n,
         0,
+      );
+      await a.query("update account_deletion_controls set worker_enabled=false");
+      await installPrivateRecordSources({
+        exec: (sql) => a.query(sql),
+        query: (sql, args) => a.query(sql, args),
+      });
+      const privateUser = randomUUID();
+      await a.query("insert into auth.users(id) values($1)", [privateUser]);
+      await a.query(
+        "insert into mobile_message_receipts(user_id,request_id,input_hash) select $1,gen_random_uuid(),'fixture'::bytea from generate_series(1,3)",
+        [privateUser],
+      );
+      await a.query("begin");
+      await a.query(
+        "insert into watchlist(id,user_id,variant_id) values(gen_random_uuid(),$1,gen_random_uuid())",
+        [privateUser],
+      );
+      const privateRequest = b.query("select mobile_request_deletion($1)", [privateUser]);
+      privateRequest.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "private-record writers settle before a deletion request commits",
+      );
+      await a.query("commit");
+      await privateRequest;
+      await assert.rejects(
+        a.query(
+          "insert into notifications(id,user_id,kind) values(gen_random_uuid(),$1,'security')",
+          [privateUser],
+        ),
+        /Private account records unavailable/,
+      );
+      const privateLate = randomUUID();
+      await a.query("insert into auth.users(id) values($1)", [privateLate]);
+      await a.query("begin");
+      await a.query("select mobile_request_deletion($1)", [privateLate]);
+      const lateRecord = b.query(
+        "insert into mobile_message_receipts(user_id,request_id,input_hash) values($1,gen_random_uuid(),'late'::bytea)",
+        [privateLate],
+      );
+      lateRecord.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "a late private receipt waits for request serialization",
+      );
+      await a.query("commit");
+      await assert.rejects(lateRecord, /Private account records unavailable/);
+      await a.query("update account_deletion_controls set worker_enabled=true");
+      const privateJob = (
+        await a.query(
+          "update account_deletion_jobs set phase='records',status='processing',lease_token=gen_random_uuid(),lease_until=clock_timestamp()+interval '5 minutes' where user_id=$1 returning *",
+          [privateUser],
+        )
+      ).rows[0];
+      const privateSql = "select purge_account_deletion_private_records($1,$2,$3,'records',1) p",
+        privateArgs = [privateJob.id, privateUser, privateJob.lease_token];
+      await a.query("begin");
+      assert.equal((await a.query(privateSql, privateArgs)).rows[0].p.deleted, 1);
+      const privatePause = b.query("update account_deletion_controls set worker_enabled=false");
+      privatePause.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "private cleanup holds the operator pause boundary until its chunk commits",
+      );
+      await a.query("commit");
+      await privatePause;
+      await assert.rejects(a.query(privateSql, privateArgs), /Private account erasure unavailable/);
+      await a.query("update account_deletion_controls set worker_enabled=true");
+      await a.query("begin");
+      assert.equal((await a.query(privateSql, privateArgs)).rows[0].p.deleted, 1);
+      const privateConcurrent = b.query(privateSql, privateArgs);
+      privateConcurrent.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "two private cleanup calls serialize at the current leased job",
+      );
+      await a.query("commit");
+      assert.equal((await privateConcurrent).rows[0].p.deleted, 1);
+      const phoneOwner = randomUUID(),
+        phoneNext = randomUUID(),
+        phoneToken = "synthetic-shared-phone-" + randomUUID();
+      await a.query("insert into auth.users(id) values($1),($2)", [phoneOwner, phoneNext]);
+      await a.query("select mobile_register_device($1,$2,'ios')", [phoneOwner, phoneToken]);
+      const phoneDevice = (
+        await a.query("select id from mobile_push_devices where token=$1", [phoneToken])
+      ).rows[0].id;
+      await a.query("begin");
+      const beforeHandoffNotice = randomUUID();
+      await a.query("insert into notifications(id,user_id,kind) values($1,$2,'message')", [
+        beforeHandoffNotice,
+        phoneOwner,
+      ]);
+      const phoneHandoff = b.query("select mobile_register_device($1,$2,'ios')", [
+        phoneNext,
+        phoneToken,
+      ]);
+      phoneHandoff.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "device ownership waits for an already queued notification",
+      );
+      await a.query("commit");
+      await phoneHandoff;
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from notifications where id=$1", [
+            beforeHandoffNotice,
+          ])
+        ).rows[0].n,
+        1,
+      );
+      assert.equal(
+        (await a.query("select user_id from mobile_push_devices where id=$1", [phoneDevice]))
+          .rows[0].user_id,
+        phoneNext,
+      );
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from mobile_push_outbox where device_id=$1", [
+            phoneDevice,
+          ])
+        ).rows[0].n,
+        0,
+      );
+      await a.query("select mobile_register_device($1,$2,'ios')", [phoneOwner, phoneToken]);
+      await a.query("begin");
+      await a.query("select mobile_register_device($1,$2,'ios')", [phoneNext, phoneToken]);
+      const afterHandoffNotice = randomUUID();
+      const notificationDuringHandoff = b.query(
+        "insert into notifications(id,user_id,kind) values($1,$2,'message')",
+        [afterHandoffNotice, phoneOwner],
+      );
+      notificationDuringHandoff.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "notification enqueue rechecks a device when handoff commits first",
+      );
+      await a.query("commit");
+      await notificationDuringHandoff;
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from notifications where id=$1", [
+            afterHandoffNotice,
+          ])
+        ).rows[0].n,
+        1,
+        "device handoff must not roll back the business notification",
+      );
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from mobile_push_outbox where notification_id=$1", [
+            afterHandoffNotice,
+          ])
+        ).rows[0].n,
+        0,
+      );
+      const privateActive = randomUUID();
+      await a.query("insert into auth.users(id) values($1)", [privateActive]);
+      await a.query("begin");
+      await a.query(
+        "insert into notifications(id,user_id,kind) values(gen_random_uuid(),$1,'security')",
+        [privateActive],
+      );
+      const privateIdentityRemoval = b.query("delete from auth.users where id=$1", [privateActive]);
+      privateIdentityRemoval.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "Auth removal waits for an already authorized private-record write",
+      );
+      await a.query("commit");
+      await privateIdentityRemoval;
+      await assert.rejects(
+        a.query(
+          "insert into notifications(id,user_id,kind) values(gen_random_uuid(),$1,'security')",
+          [privateActive],
+        ),
+        /Private account records unavailable/,
       );
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);
