@@ -237,7 +237,7 @@ try {
       });
     });
     await page.goto(origin);
-    await page.getByRole("heading", { name: /^Find / }).waitFor();
+    await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     await page.waitForTimeout(3000);
     assert.equal(events.length, 0, "No activity before personalization permission");
     await openPrivacy();
@@ -336,9 +336,7 @@ try {
       !events.some((event) => event.kind === "dismiss"),
       "A page read never invents a dismissal",
     );
-    await page.getByRole("combobox", { name: "Category", exact: true }).click();
-    await page.getByRole("option", { name: "Cars & Trucks", exact: true }).click();
-    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await page.getByRole("button", { name: "All cars & trucks", exact: true }).click();
     await page
       .getByRole("heading", { name: "Recommended for you", exact: true })
       .waitFor({ state: "hidden" });
@@ -349,7 +347,7 @@ try {
       .waitFor({ state: "hidden" });
     await page.locator("#sort").selectOption("newest");
     await page.getByRole("link", { name: "Bluebird home", exact: true }).click();
-    await page.getByRole("heading", { name: /^Find / }).waitFor();
+    await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     await openPrivacy();
     await dialog.getByRole("checkbox").click();
     await page.waitForFunction(() => document.querySelector("dialog input")?.checked === false);
@@ -393,7 +391,7 @@ try {
     await dialog.getByText("Privacy choices could not be loaded.", { exact: true }).waitFor();
     await dialog.getByRole("button", { name: "Done", exact: true }).click();
     await page.getByRole("link", { name: "Bluebird home", exact: true }).click();
-    await page.getByRole("heading", { name: /^Find / }).waitFor();
+    await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     await page.locator(".listing-card").first().waitFor();
     assert.deepEqual(errors, []);
     results.push({

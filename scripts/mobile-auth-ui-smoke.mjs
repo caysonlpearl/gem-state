@@ -104,13 +104,8 @@ try {
       });
     });
     await page.goto(origin);
-    await page.getByRole("heading", { name: /^Find / }).waitFor();
-    const homeSearch = page.getByRole("searchbox", { name: "Search Bluebird", exact: true });
-    const webHomeFieldSize = await homeSearch.evaluate((field) =>
-      parseFloat(getComputedStyle(field).fontSize),
-    );
-    // Exercise the native iOS presentation against the real shared homepage CSS.
-    // A normal 16px declaration loses to its compact 13px !important exception.
+    await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
+    const homeSearch = page.getByRole("searchbox", { name: "Search for anything", exact: true });
     await page.evaluate(() => {
       document.documentElement.dataset.nativePlatform = "ios";
     });
@@ -119,20 +114,35 @@ try {
       parseFloat(getComputedStyle(field).fontSize),
     );
     assert(iosHomeFieldSize >= 16, "Native iPhone search fields must avoid focus zoom");
+    assert.equal(await page.getByRole("searchbox").count(), 1, "The homepage has one search field");
+    assert.equal(
+      await page.locator(".classifieds-hero-shell, .homepage-featured-categories").count(),
+      0,
+    );
+    await page.getByText("Buy and sell locally.", { exact: true }).waitFor();
+    const lead = page.getByRole("heading", {
+      name: "Cars & trucks for sale in Idaho",
+      exact: true,
+    });
+    await lead.waitFor();
+    const leadBox = await lead.boundingBox();
+    assert(
+      leadBox && leadBox.y + leadBox.height < 300,
+      "The inventory section starts near the top",
+    );
+    const shortcuts = page.getByRole("navigation", { name: "Shop by category", exact: true });
+    assert.equal(await shortcuts.getByRole("button").count(), 6);
+    assert.equal(await shortcuts.getByRole("button", { name: /Firearms/ }).count(), 0);
+    for (const chip of await shortcuts.getByRole("button").all()) {
+      const box = await chip.boundingBox();
+      assert(box && box.height >= 44 && box.width >= 44);
+    }
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
     );
     await page.screenshot({ path: resolve(output, `native-ios-search-${viewport.width}.png`) });
     await homeSearch.blur();
-    await page.evaluate(() => {
-      document.documentElement.dataset.nativePlatform = "web";
-    });
-    assert.equal(
-      await homeSearch.evaluate((field) => parseFloat(getComputedStyle(field).fontSize)),
-      webHomeFieldSize,
-      "Website field styling stays intact",
-    );
     const primary = page.getByRole("navigation", { name: "Primary", exact: true });
     assert.deepEqual(await primary.getByRole("link").allTextContents(), ["Home", "Search", "Sell"]);
     assert.deepEqual(
@@ -190,6 +200,24 @@ try {
     await primary.getByRole("link", { name: "Search", exact: true }).click();
     assert.equal(await page.evaluate(() => location.hash.includes("futureScope=keep")), true);
     await primary.getByRole("link", { name: "Home", exact: true }).click();
+    await page.waitForFunction(() => document.getElementById("native-header-search")?.value === "");
+    await topSearch.fill("garden chair");
+    await page.getByRole("button", { name: "Change search area", exact: true }).click();
+    await page
+      .getByRole("combobox", { name: "City or ZIP code", exact: true })
+      .fill("Boise, ID 83702");
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Apply search area", exact: true }).click();
+    await page.waitForFunction(
+      () => new URLSearchParams(location.hash.split("?")[1]).get("postalCode") === "83702",
+    );
+    const manual = await page.evaluate(() =>
+      Object.fromEntries(new URLSearchParams(location.hash.split("?")[1])),
+    );
+    assert.equal(manual.q, "garden chair");
+    assert.equal(manual.city, "Boise");
+    assert.equal(manual.state, "ID");
+    await primary.getByRole("link", { name: "Home", exact: true }).click();
     for (const control of ["Open categories", "Account"]) {
       const button = primary.getByRole("button", { name: control, exact: true });
       assert(await button.isVisible(), `${control} is in persistent bottom navigation`);
@@ -215,7 +243,7 @@ try {
     await featuredVehicleRequest;
     await page.getByRole("heading", { name: "Vehicles", exact: true }).waitFor();
     await primary.getByRole("link", { name: "Home", exact: true }).click();
-    await page.getByRole("heading", { name: /^Find / }).waitFor();
+    await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     await page.getByRole("button", { name: "Open categories", exact: true }).click();
     await page.getByRole("dialog", { name: "Marketplace categories", exact: true }).waitFor();
     await page.evaluate(async () => {
@@ -298,7 +326,10 @@ try {
     results.push({
       viewport,
       iosHomeFieldSize,
-      websiteFieldStylingPreserved: true,
+      compactHeroRemoved: true,
+      singleHomeSearch: true,
+      compactCategoryShortcuts: true,
+      manualLocationKeepsQuery: true,
       persistentMenuAndAccount: true,
       pinnedSearchAndSaved: true,
       logoScrollsAway: true,

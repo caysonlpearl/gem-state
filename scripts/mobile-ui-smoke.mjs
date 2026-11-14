@@ -61,24 +61,35 @@ try {
       waitUntil: "domcontentloaded",
       timeout: 60000,
     });
-    await page.getByRole("heading", { name: /^Find / }).waitFor();
-    await page.locator(".listing-card").first().waitFor({ timeout: 60000 });
+    await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
+    const home = page.getByRole("region", { name: "Marketplace homepage", exact: true });
+    const firstHomeCard = home.locator(".listing-card").first();
+    await firstHomeCard.waitFor({ timeout: 60000 });
+    const firstListingBox = await firstHomeCard.boundingBox();
+    assert(
+      firstListingBox && firstListingBox.y < 380,
+      "Real listings appear near the top without a hero",
+    );
+    await page.waitForFunction(() => {
+      const region = document.querySelector('section[aria-label="Marketplace homepage"]');
+      const image = region?.querySelector(".listing-card img");
+      return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0;
+    });
     await page.screenshot({ path: resolve(output, `home-${viewport.width}.png`) });
-    await page.getByRole("combobox", { name: "Category", exact: true }).click();
-    await page.getByRole("option", { name: "Cars & Trucks", exact: true }).click();
-    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await page.getByRole("button", { name: "All cars & trucks", exact: true }).click();
     await page.getByRole("heading", { name: "Cars & Trucks", exact: true }).waitFor();
-    await page.locator(".listing-card").first().waitFor({ timeout: 60000 });
-    const cards = await page.locator(".listing-card").count();
+    const browse = page.getByRole("region", { name: "Browse listings", exact: true });
+    await browse.locator(".listing-card").first().waitFor({ timeout: 60000 });
+    const cards = await browse.locator(".listing-card").count();
     await page.screenshot({ path: resolve(output, `browse-${viewport.width}.png`) });
     await page.evaluate(() => window.scrollTo(0, 150));
     const previousScroll = await page.evaluate(() => window.scrollY);
-    const listingTitle = await page
+    const listingTitle = await browse
       .locator(".listing-card")
       .first()
       .getByRole("heading", { level: 3 })
       .innerText();
-    await page.locator(".listing-card").first().click();
+    await browse.locator(".listing-card").first().click();
     await page.waitForURL("**/#/listings/*");
     await page
       .getByRole("main")
@@ -92,14 +103,14 @@ try {
     await page.waitForFunction((y) => Math.abs(window.scrollY - y) < 3, previousScroll);
     await page.getByRole("link", { name: "Home", exact: true }).last().click();
     await page
-      .getByRole("searchbox", { name: "Search Bluebird", exact: true })
+      .getByRole("searchbox", { name: "Search for anything", exact: true })
       .fill("Subaru Outback");
     const queryResponse = page.waitForResponse(
       (response) =>
         response.url().includes("/api/mobile/v1/search?") &&
         new URL(response.url()).searchParams.get("q") === "Subaru Outback",
     );
-    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await page.getByRole("searchbox", { name: "Search for anything", exact: true }).press("Enter");
     assert.equal((await queryResponse).status(), 200);
     await page
       .getByRole("navigation", { name: "Primary", exact: true })
@@ -117,6 +128,8 @@ try {
     results.push({
       viewport,
       cards,
+      firstListingTop: firstListingBox.y,
+      compactHome: true,
       detailOpened: true,
       backRestoresCategoryAndScroll: true,
       searchWithSpaces: true,

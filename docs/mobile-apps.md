@@ -98,7 +98,7 @@ The app must match the phone website as closely as possible in every aspect: lay
 
 The existing website is the visual source of truth. Do not create a separate
 mobile visual system. The native app imports the website stylesheet, self-hosted
-fonts, BrandMark, category artwork, MarketplaceHero, HomeSearchDropdown,
+fonts, BrandMark, category artwork, HomeSearchDropdown,
 ListingCardView, ListingGallery, MarketplaceListingSection and vehicle lead header.
 The website continues using these same presenters with its existing service,
 authentication, navigation and analytics adapters. Native adapters use the stable
@@ -118,7 +118,7 @@ Provider credits remain visible when shared cards replace the old prototype tile
 
 The sign-in/sign-up/forgot/reset form and category/account menus use shared website presenters. On November 13 the owner explicitly requested an eBay-inspired native header/footer exception: the Bluebird logo scrolls away, search and Saved remain pinned, and a rounded translucent floating footer contains Home, Account, Search, Sell and Categories. Messages and notifications remain in the shared Account menu, with an unread indicator; privacy and eligible category links remain in Categories. The website retains its established navigation. The native Vehicles homepage shortcut opens the full motors group, replacing Furniture & Home. Auth adapters preserve native callbacks, explicit signup choices and account ownership; the Apple option is the corresponding native requirement.
 
-The native footer remains on listing, posting, authentication and account screens. Its measured occupied screen extent includes the bottom gap and safe area; listing contact actions, content clearance and toasts sit above it. The Account menu opens upward within the screen, including narrow phones and landscape. Header searches preserve explicit filters, chosen sorts and unknown supported query fields; tapping Search again does not clear the current scope. The existing website homepage search/category/location controls remain available in the shared hero.
+The native footer remains on listing, posting, authentication and account screens. Its measured occupied screen extent includes the bottom gap and safe area; listing contact actions, content clearance and toasts sit above it. The Account menu opens upward within the screen, including narrow phones and landscape. Header searches preserve explicit filters, chosen sorts and unknown supported query fields; tapping Search again does not clear the current scope. The website retains its homepage hero. The owner later approved the native compact homepage described below.
 
 Browser regressions cover the pinned search/footer, scrolling logo, five controls, search scope, Vehicles group, account/menu dismissal, listing contact clearance and iOS input font size at narrow/wide/landscape sizes. Fixture journeys do not touch production accounts or send email. A separate public-catalog browser check at 320/390/768 pixels verified real cached vehicle browsing, the actual detail title/contact bar, back/scroll restoration, spaced queries and the two signup choices with all writes blocked. Its preview-origin adapter uses the native public API origin; it does not prove physical WebView behavior. This source batch must be rebuilt and installed before claiming that these changes appear on the physical iPhone; wireless reachability was unavailable at the last check. Account enrollment, push delivery and real Android testing remain separate gates.
 
@@ -607,3 +607,35 @@ grid row, all three personalized headings, current-control removal, older-choice
 suppression, visible-provider credits, permission withdrawal, history reset, explicit
 filter/sort precedence and a browsing fallback when consent reads fail. These are
 browser fixtures, not real-device or production-account activity.
+
+
+## Compact app homepage — November 13, 2026
+
+The owner approved replacing the app's large rotating hero with a small brand
+introduction. The normal-flow logo row now includes “Buy and sell locally.” and
+a compact Search area button. The existing pinned search is the homepage's only
+query field. A single horizontally scrollable row provides All, Vehicles, Homes,
+Pets & adoption, Jobs and Services shortcuts, with at least 44px touch targets.
+Vehicles retains the full motors group; restricted app categories are absent.
+
+The manual area popover reuses `HomeSearchDropdown` and the shared city/state/ZIP
+parser. Applying an area preserves the current header search draft and opens the
+full filtered browse page; home header searches and shortcuts use the shown
+search area (initially Idaho). This is a search scope, not a claim that the cached
+homepage feed has been refreshed for a new place. No location permission is
+requested automatically. Existing browse filters and explicit sorts remain intact.
+
+The native hero, duplicate query form, rotating-headline timer and large
+Pets/Vehicles feature cards are removed. Inventory sections begin closer to the
+top while retaining the shared listing presenters, headings, navigation, source
+credits and existing recommendation/permission logic. The website's hero and
+listing cards are unchanged. New icon concepts and a native launch-screen change
+remain separate work; this batch does not apply them.
+
+Browser checks cover narrow/wide phones and landscape, one homepage search,
+compact category scope, manual city/ZIP plus a pending query, pinned search/Saved,
+scrolling brand row, authentication, shopping-permission enforcement and overflow.
+A separate read-only public-catalog check records the first listing's on-screen
+position and checks detail/back navigation, without account writes or messages.
+These are browser/build checks; the updated native package still needs installing
+and checking on physical devices before claiming real-device verification.

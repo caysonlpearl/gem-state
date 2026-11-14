@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, BookmarkSimple, MagnifyingGlass } from "@phosphor-icons/react";
 import { BrandMark } from "../../../src/components/layout/BrandMark";
+import { NativeHomeLocation, NativeHomeShortcuts } from "./HomeNavigation";
+import { parseLocationSearch } from "../../../src/lib/location-search";
 import { backWithinApp } from "./native-navigation";
 import { browseDestination, browseLocation } from "./browse-state";
 
@@ -13,6 +15,7 @@ export function NativeHeader({
   onNavigate: (path: string) => void;
 }) {
   const [query, setQuery] = useState(() => browseLocation(window.location.hash).search.q ?? "");
+  const [area, setArea] = useState("Idaho");
   useEffect(() => {
     const sync = () => setQuery(browseLocation(window.location.hash).search.q ?? "");
     window.addEventListener("hashchange", sync);
@@ -30,17 +33,38 @@ export function NativeHeader({
         className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[env(safe-area-inset-top)] bg-card"
       />
       <div className="native-brand-row bg-card pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex max-w-[1400px] items-center px-4 py-2">
-          <a
-            href="#/"
-            aria-label="Bluebird home"
-            onClick={(event) => {
-              event.preventDefault();
-              onNavigate("/");
-            }}
-          >
-            <BrandMark mobile />
-          </a>
+        <div className="mx-auto max-w-[1400px] px-4 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <a
+              href="#/"
+              aria-label="Bluebird home"
+              onClick={(event) => {
+                event.preventDefault();
+                onNavigate("/");
+              }}
+            >
+              <BrandMark mobile />
+            </a>
+            {path === "/" && (
+              <NativeHomeLocation
+                area={area}
+                onApply={(value) => {
+                  setArea(value);
+                  onNavigate(
+                    browseDestination({
+                      q: query.trim() || undefined,
+                      ...parseLocationSearch(value),
+                    }),
+                  );
+                }}
+              />
+            )}
+          </div>
+          {path === "/" && (
+            <p className="mt-0.5 text-[12px] leading-4 text-muted-foreground">
+              Buy and sell locally.
+            </p>
+          )}
         </div>
       </div>
       <header
@@ -81,7 +105,10 @@ export function NativeHeader({
               const current = browseLocation(window.location.hash);
               onNavigate(
                 browseDestination(
-                  { q: query.trim() || undefined },
+                  {
+                    ...(current.path === "/" ? parseLocationSearch(area) : {}),
+                    q: query.trim() || undefined,
+                  },
                   current.path === "/search" ? current.params : undefined,
                 ),
               );
@@ -99,6 +126,7 @@ export function NativeHeader({
               id="native-header-search"
               type="search"
               aria-label="Search for anything"
+              aria-describedby={path === "/" ? "native-home-search-area" : undefined}
               placeholder="Search for anything"
               enterKeyHint="search"
               value={query}
@@ -123,6 +151,19 @@ export function NativeHeader({
           </a>
         </div>
       </header>
+      {path === "/" && (
+        <NativeHomeShortcuts
+          onBrowse={(scope) =>
+            onNavigate(
+              browseDestination({
+                ...parseLocationSearch(area),
+                q: query.trim() || undefined,
+                ...scope,
+              }),
+            )
+          }
+        />
+      )}
     </>
   );
 }

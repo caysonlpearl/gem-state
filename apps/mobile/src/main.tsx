@@ -26,7 +26,7 @@ import { Capacitor } from "@capacitor/core";
 import { App as NativeApp } from "@capacitor/app";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { Share } from "@capacitor/share";
-import { MagnifyingGlass, UserCircle, ArrowLeft } from "@phosphor-icons/react";
+import { UserCircle, ArrowLeft } from "@phosphor-icons/react";
 import type { MobileListing, MobileBrowse } from "../../../src/lib/mobile-contract";
 import {
   api,
@@ -41,11 +41,7 @@ import {
 import { sendMessageOnce, clearMessageRetries } from "./message-retries";
 import { ListingGallery } from "../../../src/components/classifieds/ListingGallery";
 import { listingPresentation } from "./listing-presentation";
-import { MarketplaceHero } from "../../../src/components/classifieds/MarketplaceHero";
-import { HomeSearchDropdown } from "../../../src/components/classifieds/HomeSearchDropdown";
-import { headlineOptions } from "../../../src/config/homepage-headlines";
 import { parseLocationSearch } from "../../../src/lib/location-search";
-import { suggestLocations } from "../../../src/lib/location-suggest";
 import { ListingSourceCredits } from "./ListingSourceCredits";
 import { HomeDiscovery } from "./HomeDiscovery";
 import type { MobileHome } from "../../../src/lib/mobile-contract";
@@ -760,8 +756,7 @@ function Feed({
   }, [active]);
   const [incomplete, setIncomplete] = useState(false),
     [selection, setSelection] = useState(false);
-  const [query, setQuery] = useState(""),
-    [category, setCategory] = useState(""),
+  const [category, setCategory] = useState(""),
     [group, setGroup] = useState(""),
     [sort, setSort] = useState("newest"),
     [page, setPage] = useState(1),
@@ -775,22 +770,11 @@ function Feed({
   useEffect(() => {
     if (searchMode) setDiscovery(false);
   }, [searchMode]);
-  const [location, setLocation] = useState("Idaho"),
-    [appliedLocation, setAppliedLocation] = useState("Idaho");
-  const [headline, setHeadline] = useState(0);
-  useEffect(() => {
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const timer = setInterval(
-      () => setHeadline((index) => (index + 1) % headlineOptions.length),
-      9000,
-    );
-    return () => clearInterval(timer);
-  }, []);
+  const appliedLocation = "Idaho";
   useEffect(() => {
     const reset = () => {
       setDiscovery(true);
       setSearch("");
-      setQuery("");
       setCategory("");
       setGroup("");
       setSort("newest");
@@ -800,7 +784,6 @@ function Feed({
       const filters = (event as CustomEvent<{ category?: string; group?: string; sort?: string }>)
         .detail;
       setDiscovery(false);
-      setQuery("");
       setSearch("");
       setCategory(filters.category ?? "");
       setGroup(filters.group ?? "");
@@ -868,78 +851,11 @@ function Feed({
     return () => controller.abort();
   }, [active, saved, search, category, group, sort, page, revision, discovery, appliedLocation]);
   return (
-    <section className="mobile-home">
+    <section aria-label={saved ? "Saved listings" : "Marketplace homepage"} className="mobile-home">
       {saved ? (
         <h1 className="mt-6">Saved for later</h1>
       ) : (
-        <MarketplaceHero items={headlineOptions[headline]}>
-          <form
-            className="floating-card mt-3 grid grid-cols-2 gap-1.5 border border-brand-blue/15 p-1.5 ring-1 ring-brand-warm/10 sm:mt-5 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:gap-2 sm:p-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              go(
-                browseDestination({
-                  q: query.trim() || undefined,
-                  category: category || undefined,
-                  group: group || undefined,
-                  ...parseLocationSearch(location),
-                }),
-              );
-              trackShopping("search", undefined, {}, { q: query, category, sort });
-            }}
-          >
-            <label className="relative col-span-2 block sm:col-span-1">
-              <MagnifyingGlass
-                size={16}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="search"
-                aria-label="Search Bluebird"
-                placeholder="Search listings"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className="h-10 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none sm:h-12"
-              />
-            </label>
-            <HomeSearchDropdown
-              value={group ? `group:${group}` : category}
-              onChange={(value) => {
-                setCategory(value.startsWith("group:") ? "" : value);
-                setGroup(value.startsWith("group:") ? value.slice(6) : "");
-              }}
-              label="Category"
-              placeholder="All categories"
-              options={[
-                { value: "", label: "All categories" },
-                { value: "group:motors", label: "Vehicles" },
-                { value: "group:classifieds", label: "Classifieds" },
-                ...bootstrap.categories.map((c) => ({ value: c.slug, label: c.name })),
-              ]}
-            />
-            <HomeSearchDropdown
-              value={location}
-              onChange={setLocation}
-              label="City or ZIP code"
-              placeholder="City or ZIP code"
-              shortPlaceholder="City or ZIP"
-              editable
-              options={suggestLocations(location)}
-            />
-            <button
-              type="submit"
-              className="col-span-2 h-10 rounded-full bg-primary px-7 text-[13px] font-semibold text-primary-foreground shadow-sm sm:col-span-1 sm:h-12"
-            >
-              Search
-            </button>
-          </form>
-          <p className="mt-3 text-[12px] text-muted-foreground">
-            Search area:{" "}
-            <span className="font-semibold text-foreground">
-              {appliedLocation || "All locations"}
-            </span>
-          </p>
-        </MarketplaceHero>
+        <h1 className="sr-only">Browse local listings</h1>
       )}
       {!saved && !discovery && (
         <label className="mt-5 block text-xs text-muted-foreground">

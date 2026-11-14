@@ -455,7 +455,7 @@ try {
       .waitFor();
     assert.deepEqual([...deletions], [a]);
     await page.getByRole("button", { name: "Sign out of all devices", exact: true }).click();
-    await page.getByRole("heading", { name: /^Find / }).waitFor();
+    await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     assert.deepEqual(revocations, [a]);
     assert.equal(authCalls.find((c) => c.path === "/auth/v1/logout").scope, "global");
     await page.evaluate((actor) => {
@@ -479,7 +479,7 @@ try {
     assert.equal(await page.getByText("second@example.invalid", { exact: true }).count(), 1);
     const phoneSignout = page.getByRole("button", { name: "Sign out", exact: true });
     await phoneSignout.last().click();
-    await page.getByRole("heading", { name: /^Find / }).waitFor();
+    await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     assert.equal(authCalls.at(-1).scope, "local");
     assert.deepEqual(revocations, [a]);
     assert.deepEqual(activity, []);
