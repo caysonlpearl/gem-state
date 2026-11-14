@@ -1,11 +1,15 @@
 import { trackShopping } from "./shopping";
+import { NativeVehicleSearchHeader, NativeCategorySearchHeader } from "./VehicleSearchHeader";
+import { NativeAutoLoad } from "./AutoLoad";
 import {
   BrowseResultsView,
   type BrowseLinkProps,
 } from "../../../src/components/classifieds/BrowseResultsView";
 import { BrowseResultsHeading } from "../../../src/components/classifieds/BrowseResultsHeading";
 import { activeFilterLabels, countActiveFilters } from "../../../src/lib/browse-filter-labels";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { peekNativeScreen, readNativeBrowse } from "./screen-resources";
+import { finishLaunchScreen } from "./launch-screen";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { api, type Bootstrap } from "./client";
@@ -40,6 +44,8 @@ export function NativeBrowse({
   revision,
   onNavigate,
   onSave,
+  hash,
+  owner,
 }: {
   active: boolean;
   bootstrap: Bootstrap;
@@ -47,13 +53,16 @@ export function NativeBrowse({
   revision: number;
   onNavigate: (path: string) => void;
   onSave: (search: Record<string, unknown>, id?: string) => void;
+  hash: string;
+  owner?: string;
 }) {
-  const [location, setLocation] = useState(() => browseLocation(window.location.hash));
+  const location = useMemo(() => browseLocation(hash), [hash]);
   const [result, setResult] = useState<Results | null>(null),
     [items, setItems] = useState<MobileListing[]>([]),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [retry, setRetry] = useState(0);
+  const [moreError, setMoreError] = useState("");
   const [query, setQuery] = useState(location.search.q ?? "");
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const preview = useRef<{ timer?: ReturnType<typeof setTimeout>; controller?: AbortController }>(
@@ -64,19 +73,8 @@ export function NativeBrowse({
     loadingMore = useRef<{ scope: string; controller: AbortController } | null>(null);
   const search = location.search;
   const key = location.params.toString();
-  useEffect(() => {
-    const change = () => {
-      const next = browseLocation(window.location.hash);
-      if (next.path === "/search") {
-        setLocation(next);
-        setQuery(next.search.q ?? "");
-      }
-    };
-    window.addEventListener("hashchange", change);
-    change();
-    return () => window.removeEventListener("hashchange", change);
-  }, []);
-  useEffect(() => {
+  useEffect(() => setQuery(location.search.q ?? ""), [key]);
+  useLayoutEffect(() => {
     if (!active) return;
     const restoreTo = scroll.current;
     let restoring = true;
@@ -96,7 +94,7 @@ export function NativeBrowse({
       window.removeEventListener("scroll", remember);
     };
   }, [active]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!active) return;
     if (
       loaded.current?.key === key &&
@@ -111,8 +109,22 @@ export function NativeBrowse({
       };
     }
     const controller = new AbortController();
+    const queryKey = String(browseApiQuery(location.params));
+    const force = Boolean(loaded.current && loaded.current.revision !== revision) || retry > 0;
+    const cached = force ? undefined : peekNativeScreen<Results>("browse", queryKey, owner);
+    if (cached?.data) {
+      loaded.current = { key, revision, retry, at: Date.now() };
+      setResult(cached.data);
+      setItems(cached.data.items);
+      setBusy(false);
+      setError("");
+      setMoreError("");
+      if (learning) trackShopping("search", undefined, {}, location.raw);
+      return () => controller.abort();
+    }
     setBusy(true);
     setError("");
+    setMoreError("");
     if (loaded.current?.key !== key) {
       loaded.current = null;
       setResult(null);
@@ -129,12 +141,7 @@ export function NativeBrowse({
       setError("Search is temporarily unavailable. Please retry shortly.");
       return;
     }
-    void api<Results>(
-      `search?${browseApiQuery(location.params)}`,
-      "GET",
-      undefined,
-      controller.signal,
-    )
+    void readNativeBrowse(queryKey, owner, controller.signal, force)
       .then((data) => {
         if (controller.signal.aborted) return;
         loaded.current = { key, revision, retry, at: Date.now() };
@@ -154,7 +161,10 @@ export function NativeBrowse({
       loadingMore.current?.controller.abort();
       loadingMore.current = null;
     };
-  }, [active, key, revision, retry, bootstrap.features.fullSearch, location.eligible]);
+  }, [active, key, revision, retry, bootstrap.features.fullSearch, location.eligible, owner]);
+  useEffect(() => {
+    if (active && (result || error)) void finishLaunchScreen();
+  }, [active, result, error]);
   useEffect(
     () => () => {
       clearTimeout(preview.current.timer);
@@ -259,6 +269,7 @@ export function NativeBrowse({
     if (loadingMore.current?.scope === key || !result?.nextPage) return;
     const request = { scope: key, controller: new AbortController() };
     loadingMore.current = request;
+    setMoreError("");
     setBusy(true);
     const expected = key;
     try {
@@ -273,6 +284,8 @@ export function NativeBrowse({
         browseLocation(window.location.hash).params.toString() !== expected
       )
         return;
+      if (next.nextPage != null && next.nextPage <= result.nextPage)
+        throw Error("More listings could not be loaded. Please retry.");
       setItems((previous) => [
         ...new Map([...previous, ...next.items].map((card) => [card.id, card])).values(),
       ]);
@@ -282,7 +295,7 @@ export function NativeBrowse({
         !request.controller.signal.aborted &&
         browseLocation(window.location.hash).params.toString() === expected
       )
-        setError(e instanceof Error ? e.message : "Could not load more listings.");
+        setMoreError(e instanceof Error ? e.message : "Could not load more listings.");
     } finally {
       if (loadingMore.current === request) {
         loadingMore.current = null;
@@ -326,7 +339,10 @@ export function NativeBrowse({
       </section>
     );
   return (
-    <section aria-label="Browse listings" className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
+    <section
+      aria-label="Browse listings"
+      className="native-browse-page mx-auto max-w-[1400px] px-3 py-3 sm:px-6"
+    >
       <BrowseResultsHeading
         showSearch={false}
         search={search}
@@ -378,6 +394,9 @@ export function NativeBrowse({
       )}
       {motors ? (
         <VehicleResultsPage
+          header={
+            <NativeVehicleSearchHeader search={search} onApply={apply} onSave={() => save()} />
+          }
           search={search}
           result={resultView}
           renderListing={renderListing}
@@ -389,6 +408,7 @@ export function NativeBrowse({
         />
       ) : search.category === "jobs" ? (
         <JobsFilterPage
+          header={<NativeCategorySearchHeader title="Local jobs" onSave={() => save()} />}
           search={search}
           listings={summaries}
           total={total}
@@ -400,6 +420,7 @@ export function NativeBrowse({
         />
       ) : search.category === "services" ? (
         <ServicesFilterPage
+          header={<NativeCategorySearchHeader title="Local services" onSave={() => save()} />}
           search={search}
           listings={summaries}
           total={total}
@@ -460,7 +481,7 @@ export function NativeBrowse({
                 ? "Try widening the price, location, property type, or bedroom filters."
                 : "Try widening the category, price, condition, location, or search terms."
           }
-          canLoadMore={Boolean(result?.nextPage)}
+          canLoadMore={false}
           loadedThroughPage={result?.page ?? 1}
           loadingMore={busy}
           loadMore={more}
@@ -481,17 +502,22 @@ export function NativeBrowse({
           Loading listings…
         </p>
       )}
-      {(motors || search.category === "jobs" || search.category === "services") &&
-        result?.nextPage && (
+      {result?.nextPage && (
+        <NativeAutoLoad enabled={active && !busy && !moreError && !error} onLoad={more} />
+      )}
+      {moreError && (
+        <div role="alert" className="mt-4 text-sm text-destructive">
+          {moreError}
           <button
             type="button"
             className="btn-outline mt-6"
             disabled={busy}
             onClick={() => void more()}
           >
-            Load more
+            Retry loading listings
           </button>
-        )}
+        </div>
+      )}
     </section>
   );
 }

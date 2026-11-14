@@ -379,6 +379,13 @@ try {
     await openSeller();
     await page.getByRole("heading", { name: "Leave a review", exact: true }).waitFor();
     const loadedFonts = await page.evaluate(async () => {
+      // The product deliberately permits fallback on a slow first paint.
+      // Geometry checks explicitly load the real local faces, not a timing race.
+      await Promise.all(
+        ["Manrope Variable", "Sora Variable"].map((family) =>
+          document.fonts.load(`500 16px "${family}"`),
+        ),
+      );
       await document.fonts.ready;
       return [...document.fonts]
         .filter((font) => font.status === "loaded")

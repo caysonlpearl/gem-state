@@ -2,7 +2,14 @@ import { peekNativeAuthDestination } from "./auth-destination";
 import { readPublicHome, startPublicHome, type StartupHome } from "./home-startup";
 import { HomeRefresh } from "./HomeRefresh";
 import { finishLaunchScreen } from "./launch-screen";
-import { RouteMotion } from "./RouteMotion";
+import { RouteMotion, commitNativeView } from "./RouteMotion";
+import {
+  clearNativeScreenResources,
+  prepareLeadPhoto,
+  readNativeBrowse,
+  readNativeDetail,
+} from "./screen-resources";
+import { listingIdFromParam } from "../../../src/lib/listing-url";
 import { completeNativeAuthNavigation } from "./auth-destination";
 import { NativeNotificationsProvider } from "./Notifications";
 import type { HeaderAccountIdentity } from "../../../src/components/layout/HeaderAccountMenuView";
@@ -13,7 +20,7 @@ import { requestNearbyLocation } from "./location";
 import { NativeBrowse } from "./Browse";
 import { SavedSearchActions } from "./SavedSearchActions";
 import { NativeSaveSearchDialog, type SaveSearchRequest } from "./SavedSearches";
-import { browseDestination, browseLocation } from "./browse-state";
+import { browseApiQuery, browseDestination, browseLocation } from "./browse-state";
 import { Toaster } from "../../../src/components/ui/sonner";
 import { toast } from "sonner";
 import { completeAccountSignOut } from "../../../src/lib/account-session";
@@ -24,6 +31,7 @@ import { clearConversationAttachmentMemory } from "./conversation-attachments";
 /* eslint-disable react-refresh/only-export-components -- application entrypoint mounts its local screens. */
 import { useEffect, useState, useRef, lazy, Suspense, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import type { MobileAdConsent } from "../../../src/lib/mobile-advertising";
 import type { Session } from "@supabase/supabase-js";
 import { Capacitor } from "@capacitor/core";
@@ -77,13 +85,36 @@ import "./style.css";
 const NativeStorefront = lazy(() =>
   import("./Storefronts").then((m) => ({ default: m.NativeStorefront })),
 );
-const NativeListingDetail = lazy(() =>
-  import("./ListingDetail").then((m) => ({ default: m.NativeListingDetail })),
-);
+let preparedListingDetail: typeof import("./ListingDetail").NativeListingDetail | undefined;
+let listingModule: Promise<void> | undefined;
+let listingModuleFailed = false;
+function prepareListingModule() {
+  return (listingModule ??= import("./ListingDetail")
+    .then((module) => {
+      preparedListingDetail = module.NativeListingDetail;
+    })
+    .catch((error) => {
+      listingModuleFailed = true;
+      throw error;
+    }));
+}
+function NativeListingDetail(
+  props: Parameters<typeof import("./ListingDetail").NativeListingDetail>[0],
+) {
+  if (listingModuleFailed)
+    return (
+      <div role="alert" className="error">
+        This listing could not open.
+        <button onClick={() => location.reload()}>Reopen Bluebird</button>
+      </div>
+    );
+  if (!preparedListingDetail) throw prepareListingModule();
+  const Component = preparedListingDetail;
+  return <Component {...props} />;
+}
 const currentPath = () => location.hash.slice(1).split("?")[0] || "/";
 function go(path: string) {
-  if (path === "/") window.dispatchEvent(new Event("bluebird-home"));
-  location.hash = path;
+  window.dispatchEvent(new CustomEvent("bluebird-navigate", { detail: path }));
 }
 const message = (e: unknown) =>
   e instanceof Error ? e.message : "Something went wrong. Please try again.";
@@ -100,6 +131,23 @@ function Application() {
     [session, setSession] = useState<Session | null>(null);
   const [path, setPath] = useState(currentPath),
     [error, setError] = useState("");
+  const [routeHash, setRouteHash] = useState(() => location.hash);
+  const [opening, setOpening] = useState(false);
+  const viewer = useRef({ owner: session?.user.id, details: false, search: false });
+  viewer.current = {
+    owner: session?.user.id,
+    details: bootstrap?.features.listingDetails === true,
+    search: bootstrap?.features.fullSearch === true,
+  };
+  const routeRequest = useRef<{
+    controller?: AbortController;
+    sequence: number;
+    index: number;
+    pending?: boolean;
+  }>({
+    sequence: 0,
+    index: history.state?.bluebirdNavigationIndex ?? 0,
+  });
   const [account, setAccount] = useState<{
       account: HeaderAccountIdentity & { userId: string };
       consent: { terms_version: string | null; shopping_alerts: boolean };
@@ -146,6 +194,13 @@ function Application() {
         const listener = auth.auth.onAuthStateChange((event, next) => {
           if (!alive) return;
           if (next?.user.id !== priorUserId) {
+            routeRequest.current.sequence++;
+            routeRequest.current.controller?.abort();
+            routeRequest.current.pending = false;
+            clearNativeScreenResources();
+            setOpening(false);
+            setPath(currentPath());
+            setRouteHash(location.hash);
             startupHome.current?.cancel();
             setSearchRequest(null);
             clearMessageRetries();
@@ -171,19 +226,117 @@ function Application() {
         startupHome.current?.cancel();
         if (alive) setError(message(e));
       });
+    let committing = false;
+    const navigate = async (target: string, changeURL: boolean) => {
+      const destination = target.replace(/^#/, "") || "/";
+      if (!destination.startsWith("/") || destination.startsWith("//")) return;
+      const targetPath = destination.split("?")[0];
+      const request = routeRequest.current;
+      request.controller?.abort();
+      const sequence = ++request.sequence;
+      if (
+        changeURL &&
+        ("#" + destination === location.hash || (destination === "/" && !location.hash))
+      ) {
+        if (targetPath === "/") window.dispatchEvent(new Event("bluebird-home"));
+        request.pending = false;
+        setOpening(false);
+        return;
+      }
+      const controller = new AbortController();
+      request.controller = controller;
+      request.pending = true;
+      const owner = viewer.current.owner;
+      setOpening(true);
+      try {
+        if (targetPath.startsWith("/listings/") && viewer.current.details) {
+          const [data] = await Promise.all([
+            readNativeDetail(listingIdFromParam(targetPath.slice(10)), owner, controller.signal),
+            prepareListingModule(),
+          ]);
+          await prepareLeadPhoto(data, controller.signal);
+        } else if (targetPath === "/search" && viewer.current.search) {
+          const parsed = browseLocation("#" + destination);
+          if (parsed.eligible)
+            await readNativeBrowse(String(browseApiQuery(parsed.params)), owner, controller.signal);
+        }
+      } catch {
+        // The resource retains a short-lived error for the destination's real
+        // Retry control. Keep the previous screen visible until this handoff.
+      }
+      if (!alive || controller.signal.aborted || sequence !== request.sequence) return;
+      request.pending = false;
+      const index = history.state?.bluebirdNavigationIndex ?? 0;
+      const back = (!changeURL && index < request.index) || targetPath === "/";
+      request.index = index;
+      commitNativeView(() => {
+        if (sequence !== request.sequence) return;
+        flushSync(() => {
+          if (changeURL) {
+            if (targetPath === "/") window.dispatchEvent(new Event("bluebird-home"));
+            const oldURL = location.href;
+            history.pushState(
+              { ...history.state, bluebirdNavigationIndex: index + 1 },
+              "",
+              "#" + destination,
+            );
+            request.index = index + 1;
+            committing = true;
+            try {
+              window.dispatchEvent(
+                new HashChangeEvent("hashchange", { oldURL, newURL: location.href }),
+              );
+            } finally {
+              committing = false;
+            }
+          }
+          setPath(targetPath);
+          setRouteHash("#" + destination);
+          setError("");
+          setOpening(false);
+        });
+        window.scrollTo(0, 0);
+      }, back);
+    };
     const hash = () => {
+      if (committing) return;
       if (currentPath() !== "/") startupHome.current?.cancel();
-      setPath(currentPath());
-      setError("");
-      window.scrollTo(0, 0);
+      void navigate(location.hash, false);
+    };
+    const intent = (event: Event) => {
+      void navigate((event as CustomEvent<string>).detail, true);
+    };
+    const link = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const anchor =
+        event.target instanceof Element
+          ? event.target.closest<HTMLAnchorElement>('a[href^="#/"]')
+          : null;
+      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+      event.preventDefault();
+      go(anchor.getAttribute("href")!.slice(1));
     };
     window.addEventListener("hashchange", hash);
+    window.addEventListener("bluebird-navigate", intent);
+    document.addEventListener("click", link);
     return () => {
       alive = false;
       startupHome.current?.cancel();
       stop();
       stopNavigation();
+      routeRequest.current.sequence++;
+      routeRequest.current.controller?.abort();
       window.removeEventListener("hashchange", hash);
+      window.removeEventListener("bluebird-navigate", intent);
+      document.removeEventListener("click", link);
     };
   }, []);
   useEffect(() => {
@@ -247,6 +400,13 @@ function Application() {
       }),
       NativeApp.addListener("backButton", () => {
         if (dismissNativeOverlay()) return;
+        if (routeRequest.current.pending) {
+          routeRequest.current.sequence++;
+          routeRequest.current.controller?.abort();
+          routeRequest.current.pending = false;
+          setOpening(false);
+          return;
+        }
         if (currentPath() !== "/" && backWithinApp()) return;
         else if (currentPath() !== "/") go("/");
         else void NativeApp.exitApp();
@@ -393,7 +553,14 @@ function Application() {
   const needsTerms =
     session && account && bootstrap && account.consent.terms_version !== bootstrap.policyVersion;
   useEffect(() => {
-    if (error || (bootstrap && (needsTerms || path !== "/"))) void finishLaunchScreen();
+    if (
+      error ||
+      (bootstrap &&
+        (needsTerms ||
+          (path.startsWith("/listings/") && !bootstrap.features.listingDetails) ||
+          (path !== "/" && !path.startsWith("/listings/") && path !== "/search")))
+    )
+      void finishLaunchScreen();
   }, [error, bootstrap, needsTerms, path]);
   return (
     <SavedCardsProvider
@@ -439,292 +606,302 @@ function Application() {
               onClose={() => setPrivacyOpen(false)}
               status={shopping}
               onStatus={(status) => {
+                clearNativeScreenResources();
                 applyShopperStatus(status);
                 setShopping(status);
                 setRevision((v) => v + 1);
               }}
               userId={session?.user.id ?? null}
             />
-            <NativeHeader path={path} onNavigate={go} />
-            <RouteMotion path={path} />
-            <div className="native-route-viewport">
-              <main id="main-content" tabIndex={-1} className="mobile-content scroll-mt-20">
-                {bootstrap && !needsTerms && (
-                  <div hidden={path !== "/"}>
-                    <Feed
-                      key={session?.user.id ?? "guest"}
-                      bootstrap={bootstrap}
-                      revision={revision}
-                      active={path === "/"}
-                      learning={learning}
-                      startupHome={startupHome.current}
-                    />
-                  </div>
-                )}
-                {bootstrap && !needsTerms && (
-                  <NativeBrowse
-                    key={session?.user.id ?? "guest"}
-                    active={path === "/search"}
-                    bootstrap={bootstrap}
-                    learning={learning}
-                    revision={revision}
-                    onNavigate={go}
-                    onSave={(search, id) => {
-                      if (!session) {
-                        toast.error("Sign in to save this search.");
-                        go("/account");
-                        return;
-                      }
-                      if (!bootstrap.features.durableSavedSearches) {
-                        toast.error(
-                          "Saved-search changes are temporarily unavailable. Please try again later.",
-                        );
-                        return;
-                      }
-                      setSearchRequest({
-                        search,
-                        id,
-                        owner: session.user.id,
-                        originHash: location.hash,
-                      });
-                    }}
-                  />
-                )}
-                {error && (
-                  <div className="error" role="alert">
-                    {error}
-                    {!bootstrap && (
-                      <button onClick={() => location.reload()}>Retry connection</button>
-                    )}
-                  </div>
-                )}
-                {!bootstrap ? (
-                  <p role="status">Connecting to Bluebird…</p>
-                ) : needsTerms ? (
-                  <form onSubmit={saveConsent} className="stack">
-                    <h1>Welcome to Bluebird</h1>
-                    <p>
-                      Review the current terms and choose whether to receive personalized shopping
-                      alerts.
-                    </p>
-                    <label className="check">
-                      <input
-                        required
-                        type="checkbox"
-                        checked={terms}
-                        onChange={(e) => setTerms(e.target.checked)}
-                      />
-                      I agree to the{" "}
-                      <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
-                        Terms of Service
-                      </a>
-                      .
-                    </label>
-                    <label className="check">
-                      <input
-                        type="checkbox"
-                        checked={alerts}
-                        onChange={(e) => setAlerts(e.target.checked)}
-                      />
-                      Send me personalized shopping emails and notifications about listings,
-                      recommendations, price drops, and offers.
-                    </label>
-                    <button className="primary" disabled={!terms || busy}>
-                      Continue
-                    </button>
-                    <button type="button" onClick={() => void signOut()}>
-                      Sign out
-                    </button>
-                  </form>
-                ) : recovery && session ? (
-                  <NativeAuth
-                    policyVersion={bootstrap.policyVersion}
-                    destination={path}
-                    recovery
-                    onRecovered={() => setRecovery(false)}
-                  />
-                ) : !session &&
-                  ["/saved", "/post", "/messages", "/account", "/auth"].some((p) =>
-                    path.startsWith(p),
-                  ) ? (
-                  <NativeAuth
-                    key={path === "/auth" ? location.hash : path}
-                    policyVersion={bootstrap.policyVersion}
-                    destination={path === "/auth" ? peekNativeAuthDestination() : path}
-                    initialMode={
-                      path === "/auth" &&
-                      new URLSearchParams(location.hash.split("?")[1]).get("mode") === "signup"
-                        ? "signup"
-                        : path === "/auth" &&
-                            new URLSearchParams(location.hash.split("?")[1]).get("mode") ===
-                              "forgot"
-                          ? "forgot"
-                          : "signin"
-                    }
-                  />
-                ) : /^\/(sellers|dealers)\//.test(path) ? (
-                  <Suspense
-                    fallback={
-                      <p role="status" className="p-5">
-                        Loading storefront…
-                      </p>
-                    }
-                  >
-                    <NativeStorefront
-                      key={`${session?.user.id ?? "guest"}:${path}`}
-                      kind={path.startsWith("/sellers/") ? "sellers" : "dealers"}
-                      slug={path.split("/")[2]}
-                      owner={session?.user.id}
-                      ready={bootstrap.features.storefronts === true}
-                      dealerMessagesReady={bootstrap.features.durableDealerMessages === true}
-                      learning={learning}
-                      revision={revision}
-                    />
-                  </Suspense>
-                ) : path === "/" || path === "/search" ? null : path.startsWith("/listings/") ? (
-                  bootstrap.features.listingDetails ? (
-                    <Suspense
-                      fallback={
-                        <p role="status" className="p-5 text-sm text-muted-foreground">
-                          Loading listing…
-                        </p>
-                      }
-                    >
-                      <NativeListingDetail
-                        key={`${session?.user.id ?? "guest"}:${path}`}
-                        id={path.slice(10)}
-                        owner={session?.user.id}
-                        learning={learning}
+            <div id="native-page-surface">
+              <NativeHeader path={path} onNavigate={go} />
+              <RouteMotion path={path} />
+              <div className="native-route-viewport">
+                <main id="main-content" tabIndex={-1} className="mobile-content scroll-mt-20">
+                  {bootstrap && !needsTerms && (
+                    <div hidden={path !== "/"}>
+                      <Feed
+                        key={session?.user.id ?? "guest"}
+                        bootstrap={bootstrap}
                         revision={revision}
-                        applicationsReady={bootstrap.features.durableApplications === true}
+                        active={path === "/"}
+                        learning={learning}
+                        startupHome={startupHome.current}
                       />
-                    </Suspense>
-                  ) : (
-                    <Listing
-                      key={`${session?.user.id ?? "guest"}:${path}`}
-                      id={path.slice(10)}
-                      session={session}
+                    </div>
+                  )}
+                  {bootstrap && !needsTerms && (
+                    <NativeBrowse
+                      key={session?.user.id ?? "guest"}
+                      active={path === "/search"}
+                      hash={routeHash}
+                      owner={session?.user.id}
+                      bootstrap={bootstrap}
                       learning={learning}
                       revision={revision}
-                      onError={setError}
+                      onNavigate={go}
+                      onSave={(search, id) => {
+                        if (!session) {
+                          toast.error("Sign in to save this search.");
+                          go("/account");
+                          return;
+                        }
+                        if (!bootstrap.features.durableSavedSearches) {
+                          toast.error(
+                            "Saved-search changes are temporarily unavailable. Please try again later.",
+                          );
+                          return;
+                        }
+                        setSearchRequest({
+                          search,
+                          id,
+                          owner: session.user.id,
+                          originHash: location.hash,
+                        });
+                      }}
                     />
-                  )
-                ) : path === "/post" || path === "/post/profile" ? (
-                  <Post
-                    key={`${session!.user.id}:${path}`}
-                    ownerId={session!.user.id}
-                    initialSetup={path === "/post/profile"}
-                    bootstrap={bootstrap}
-                    onSubmitted={() => setRevision((value) => value + 1)}
-                  />
-                ) : path.startsWith("/messages") ? (
-                  <NativeMessages
-                    key={session!.user.id}
-                    ownerId={session!.user.id}
-                    id={path.split("/")[2]}
-                    revision={revision}
-                    attachmentsEnabled={bootstrap.features.conversationAttachments === true}
-                    onOpen={(id) => go(`/messages/${id}`)}
-                    onBrowse={() => go("/search")}
-                  />
-                ) : path.startsWith("/account") ||
-                  (path === "/saved" && bootstrap.features.accountSaved === true) ? (
-                  <NativeAccount
-                    controlsReady={bootstrap.features.accountControls === true}
-                    storefrontsReady={bootstrap.features.storefronts === true}
-                    overviewReady={bootstrap.features.accountOverview === true}
-                    savedReady={bootstrap.features.accountSaved === true}
-                    reviewsReady={bootstrap.features.accountReviews === true}
-                    key={session!.user.id}
-                    ownerId={session!.user.id}
-                    section={
-                      ["/saved", "/account/saved"].includes(path) &&
-                      bootstrap.features.accountSaved === true
-                        ? "saved"
-                        : path === "/account/reviews"
-                          ? "reviews"
-                          : path === "/account/settings"
-                            ? "settings"
-                            : path === "/account/notifications"
-                              ? "notifications"
-                              : path === "/account/searches"
-                                ? "searches"
-                                : ["/account", "/account/overview"].includes(path) &&
-                                    bootstrap.features.accountOverview === true
-                                  ? "overview"
-                                  : "profile"
-                    }
-                    policyVersion={bootstrap.policyVersion}
-                    onNavigate={go}
-                    onSignOut={signOut}
-                    onChanged={() => setRevision((value) => value + 1)}
-                    signOutBusy={busy}
-                    permissions={
-                      <>
-                        {" "}
-                        {Capacitor.isNativePlatform() && bootstrap.features.push && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                const p = await PushNotifications.requestPermissions();
-                                if (p.receive === "granted") await PushNotifications.register();
-                                else
-                                  setError(
-                                    "Notifications are off. You can enable them in your phone settings.",
-                                  );
-                              } catch (e) {
-                                setError(message(e));
-                              }
-                            }}
-                          >
-                            Enable phone notifications
-                          </button>
-                        )}
-                        {Capacitor.isNativePlatform() && bootstrap.features.advertising && (
-                          <label className="mt-4 flex items-start gap-3 text-[12px]">
-                            <input
-                              type="checkbox"
-                              checked={advertising}
-                              onChange={async (e) => {
-                                const next = e.target.checked;
-                                try {
-                                  const choice = await setAdvertising(next, true);
-                                  setAdvertisingChoice(
-                                    choice.advertising &&
-                                      (choice.platform === "android" ||
-                                        choice.att === "authorized"),
-                                  );
-                                } catch (error) {
-                                  setAdvertisingChoice(false);
-                                  setError(message(error));
-                                }
-                              }}
-                            />
-                            Allow advertising measurement across apps and websites
-                          </label>
-                        )}
+                  )}
+                  {error && (
+                    <div className="error" role="alert">
+                      {error}
+                      {!bootstrap && (
+                        <button onClick={() => location.reload()}>Retry connection</button>
+                      )}
+                    </div>
+                  )}
+                  {!bootstrap ? (
+                    <p role="status">Connecting to Bluebird…</p>
+                  ) : needsTerms ? (
+                    <form onSubmit={saveConsent} className="stack">
+                      <h1>Welcome to Bluebird</h1>
+                      <p>
+                        Review the current terms and choose whether to receive personalized shopping
+                        alerts.
+                      </p>
+                      <label className="check">
+                        <input
+                          required
+                          type="checkbox"
+                          checked={terms}
+                          onChange={(e) => setTerms(e.target.checked)}
+                        />
+                        I agree to the{" "}
                         <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
                           Terms of Service
                         </a>
-                        <a href="mailto:bluebirdmarketplaceid@gmail.com">Contact Bluebird</a>
-                        <a
-                          className="ml-4 text-[12px] text-primary underline"
-                          href={`${apiOrigin}/privacy`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Privacy policy
-                        </a>
-                      </>
-                    }
-                  />
-                ) : path === "/saved" ? (
-                  <Feed saved bootstrap={bootstrap} revision={revision} learning={learning} />
-                ) : (
-                  <Feed bootstrap={bootstrap} revision={revision} learning={learning} />
-                )}
-              </main>
+                        .
+                      </label>
+                      <label className="check">
+                        <input
+                          type="checkbox"
+                          checked={alerts}
+                          onChange={(e) => setAlerts(e.target.checked)}
+                        />
+                        Send me personalized shopping emails and notifications about listings,
+                        recommendations, price drops, and offers.
+                      </label>
+                      <button className="primary" disabled={!terms || busy}>
+                        Continue
+                      </button>
+                      <button type="button" onClick={() => void signOut()}>
+                        Sign out
+                      </button>
+                    </form>
+                  ) : recovery && session ? (
+                    <NativeAuth
+                      policyVersion={bootstrap.policyVersion}
+                      destination={path}
+                      recovery
+                      onRecovered={() => setRecovery(false)}
+                    />
+                  ) : !session &&
+                    ["/saved", "/post", "/messages", "/account", "/auth"].some((p) =>
+                      path.startsWith(p),
+                    ) ? (
+                    <NativeAuth
+                      key={path === "/auth" ? location.hash : path}
+                      policyVersion={bootstrap.policyVersion}
+                      destination={path === "/auth" ? peekNativeAuthDestination() : path}
+                      initialMode={
+                        path === "/auth" &&
+                        new URLSearchParams(location.hash.split("?")[1]).get("mode") === "signup"
+                          ? "signup"
+                          : path === "/auth" &&
+                              new URLSearchParams(location.hash.split("?")[1]).get("mode") ===
+                                "forgot"
+                            ? "forgot"
+                            : "signin"
+                      }
+                    />
+                  ) : /^\/(sellers|dealers)\//.test(path) ? (
+                    <Suspense
+                      fallback={
+                        <p role="status" className="p-5">
+                          Loading storefront…
+                        </p>
+                      }
+                    >
+                      <NativeStorefront
+                        key={`${session?.user.id ?? "guest"}:${path}`}
+                        kind={path.startsWith("/sellers/") ? "sellers" : "dealers"}
+                        slug={path.split("/")[2]}
+                        owner={session?.user.id}
+                        ready={bootstrap.features.storefronts === true}
+                        dealerMessagesReady={bootstrap.features.durableDealerMessages === true}
+                        learning={learning}
+                        revision={revision}
+                      />
+                    </Suspense>
+                  ) : path === "/" || path === "/search" ? null : path.startsWith("/listings/") ? (
+                    bootstrap.features.listingDetails ? (
+                      <Suspense
+                        fallback={
+                          <p role="status" className="p-5 text-sm text-muted-foreground">
+                            Loading listing…
+                          </p>
+                        }
+                      >
+                        <NativeListingDetail
+                          key={`${session?.user.id ?? "guest"}:${path}`}
+                          id={path.slice(10)}
+                          owner={session?.user.id}
+                          learning={learning}
+                          revision={revision}
+                          applicationsReady={bootstrap.features.durableApplications === true}
+                        />
+                      </Suspense>
+                    ) : (
+                      <Listing
+                        key={`${session?.user.id ?? "guest"}:${path}`}
+                        id={path.slice(10)}
+                        session={session}
+                        learning={learning}
+                        revision={revision}
+                        onError={setError}
+                      />
+                    )
+                  ) : path === "/post" || path === "/post/profile" ? (
+                    <Post
+                      key={`${session!.user.id}:${path}`}
+                      ownerId={session!.user.id}
+                      initialSetup={path === "/post/profile"}
+                      bootstrap={bootstrap}
+                      onSubmitted={() => setRevision((value) => value + 1)}
+                    />
+                  ) : path.startsWith("/messages") ? (
+                    <NativeMessages
+                      key={session!.user.id}
+                      ownerId={session!.user.id}
+                      id={path.split("/")[2]}
+                      revision={revision}
+                      attachmentsEnabled={bootstrap.features.conversationAttachments === true}
+                      onOpen={(id) => go(`/messages/${id}`)}
+                      onBrowse={() => go("/search")}
+                    />
+                  ) : path.startsWith("/account") ||
+                    (path === "/saved" && bootstrap.features.accountSaved === true) ? (
+                    <NativeAccount
+                      controlsReady={bootstrap.features.accountControls === true}
+                      storefrontsReady={bootstrap.features.storefronts === true}
+                      overviewReady={bootstrap.features.accountOverview === true}
+                      savedReady={bootstrap.features.accountSaved === true}
+                      reviewsReady={bootstrap.features.accountReviews === true}
+                      key={session!.user.id}
+                      ownerId={session!.user.id}
+                      section={
+                        ["/saved", "/account/saved"].includes(path) &&
+                        bootstrap.features.accountSaved === true
+                          ? "saved"
+                          : path === "/account/reviews"
+                            ? "reviews"
+                            : path === "/account/settings"
+                              ? "settings"
+                              : path === "/account/notifications"
+                                ? "notifications"
+                                : path === "/account/searches"
+                                  ? "searches"
+                                  : ["/account", "/account/overview"].includes(path) &&
+                                      bootstrap.features.accountOverview === true
+                                    ? "overview"
+                                    : "profile"
+                      }
+                      policyVersion={bootstrap.policyVersion}
+                      onNavigate={go}
+                      onSignOut={signOut}
+                      onChanged={() => setRevision((value) => value + 1)}
+                      signOutBusy={busy}
+                      permissions={
+                        <>
+                          {" "}
+                          {Capacitor.isNativePlatform() && bootstrap.features.push && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const p = await PushNotifications.requestPermissions();
+                                  if (p.receive === "granted") await PushNotifications.register();
+                                  else
+                                    setError(
+                                      "Notifications are off. You can enable them in your phone settings.",
+                                    );
+                                } catch (e) {
+                                  setError(message(e));
+                                }
+                              }}
+                            >
+                              Enable phone notifications
+                            </button>
+                          )}
+                          {Capacitor.isNativePlatform() && bootstrap.features.advertising && (
+                            <label className="mt-4 flex items-start gap-3 text-[12px]">
+                              <input
+                                type="checkbox"
+                                checked={advertising}
+                                onChange={async (e) => {
+                                  const next = e.target.checked;
+                                  try {
+                                    const choice = await setAdvertising(next, true);
+                                    setAdvertisingChoice(
+                                      choice.advertising &&
+                                        (choice.platform === "android" ||
+                                          choice.att === "authorized"),
+                                    );
+                                  } catch (error) {
+                                    setAdvertisingChoice(false);
+                                    setError(message(error));
+                                  }
+                                }}
+                              />
+                              Allow advertising measurement across apps and websites
+                            </label>
+                          )}
+                          <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
+                            Terms of Service
+                          </a>
+                          <a href="mailto:bluebirdmarketplaceid@gmail.com">Contact Bluebird</a>
+                          <a
+                            className="ml-4 text-[12px] text-primary underline"
+                            href={`${apiOrigin}/privacy`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Privacy policy
+                          </a>
+                        </>
+                      }
+                    />
+                  ) : path === "/saved" ? (
+                    <Feed saved bootstrap={bootstrap} revision={revision} learning={learning} />
+                  ) : (
+                    <Feed bootstrap={bootstrap} revision={revision} learning={learning} />
+                  )}
+                </main>
+              </div>
             </div>
+            {opening && (
+              <div role="status" className="native-route-progress">
+                <span className="sr-only">Opening page…</span>
+              </div>
+            )}
             <NativeNavigation
               path={path}
               signedIn={Boolean(session)}
@@ -812,6 +989,7 @@ function Feed({
     [error, setError] = useState(""),
     [search, setSearch] = useState("");
   const [home, setHome] = useState<MobileHome | null>(null);
+  const [refreshSequence, setRefreshSequence] = useState(0);
   const [discovery, setDiscovery] = useState(!searchMode);
   useEffect(() => {
     if (active && !saved && !loading) void finishLaunchScreen(!error);
@@ -822,6 +1000,12 @@ function Feed({
   const appliedLocation = "Idaho";
   useEffect(() => {
     const reset = () => {
+      scroll.current = 0;
+      if (currentPath() === "/")
+        window.scrollTo({
+          top: 0,
+          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+        });
       setDiscovery(true);
       setSearch("");
       setCategory("");
@@ -849,7 +1033,7 @@ function Feed({
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    setHome(null);
+    if (saved || !discovery || page !== 1) setHome(null);
     const read = async () => {
       if (!saved && discovery && page === 1) {
         try {
@@ -914,10 +1098,11 @@ function Feed({
   ]);
   return (
     <section aria-label={saved ? "Saved listings" : "Marketplace homepage"} className="mobile-home">
-      {!saved && active && discovery && home && (
+      {!saved && active && discovery && home && !loading && (
         <HomeRefresh
           onData={(next) => {
             setHome(next);
+            setRefreshSequence((value) => value + 1);
             setItems([]);
             setNext(null);
             setIncomplete(false);
@@ -973,6 +1158,7 @@ function Feed({
       {home && discovery && !saved ? (
         <HomeDiscovery
           home={home}
+          refreshSequence={refreshSequence}
           learning={learning && active}
           onOpen={(id) => go(`/listings/${id}`)}
           onBrowse={(scope) => go(browseDestination(scope))}
@@ -994,7 +1180,7 @@ function Feed({
       )}
 
       {!home && <ListingSourceCredits cards={items} showVehicleCredit={saved} />}
-      {loading ? (
+      {loading && !home ? (
         <p role="status">Loading listings…</p>
       ) : !items.length && !home && !error ? (
         <p>

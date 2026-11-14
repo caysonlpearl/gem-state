@@ -1,6 +1,7 @@
 import { normalizeClassifiedItemDetails } from "../config/classified-item-fields.ts";
 import { mobileListingAllowed, mobileMediaUrl } from "./mobile-contract.ts";
 import type { ClassifiedCard, ClassifiedDetail } from "./classifieds.functions";
+import type { ListingCardSummary } from "./listing-card-summary";
 
 type Shape = true | { [key: string]: Shape } | [Shape];
 const fields = (keys: string) =>
@@ -163,7 +164,7 @@ function sanitize(value: unknown, key = ""): unknown {
     return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, sanitize(v, k)]));
   return value;
 }
-function cardProjection(card: ClassifiedCard, includeDetail = false) {
+function cardProjection(card: ClassifiedCard | ListingCardSummary, includeDetail = false) {
   if (!mobileListingAllowed(card)) return null;
   const out = sanitize(project(card, includeDetail ? detail : summary)) as ClassifiedDetail;
   // itemDetails is the only public dictionary; values cannot contain arbitrary nested data.
@@ -196,6 +197,8 @@ export function mobileListingDetail(card: ClassifiedDetail): ClassifiedDetail | 
   return out;
 }
 
-export function mobileListingSummary(card: ClassifiedCard): ClassifiedCard | null {
+export function mobileListingSummary(
+  card: ClassifiedCard | ListingCardSummary,
+): ClassifiedCard | null {
   return cardProjection(card);
 }

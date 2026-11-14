@@ -328,9 +328,19 @@ function mediaOf(raw: Record<string, unknown>): MarketCheckMedia {
  * city and state, which MarketCheck puts in its dealer-shaped block.
  */
 export function finalizeMarketCheckListing(listing: MarketCheckListing): MarketCheckListing {
+  // Older cache entries normalized query-addressed galleries down to one
+  // photo. Rebuild from the original private provider payload already saved
+  // with the entry; this spends no request or refresh budget.
+  const original = mediaOf(asRecord(listing.raw));
+  const currentLinks = dedupeMarketCheckImages(withoutApiKeys(listing.media.photoLinks));
+  const currentCached = dedupeMarketCheckImages(withoutApiKeys(listing.media.photoLinksCached));
   const media = {
-    photoLinks: withoutApiKeys(listing.media.photoLinks),
-    photoLinksCached: withoutApiKeys(listing.media.photoLinksCached),
+    photoLinks:
+      original.photoLinks.length > currentLinks.length ? original.photoLinks : currentLinks,
+    photoLinksCached:
+      original.photoLinksCached.length > currentCached.length
+        ? original.photoLinksCached
+        : currentCached,
   };
   let location = listing.location;
   if (!location.city || !location.state || location.latitude == null) {
