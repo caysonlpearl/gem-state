@@ -865,3 +865,43 @@ The mechanical design check flagged the recovery page's cream background. This
 is an intentional match to Bluebird's established shared palette and the owner's
 website-parity direction, not a new palette choice. No global detector ignores
 were introduced; the rendered page passed its contrast and layout checks.
+
+## Overlapping native homepage startup — November 14, 2026
+
+Home startup previously waited for setup/Auth before asking for the public cached
+homepage. Native root launches now start that one public read alongside setup.
+The fixed `home` request omits cookies, Auth, install identifiers and referrers,
+does not initialize Auth, rejects redirects, and uses the existing 20-second
+cancellation scope. It has no activity/advertising writes or provider refresh.
+Other initial routes and OAuth-code returns do not start this prefetch.
+
+Setup, advertising disablement and session restoration still finish before the
+marketplace mounts. Setup and the restored session are published together, so
+members do not first mount a guest feed and reload it. Existing terms and privacy
+checks remain in charge. The preload is not used by Saved, search or private
+account actions. Ordinary public-home refreshes use the same anonymous read.
+
+The result lives only in memory, is available once, and expires unused after
+30 seconds. Navigation away, initialization failure and teardown discard unused
+work. Once taken, its screen owns cancellation; background disposal cannot race
+screen cleanup into an unnecessary fallback request. Returning to Home or
+refreshing reads current data rather than replaying the startup value. Failed
+home reads retain the existing browse fallback; failed setup retains connection
+retry without displaying prefetched inventory. No offline inventory cache,
+persistent snapshot, new identifier, automatic retry or API migration is added.
+
+The compiled-app gate holds setup open and proves the home request has already
+started, checks the three phone/wide viewports and restored-member behavior,
+verifies no credentials/identifiers/referrer even with a test cookie present,
+and covers non-home/OAuth entry, leaving during setup, fresh return reads and
+failures. It runs without newer AbortSignal static methods. Unit tests also
+exercise expiry, disposal ownership, late results, body timeouts and failures.
+
+A compiled-browser before/after comparison with 500 ms delays on each public
+endpoint observed first-listing times of 1,279 ms and 757 ms from the first API
+request. It showed sequential reads before and overlapping reads after, with
+one homepage request in each case. The 390-pixel loaded screenshots were pixel
+identical. These are controlled fixture observations, not real-phone timings or
+a production-capacity claim. The existing native design, website, backend API,
+catalog controls and selected icon remain unchanged. Signed builds, actual
+device journeys and production launch checks still require their own evidence.

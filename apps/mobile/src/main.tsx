@@ -1,4 +1,5 @@
 import { peekNativeAuthDestination } from "./auth-destination";
+import { readPublicHome, startPublicHome, type StartupHome } from "./home-startup";
 import { completeNativeAuthNavigation } from "./auth-destination";
 import { NativeNotificationsProvider } from "./Notifications";
 import type { HeaderAccountIdentity } from "../../../src/components/layout/HeaderAccountMenuView";
@@ -114,8 +115,15 @@ function Application() {
   >(null);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const signOutInFlight = useRef(false);
+  const startupHome = useRef<StartupHome | null>(null);
   useEffect(() => {
     const stopNavigation = trackNativeNavigation();
+    if (
+      currentPath() === "/" &&
+      !location.search.includes("code=") &&
+      !location.hash.includes("code=")
+    )
+      startupHome.current = startPublicHome();
     let alive = true,
       stop = () => {};
     initialize()
@@ -124,14 +132,18 @@ function Application() {
         const advertisingReady = configureAdvertising(b.features.advertising);
         b.features.advertising = advertisingReady;
         await disableAdvertising();
-        setBootstrap(b);
         const { data } = await auth.auth.getSession();
+        if (!alive) return;
         setShopperIdentity(data.session?.user.id ?? null);
-        if (alive) setSession(data.session);
+        // Publish setup and the restored session together so the homepage does
+        // not mount once as a guest and immediately reload as the member.
+        setSession(data.session);
+        setBootstrap(b);
         let priorUserId = data.session?.user.id;
         const listener = auth.auth.onAuthStateChange((event, next) => {
           if (!alive) return;
           if (next?.user.id !== priorUserId) {
+            startupHome.current?.cancel();
             setSearchRequest(null);
             clearMessageRetries();
             clearConversationAttachmentMemory();
@@ -153,9 +165,11 @@ function Application() {
         }
       })
       .catch((e) => {
+        startupHome.current?.cancel();
         if (alive) setError(message(e));
       });
     const hash = () => {
+      if (currentPath() !== "/") startupHome.current?.cancel();
       setPath(currentPath());
       setError("");
       window.scrollTo(0, 0);
@@ -163,6 +177,7 @@ function Application() {
     window.addEventListener("hashchange", hash);
     return () => {
       alive = false;
+      startupHome.current?.cancel();
       stop();
       stopNavigation();
       window.removeEventListener("hashchange", hash);
@@ -434,6 +449,7 @@ function Application() {
                     revision={revision}
                     active={path === "/"}
                     learning={learning}
+                    startupHome={startupHome.current}
                   />
                 </div>
               )}
@@ -750,6 +766,7 @@ function Feed({
   active = true,
   learning = false,
   searchMode = false,
+  startupHome,
 }: {
   bootstrap: Bootstrap;
   saved?: boolean;
@@ -757,6 +774,7 @@ function Feed({
   active?: boolean;
   searchMode?: boolean;
   learning?: boolean;
+  startupHome?: StartupHome | null;
 }) {
   const scroll = useRef(0);
   useEffect(() => {
@@ -821,7 +839,8 @@ function Feed({
     const read = async () => {
       if (!saved && discovery && page === 1) {
         try {
-          const result = await api<MobileHome>("home", "GET", undefined, controller.signal);
+          const result = await (startupHome?.take(controller.signal) ??
+            readPublicHome(controller.signal));
           if (controller.signal.aborted) return;
           setHome(result);
           setItems([]);
@@ -866,7 +885,19 @@ function Feed({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [active, saved, search, category, group, sort, page, revision, discovery, appliedLocation]);
+  }, [
+    active,
+    saved,
+    search,
+    category,
+    group,
+    sort,
+    page,
+    revision,
+    discovery,
+    appliedLocation,
+    startupHome,
+  ]);
   return (
     <section aria-label={saved ? "Saved listings" : "Marketplace homepage"} className="mobile-home">
       {saved ? (
