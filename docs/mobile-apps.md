@@ -823,8 +823,12 @@ release gates. Publication and native installation require their own evidence.
 The draft native Listings workspace reuses the website presenter and listing
 model, with owned listing reads, edit/duplicate forms and account-scoped retries.
 Stable API routes are source-complete behind a separate versioned management
-capability. No production migration, publication or real seller mutation has run.
-The new native code is not in the build currently installed on the owner phone.
+capability. Migration 150000 was installed on November 14 and independently
+verified against the six reviewed function bodies/grants, exact source history
+and zero-gap account boundaries. The matching application backend is not yet
+published, and no real seller mutation was used for verification. Signed iPhone
+build 9 and the Android debug artifact are prepared; the owner phone still has
+the earlier build.
 
 Migration `20261114150000_mobile_listing_management.sql` adds private owned
 editor snapshots and one atomic edit/archive/relist operation. An exact request
@@ -873,17 +877,20 @@ The scoped path has its own health/object caches, so real owner-thumbnail/editor
 latency and storage usage still need measuring before activation. No upload,
 deletion, bucket, privilege or provider-configuration behavior is changed.
 
-Before activation: recheck schema drift and deployment prerequisites, rehearse
-the exact additive installation/history transaction, apply and verify
-source/capability agreement, then complete authenticated production and physical
-iPhone/Android journeys. Owner-dashboard access and the real-domain rehearsal
-are now available, as described below. No real seller workspace has been enabled.
+Before app activation: complete the current hosted release checks, publish the
+matching application backend, measure authenticated seller-read latency/storage
+usage, and complete owner-device journeys. Physical Android testing remains a
+store-release gate. Schema drift checks, the exact installation/history rehearsal
+and independent source/capability agreement are now verified. The currently
+published bootstrap still keeps the native seller workspace unavailable.
 The original transaction fixtures retain explicit domain stand-ins to isolate
 rollback, receipt/ownership/session behavior and concurrency.
 
 A separate November 14 metadata-only capture now supplies the actual affected
 domain function definitions and effective execution grants, enum values, exact
 column types/defaults (including generated columns), core constraints and triggers.
+Its two internal-helper execution records were updated from independent live
+readback after permission repair 180000; their bodies/guard records are unchanged.
 `mobile-listing-production-domain.test.mjs` installs migration 150000 over those
 definitions in a disposable database. It verifies normal edits and photo counts,
 the corrected high-price vehicle/home helper, job/service arrays and pricing,
