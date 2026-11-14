@@ -478,8 +478,14 @@ function vehicleSourceLabel(listing: ListingCardSummary) {
   return listing.dealer?.displayName ?? null;
 }
 
-function Price({ listing }: { listing: ListingCardSummary }) {
-  const savings = retailSavings(listing);
+function Price({
+  listing,
+  showRetail = true,
+}: {
+  listing: ListingCardSummary;
+  showRetail?: boolean;
+}) {
+  const savings = showRetail ? retailSavings(listing) : null;
   return (
     <>
       {listing.job
@@ -524,6 +530,7 @@ export function ListingCardView({
   saveAction,
   elementRef,
   className = "",
+  density = "standard",
 }: {
   renderLink: ComponentType<ListingCardLinkProps>;
   saveAction?: ReactNode;
@@ -534,6 +541,8 @@ export function ListingCardView({
   soldAt?: string;
   /** Load this card's photo eagerly at high priority (the first cards above the fold). */
   priority?: boolean;
+  /** Native home discovery uses the same photos/actions with a shorter body. */
+  density?: "standard" | "compact";
 }) {
   return (
     <article
@@ -556,7 +565,29 @@ export function ListingCardView({
           <div className="absolute right-2 top-2 z-10">{saveAction}</div>
         )}
       </div>
-      {listing.home ? (
+      {density === "compact" ? (
+        <ListingLink listing={listing} className="block px-2.5 pb-2.5 pt-2">
+          <div className="numeric text-[17px] font-bold leading-5 text-primary">
+            {listing.directory ? (
+              "Call for a quote"
+            ) : (
+              <Price listing={listing} showRetail={false} />
+            )}
+          </div>
+          <h3 className="mt-1 line-clamp-2 min-h-[32px] text-[12.5px] font-semibold leading-4 group-hover:text-primary">
+            {listing.vehicle
+              ? [listing.vehicle.year, listing.vehicle.make, listing.vehicle.model]
+                  .filter(Boolean)
+                  .join(" ") || listing.title
+              : listing.title}
+          </h3>
+          <p className="mt-1 truncate text-[11px] leading-4 text-muted-foreground">
+            {listing.externalMerchandise
+              ? "Shipping Only"
+              : placeLabel(listing.city, listing.state)}
+          </p>
+        </ListingLink>
+      ) : listing.home ? (
         <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">
           <HomeCardBody listing={listing} soldAt={soldAt} />
         </ListingLink>

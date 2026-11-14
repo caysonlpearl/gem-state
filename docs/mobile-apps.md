@@ -608,12 +608,11 @@ suppression, visible-provider credits, permission withdrawal, history reset, exp
 filter/sort precedence and a browsing fallback when consent reads fail. These are
 browser fixtures, not real-device or production-account activity.
 
-
 ## Compact app homepage — November 13, 2026
 
 The owner approved replacing the app's large rotating hero with a small brand
-introduction. The normal-flow logo row now includes “Buy and sell locally.” and
-a compact Search area button. The existing pinned search is the homepage's only
+row and a compact Search area button. A proposed “Buy and sell locally.” tagline
+was removed at the owner's November 14 review. The existing pinned search is the homepage's only
 query field. A single horizontally scrollable row provides All, Vehicles, Homes,
 Pets & adoption, Jobs and Services shortcuts, with at least 44px touch targets.
 Vehicles retains the full motors group; restricted app categories are absent.
@@ -627,8 +626,8 @@ requested automatically. Existing browse filters and explicit sorts remain intac
 
 The native hero, duplicate query form, rotating-headline timer and large
 Pets/Vehicles feature cards are removed. Inventory sections begin closer to the
-top while retaining the shared listing presenters, headings, navigation, source
-credits and existing recommendation/permission logic. The website's hero and
+top while retaining the shared listing presenters, navigation and existing
+recommendation/permission logic. The website's hero and
 listing cards are unchanged. New icon concepts and a native launch-screen change
 remain separate work; this batch does not apply them.
 
@@ -639,3 +638,28 @@ A separate read-only public-catalog check records the first listing's on-screen
 position and checks detail/back navigation, without account writes or messages.
 These are browser/build checks; the updated native package still needs installing
 and checking on physical devices before claiming real-device verification.
+
+### Compact home cards — November 14, 2026
+
+The owner's next review removes the repeated Cars & trucks/Idaho heading,
+tagline and per-row MarketCheck line from native home discovery. The lead uses
+one Vehicles heading and See all action. Existing chips, search scope and browse
+destinations remain intact. Compact shared presenter options fit two complete
+cards across narrow phones, three on tablets and four on wider screens. Cards
+retain the photo/save action, primary price, short title and location. Vehicle
+titles use year/make/model when supplied; trim, mileage, seller, contact text and
+posting age remain available on the full listing. The home fallback uses the
+same short body. Website, saved/search cards and listing details retain their
+default shared rendering.
+
+Home rows omit only the repeating vehicle provider credit; other provider
+credits and existing browse/detail source information remain. MarketCheck's
+public terms, section 8.1, require attribution on request and do not specify a
+credit below every row; the separately confirmed agreement has not been inspected
+here. No watermark or provider image is edited. Source:
+https://developers.marketcheck.com/terms (read November 14).
+
+Browser checks cover complete adjacent cards, compact height/text, header and
+footer reachability, category navigation, permission enforcement and overflow.
+The separate public-catalog journey allows reads only. Source/build/browser proof
+does not establish installation or physical iPhone/Android verification.

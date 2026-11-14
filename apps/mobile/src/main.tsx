@@ -913,6 +913,7 @@ function Feed({
               card={card}
               position={position}
               placement={saved ? "saved" : "browse"}
+              density={saved ? "standard" : "compact"}
               learning={learning && active}
               onOpen={(id) => go(`/listings/${id}`)}
             />
@@ -920,7 +921,7 @@ function Feed({
         </div>
       )}
 
-      {!home && <ListingSourceCredits cards={items} />}
+      {!home && <ListingSourceCredits cards={items} showVehicleCredit={saved} />}
       {loading ? (
         <p role="status">Loading listings…</p>
       ) : !items.length && !home && !error ? (

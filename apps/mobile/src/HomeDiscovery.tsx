@@ -1,4 +1,3 @@
-import { MarketplaceVehicleLeadHeader } from "../../../src/components/classifieds/MarketplaceVehicleLeadHeader";
 import { selectDiscoveryCards } from "../../../src/lib/discovery-ranking";
 import { ArrowRight } from "@phosphor-icons/react";
 import { MarketplaceListingSection } from "../../../src/components/classifieds/MarketplaceListingSection";
@@ -80,23 +79,31 @@ export function HomeDiscovery({
   );
   return (
     <>
-      <section className="homepage-lead-vehicles mt-2 sm:mt-5">
-        <MarketplaceVehicleLeadHeader
-          action={
-            <button
-              onClick={() => onBrowse("cars-trucks")}
-              className="inline-flex min-h-11 shrink-0 items-center gap-1 border-0 bg-transparent p-0 text-[12.5px] font-semibold text-primary"
-            >
-              All cars &amp; trucks <ArrowRight size={12} />
-            </button>
-          }
-        />
-        <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
+      <MarketplaceListingSection
+        className="homepage-lead-vehicles"
+        density="compact"
+        eyebrow=""
+        title="Vehicles"
+        action={
+          <button
+            aria-label="See all vehicles"
+            onClick={() => onBrowse("cars-trucks")}
+            className="inline-flex min-h-11 shrink-0 items-center gap-1 border-0 bg-transparent p-0 text-[12.5px] font-semibold text-primary"
+          >
+            See all <ArrowRight size={12} />
+          </button>
+        }
+      >
+        <div className="no-scrollbar mt-2 flex gap-2.5 overflow-x-auto pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible">
           {lead.map((summary, position) => {
             const card = originals.get(summary.id);
             return card ? (
-              <div key={card.id} className="min-w-[235px] lg:min-w-0">
+              <div
+                key={card.id}
+                className="min-w-0 basis-[calc((100%_-_10px)/2)] shrink-0 sm:basis-[calc((100%_-_20px)/3)] lg:basis-auto"
+              >
                 <ListingTile
+                  density="compact"
                   card={card}
                   position={position}
                   placement="home:lead"
@@ -109,19 +116,21 @@ export function HomeDiscovery({
           })}
         </div>
         <ListingSourceCredits
+          showVehicleCredit={false}
           cards={lead.flatMap((summary) =>
             originals.get(summary.id) ? [originals.get(summary.id)!] : [],
           )}
         />
         {!lead.length && (
           <p className="mt-5 text-[13px] text-muted-foreground">
-            Cars and trucks show up here as soon as Idaho sellers post them.
+            Vehicles appear here as local sellers post them.
           </p>
         )}
-      </section>
+      </MarketplaceListingSection>
       {sections.map((section) => (
         <MarketplaceListingSection
           key={section.title}
+          density="compact"
           eyebrow={section.eyebrow}
           title={section.title}
           action={
@@ -134,12 +143,16 @@ export function HomeDiscovery({
           }
         >
           {section.cards.length ? (
-            <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
+            <div className="no-scrollbar mt-2 flex gap-2.5 overflow-x-auto pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible">
               {section.cards.map((summary, position) => {
                 const card = originals.get(summary.id);
                 return card ? (
-                  <div className="min-w-[235px] lg:min-w-0" key={card.id}>
+                  <div
+                    className="min-w-0 basis-[calc((100%_-_10px)/2)] shrink-0 sm:basis-[calc((100%_-_20px)/3)] lg:basis-auto"
+                    key={card.id}
+                  >
                     <ListingTile
+                      density="compact"
                       card={card}
                       position={position}
                       placement={`home:${section.title}`}
@@ -157,6 +170,7 @@ export function HomeDiscovery({
             </p>
           )}
           <ListingSourceCredits
+            showVehicleCredit={false}
             cards={section.cards.flatMap((summary) =>
               originals.get(summary.id) ? [originals.get(summary.id)!] : [],
             )}

@@ -238,6 +238,30 @@ try {
     });
     await page.goto(origin);
     await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
+    const homeVehicles = page.getByRole("region", { name: "Vehicles", exact: true });
+    const homeCards = homeVehicles.locator(".listing-card");
+    await homeCards.nth(1).waitFor();
+    const firstHome = await homeCards.nth(0).boundingBox();
+    const secondHome = await homeCards.nth(1).boundingBox();
+    assert(firstHome && secondHome);
+    assert(firstHome.width <= (viewport.width - 24 - 10) / 2 + 1);
+    assert(secondHome.x + secondHome.width <= viewport.width - 11, "Two complete home cards fit");
+    assert(
+      firstHome.height < firstHome.width * 0.75 + 115,
+      "Compact card text stays within its height budget",
+    );
+    if (viewport.width < 640) assert(firstHome.height < 250, "Phone home cards remain short");
+    assert.equal(
+      await homeCards.nth(0).getByRole("heading", { level: 3 }).innerText(),
+      "2024 Ford Explorer",
+    );
+    const homeCardText = await homeCards.nth(0).innerText();
+    assert(homeCardText.includes("$10,000") && homeCardText.includes("Boise, ID"));
+    assert(
+      !/Limited|38,200|Automatic|Contact seller|Today/.test(homeCardText),
+      "Detailed facts stay inside the listing",
+    );
+    await page.screenshot({ path: resolve(output, `compact-home-${viewport.width}.png`) });
     await page.waitForTimeout(3000);
     assert.equal(events.length, 0, "No activity before personalization permission");
     await openPrivacy();
@@ -336,7 +360,7 @@ try {
       !events.some((event) => event.kind === "dismiss"),
       "A page read never invents a dismissal",
     );
-    await page.getByRole("button", { name: "All cars & trucks", exact: true }).click();
+    await page.getByRole("button", { name: "See all vehicles", exact: true }).click();
     await page
       .getByRole("heading", { name: "Recommended for you", exact: true })
       .waitFor({ state: "hidden" });
