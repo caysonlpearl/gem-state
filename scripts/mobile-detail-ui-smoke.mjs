@@ -387,6 +387,20 @@ try {
     ]) {
       await open(name);
       await page.getByText("Page stats", { exact: true }).first().waitFor();
+      const navigation = page.getByRole("navigation", { name: "Primary", exact: true });
+      assert(
+        await navigation.getByRole("button", { name: "Open categories", exact: true }).isVisible(),
+      );
+      assert(await navigation.getByRole("button", { name: "Account", exact: true }).isVisible());
+      const contactBar = page.getByRole("region", { name: "Listing contact actions", exact: true });
+      if (await contactBar.isVisible()) {
+        const contactBox = await contactBar.boundingBox();
+        const navigationBox = await navigation.boundingBox();
+        assert(
+          contactBox && navigationBox && contactBox.y + contactBox.height <= navigationBox.y + 1,
+          "Listing contact actions stay above bottom navigation",
+        );
+      }
       assert.equal(await page.locator("main main").count(), 0, "Native keeps one main landmark");
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
@@ -596,6 +610,8 @@ try {
       viewport: viewport.width,
       categories: 14,
       sharedLayouts: true,
+      persistentBottomControls: true,
+      contactActionsAboveNavigation: true,
       oneMainLandmark: true,
       skipLinkPreservesRoute: true,
       homeSectionLinksPreserveRoute: true,

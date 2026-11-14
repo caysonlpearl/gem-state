@@ -10,6 +10,7 @@ const browser = await chromium.launch(
   process.env.BLUEBIRD_BROWSER_CHANNEL ? { channel: process.env.BLUEBIRD_BROWSER_CHANNEL } : {},
 );
 const errors = [],
+  blockedWrites = [],
   results = [];
 try {
   for (const viewport of [
@@ -19,11 +20,44 @@ try {
   ]) {
     const page = await browser.newPage({ viewport });
     page.on("pageerror", (e) => errors.push(e.message));
+    await page.route("**/*", async (route) => {
+      const method = route.request().method();
+      if (["GET", "HEAD", "OPTIONS"].includes(method)) {
+        const url = new URL(route.request().url());
+        if (url.origin === "https://onbluebird.com" && url.pathname.startsWith("/api/mobile/v1/")) {
+          // The packaged app uses this native origin. The public preview origin is
+          // deliberately rejected by production; this read-only harness adapts it.
+          const response = await route.fetch({
+            headers: {
+              ...route.request().headers(),
+              origin: "capacitor://localhost",
+              "user-agent": "Bluebird (https://onbluebird.com)",
+            },
+          });
+          return route.fulfill({
+            response,
+            headers: {
+              ...response.headers(),
+              "access-control-allow-origin": new URL(page.url()).origin,
+            },
+          });
+        }
+        return route.continue();
+      }
+      blockedWrites.push({ method, origin: new URL(route.request().url()).origin });
+      return route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { message: "This catalog preview is read-only." } }),
+      });
+    });
     await page.goto(process.env.BLUEBIRD_MOBILE_PREVIEW || "http://127.0.0.1:5174", {
       waitUntil: "domcontentloaded",
       timeout: 60000,
     });
     await page.getByRole("heading", { name: /^Find / }).waitFor();
+    await page.locator(".listing-card").first().waitFor({ timeout: 60000 });
+    await page.screenshot({ path: resolve(output, `home-${viewport.width}.png`) });
     await page.getByRole("combobox", { name: "Category", exact: true }).click();
     await page.getByRole("option", { name: "Cars & Trucks", exact: true }).click();
     await page.getByRole("button", { name: "Search", exact: true }).click();
@@ -43,7 +77,9 @@ try {
     assert.equal(new URLSearchParams(page.url().split("?")[1]).get("category"), "cars-trucks");
     await page.waitForFunction((y) => Math.abs(window.scrollY - y) < 3, previousScroll);
     await page.getByRole("link", { name: "Home", exact: true }).last().click();
-    await page.getByLabel("Search Bluebird", { exact: true }).fill("Subaru Outback");
+    await page
+      .getByRole("searchbox", { name: "Search Bluebird", exact: true })
+      .fill("Subaru Outback");
     const queryResponse = page.waitForResponse(
       (response) =>
         response.url().includes("/api/mobile/v1/search?") &&
@@ -51,7 +87,10 @@ try {
     );
     await page.getByRole("button", { name: "Search", exact: true }).click();
     assert.equal((await queryResponse).status(), 200);
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await page
+      .getByRole("navigation", { name: "Primary", exact: true })
+      .getByRole("button", { name: "Account", exact: true })
+      .click();
     await page.getByRole("heading", { name: "Sign in to Bluebird Marketplace" }).waitFor();
     await page.getByRole("button", { name: "Need an account? Create one", exact: true }).click();
     assert.equal(await page.getByRole("checkbox").count(), 2);
@@ -82,6 +121,7 @@ try {
         results,
         javascriptErrors: errors,
         physicalDeviceTested: false,
+        blockedWrites,
       },
       null,
       2,

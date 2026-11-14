@@ -16,15 +16,20 @@ export function MarketplaceMobileMenu({
   onClose,
   renderLink: RenderLink,
   privacyAction,
+  alwaysVisible = false,
 }: {
   categories?: readonly { slug: string; name: string; description: string; group?: string }[];
   isSignedIn: boolean;
   onClose: () => void;
   renderLink: ComponentType<MarketplaceMenuLinkProps>;
   privacyAction?: ReactNode;
+  alwaysVisible?: boolean;
 }) {
   return (
-    <div id="marketplace-menu" className="border-t border-border bg-surface lg:hidden">
+    <div
+      id="marketplace-menu"
+      className={`border-t border-border bg-surface ${alwaysVisible ? "" : "lg:hidden"}`}
+    >
       <div className="mx-auto w-full min-w-0 max-w-[1360px] overflow-x-hidden px-4 py-4 sm:px-8">
         <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
           <div>

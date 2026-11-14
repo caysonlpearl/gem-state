@@ -15,6 +15,7 @@ export function BrowseResultsHeading({
   allCategoriesLanding,
   heading,
   term,
+  showSearch = true,
   setTerm,
   scopedWithoutVehicleFilters,
   onApply,
@@ -33,6 +34,7 @@ export function BrowseResultsHeading({
   allCategoriesLanding: boolean;
   heading: string;
   term: string;
+  showSearch?: boolean;
   setTerm: (value: string) => void;
   scopedWithoutVehicleFilters: (patch: Partial<Search>) => Search;
   onApply: (patch: Partial<Search>) => void;
@@ -66,7 +68,7 @@ export function BrowseResultsHeading({
           </div>
         </div>
       </div>
-      {!allCategoriesLanding && !motors && !homes && !jobs && !services && !pets && (
+      {showSearch && !allCategoriesLanding && !motors && !homes && !jobs && !services && !pets && (
         <form
           className="floating-card mt-8 p-2 sm:p-3"
           onSubmit={(event) => {

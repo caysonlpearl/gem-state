@@ -73,7 +73,8 @@ html[data-native-platform="ios"]
   .mobile-content {
     max-width: 1440px;
     margin: 0 auto;
-    padding-bottom: calc(68px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--bluebird-native-navigation-height, 68px) + 16px);
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
   }
   .mobile-content :is(button, a, input, textarea, select) {
     scroll-margin-block: 100px;
@@ -254,4 +255,29 @@ html[data-native-platform="ios"]
     flex: 0 0 100%;
     min-width: 0;
   }
+}
+
+/* The app keeps navigation beneath listing contact actions. The website's
+   standalone contact bar reserves its own body space instead. */
+html[data-native-platform].has-mobile-contact-bar body {
+  padding-bottom: 0;
+}
+@media (max-width: 1023px) {
+  html[data-native-platform].has-mobile-contact-bar .mobile-content {
+    padding-bottom: calc(var(--bluebird-native-navigation-height, 68px) + 84px);
+  }
+}
+
+/* A floating capsule with physical-screen clearance, including landscape cutouts. */
+.native-floating-navigation {
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(env(safe-area-inset-bottom) + 8px);
+  max-width: 640px;
+  margin-inline: auto;
+}
+.native-brand-row,
+.native-search-header {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }

@@ -137,7 +137,7 @@ try {
       },
     );
     const openPrivacy = async () => {
-      const menu = page.getByRole("button", { name: "Open menu", exact: true });
+      const menu = page.getByRole("button", { name: "Open categories", exact: true });
       if (await menu.isVisible()) await menu.click();
       await page.getByRole("button", { name: "Privacy choices", exact: true }).click();
     };
@@ -348,7 +348,7 @@ try {
       .getByRole("heading", { name: "Recommended for you", exact: true })
       .waitFor({ state: "hidden" });
     await page.locator("#sort").selectOption("newest");
-    await page.locator('header a[href="#/"]').click();
+    await page.getByRole("link", { name: "Bluebird home", exact: true }).click();
     await page.getByRole("heading", { name: /^Find / }).waitFor();
     await openPrivacy();
     await dialog.getByRole("checkbox").click();
@@ -392,7 +392,7 @@ try {
     await openPrivacy();
     await dialog.getByText("Privacy choices could not be loaded.", { exact: true }).waitFor();
     await dialog.getByRole("button", { name: "Done", exact: true }).click();
-    await page.locator('header a[href="#/"]').click();
+    await page.getByRole("link", { name: "Bluebird home", exact: true }).click();
     await page.getByRole("heading", { name: /^Find / }).waitFor();
     await page.locator(".listing-card").first().waitFor();
     assert.deepEqual(errors, []);

@@ -24,12 +24,14 @@ export function MobileContactBarView({
   userId,
   onContact: trackSellerContact,
   bottomClassName,
+  aboveNavigation = false,
 }: {
   listing: ClassifiedDetail;
   isSignedIn: boolean;
   userId?: string;
   onContact: typeof SellerContactHandler;
   bottomClassName?: string;
+  aboveNavigation?: boolean;
 }) {
   const user = { id: userId };
   const approvedDealer = hasApprovedDealer(listing);
@@ -84,7 +86,9 @@ export function MobileContactBarView({
 
   return (
     <div
-      className={`fixed inset-x-0 ${bottomClassName ?? "bottom-0"} z-40 border-t border-border bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur lg:hidden`}
+      role="region"
+      aria-label="Listing contact actions"
+      className={`fixed inset-x-0 ${bottomClassName ?? (aboveNavigation ? "bottom-[var(--bluebird-native-navigation-height,calc(52px+env(safe-area-inset-bottom)))]" : "bottom-0")} z-40 border-t border-border bg-background/95 ${aboveNavigation ? "pb-3 pl-[calc(1rem+env(safe-area-inset-left))] pr-[calc(1rem+env(safe-area-inset-right))]" : "px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]"} pt-3 backdrop-blur lg:hidden`}
     >
       <div className="mx-auto flex max-w-[640px] items-center gap-2">
         <div className="min-w-0 flex-1">

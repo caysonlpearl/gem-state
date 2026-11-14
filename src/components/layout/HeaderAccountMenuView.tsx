@@ -7,6 +7,7 @@ import {
   Storefront,
   UserCircle,
 } from "@phosphor-icons/react";
+import { mobileTabBaseClass } from "./MobileTabBarView";
 export type HeaderAccountIdentity = {
   displayName?: string | null;
   email?: string | null;
@@ -33,6 +34,7 @@ export function HeaderAccountMenuView({
   unreadNotifications = 0,
   destinations,
   renderLink: MenuLink,
+  placement = "header",
 }: {
   isSignedIn: boolean;
   identity?: string;
@@ -45,7 +47,9 @@ export function HeaderAccountMenuView({
   unreadNotifications?: number;
   destinations?: Partial<HeaderAccountDestinations>;
   renderLink: ComponentType<HeaderAccountLinkProps>;
+  placement?: "header" | "bottom";
 }) {
+  const bottom = placement === "bottom";
   const links = {
     account: "/account",
     selling: "/account?section=listings",
@@ -85,7 +89,7 @@ export function HeaderAccountMenuView({
   }, [accountMenuOpen]);
 
   return (
-    <div className="relative z-50">
+    <div className={bottom ? "relative z-50 flex min-w-0 flex-1" : "relative z-50"}>
       <button
         ref={accountButtonRef}
         type="button"
@@ -114,11 +118,25 @@ export function HeaderAccountMenuView({
         }}
         aria-expanded={isSignedIn ? accountMenuOpen : undefined}
         aria-haspopup={isSignedIn ? "menu" : undefined}
-        aria-label={isSignedIn ? "Account" : "Sign in"}
-        className="inline-flex h-11 min-h-11 w-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-foreground text-[12px] font-medium transition-colors hover:bg-foreground hover:text-background sm:w-auto sm:px-4 sm:text-[12.5px]"
+        aria-label={bottom || isSignedIn ? "Account" : "Sign in"}
+        className={
+          bottom
+            ? `${mobileTabBaseClass} rounded-full text-[10.5px] ${pathname.startsWith("/account") || pathname.startsWith("/messages") ? "bg-primary/10 text-primary" : "text-muted-foreground"}`
+            : "inline-flex h-11 min-h-11 w-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-foreground text-[12px] font-medium transition-colors hover:bg-foreground hover:text-background sm:w-auto sm:px-4 sm:text-[12.5px]"
+        }
       >
-        <UserCircle size={20} aria-hidden="true" />
-        <span className="hidden sm:inline">{isSignedIn ? "Account" : "Sign in"}</span>
+        <span className="relative">
+          <UserCircle size={bottom ? 24 : 20} aria-hidden="true" />
+          {bottom && unreadMessages + unreadNotifications > 0 && (
+            <span
+              aria-hidden="true"
+              className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-primary ring-2 ring-background"
+            />
+          )}
+        </span>
+        <span className={bottom ? "" : "hidden sm:inline"}>
+          {bottom || isSignedIn ? "Account" : "Sign in"}
+        </span>
       </button>
       {isSignedIn && accountMenuOpen && (
         <div
@@ -145,7 +163,7 @@ export function HeaderAccountMenuView({
                     : (at - 1 + entries.length) % entries.length;
             entries[next]?.focus();
           }}
-          className="absolute right-0 top-[calc(100%+6px)] z-50 w-[244px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-border bg-card shadow-xl"
+          className={`absolute ${bottom ? "-left-12" : "right-0"} z-50 w-[244px] max-w-[calc(100vw-1.5rem)] rounded-xl border border-border bg-card shadow-xl ${bottom ? "bottom-[calc(100%+8px)] max-h-[calc(100dvh-8rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto" : "top-[calc(100%+6px)] overflow-hidden"}`}
         >
           <MenuLink
             href={links.account}

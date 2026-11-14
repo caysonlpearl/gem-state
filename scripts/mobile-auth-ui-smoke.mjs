@@ -37,7 +37,9 @@ try {
   for (const viewport of [
     { width: 320, height: 740 },
     { width: 390, height: 844 },
+    { width: 440, height: 956 },
     { width: 768, height: 1024 },
+    { width: 844, height: 390 },
   ]) {
     const page = await browser.newPage({ viewport });
     page.on("pageerror", (e) => errors.push(e.message));
@@ -77,7 +79,7 @@ try {
           ? {
               policyVersion: "2026-11-12",
               categories: [],
-              features: {fullSearch:true, push: false, advertising: false, paidUpgrades: false },
+              features: { fullSearch: true, push: false, advertising: false, paidUpgrades: false },
               supabaseUrl: "https://fixture.supabase.co",
               supabaseKey: "sb_publishable_fixture",
             }
@@ -103,7 +105,7 @@ try {
     });
     await page.goto(origin);
     await page.getByRole("heading", { name: /^Find / }).waitFor();
-    const homeSearch = page.getByLabel("Search Bluebird", { exact: true });
+    const homeSearch = page.getByRole("searchbox", { name: "Search Bluebird", exact: true });
     const webHomeFieldSize = await homeSearch.evaluate((field) =>
       parseFloat(getComputedStyle(field).fontSize),
     );
@@ -132,14 +134,98 @@ try {
       "Website field styling stays intact",
     );
     const primary = page.getByRole("navigation", { name: "Primary", exact: true });
-    assert.deepEqual(await primary.getByRole("link").allTextContents(), [
-      "Home",
-      "Search",
-      "Sell",
-      "Saved",
-      "Messages",
-    ]);
-    await page.getByRole("button", { name: "Open menu", exact: true }).click();
+    assert.deepEqual(await primary.getByRole("link").allTextContents(), ["Home", "Search", "Sell"]);
+    assert.deepEqual(
+      await primary
+        .locator(":scope > div > a, :scope > div > button, :scope > div > div > button")
+        .allTextContents(),
+      ["Home", "Account", "Search", "Sell", "Categories"],
+    );
+    const pinned = page.getByRole("banner", { name: "Search and saved listings" });
+    const topSearch = pinned.getByRole("searchbox", { name: "Search for anything", exact: true });
+    await page.getByRole("link", { name: "Bluebird home", exact: true }).waitFor();
+    const footerBefore = await primary.boundingBox();
+    await page.evaluate(() => window.scrollTo(0, 700));
+    await page.waitForTimeout(100);
+    const headerAfter = await pinned.boundingBox();
+    const logoAfter = await page
+      .getByRole("link", { name: "Bluebird home", exact: true })
+      .boundingBox();
+    const footerAfter = await primary.boundingBox();
+    assert(headerAfter && Math.abs(headerAfter.y) < 1, "Search remains pinned while scrolling");
+    assert(logoAfter && logoAfter.y + logoAfter.height <= 0, "Logo scrolls away");
+    assert(footerBefore && footerAfter && Math.abs(footerBefore.y - footerAfter.y) < 1);
+    assert(
+      footerAfter.x >= 8 && footerAfter.y + footerAfter.height <= viewport.height - 7,
+      "Footer floats clear of screen edges",
+    );
+    assert(await pinned.getByRole("link", { name: "Saved listings", exact: true }).isVisible());
+    await page.screenshot({ path: resolve(output, `floating-scrolled-${viewport.width}.png`) });
+    await primary.getByRole("link", { name: "Search", exact: true }).click();
+    await page.waitForURL("**/#/search");
+    await page.getByRole("heading", { name: "All classifieds", exact: true }).waitFor();
+    await topSearch.fill("desk lamp");
+    await topSearch.press("Enter");
+    await page.waitForFunction(
+      () => new URLSearchParams(location.hash.split("?")[1]).get("q") === "desk lamp",
+    );
+    await page.evaluate(() => {
+      location.hash = "/search?q=desk&sort=price_low&priceMin=100&futureScope=keep";
+    });
+    await topSearch.waitFor();
+    await page.waitForFunction(
+      () => document.getElementById("native-header-search")?.value === "desk",
+    );
+    await topSearch.fill("lamp");
+    await topSearch.press("Enter");
+    await page.waitForFunction(
+      () => new URLSearchParams(location.hash.split("?")[1]).get("q") === "lamp",
+    );
+    const scope = await page.evaluate(() =>
+      Object.fromEntries(new URLSearchParams(location.hash.split("?")[1])),
+    );
+    assert.equal(scope.sort, "price_low");
+    assert.equal(scope.priceMin, "100");
+    assert.equal(scope.futureScope, "keep");
+    await primary.getByRole("link", { name: "Search", exact: true }).click();
+    assert.equal(await page.evaluate(() => location.hash.includes("futureScope=keep")), true);
+    await primary.getByRole("link", { name: "Home", exact: true }).click();
+    for (const control of ["Open categories", "Account"]) {
+      const button = primary.getByRole("button", { name: control, exact: true });
+      assert(await button.isVisible(), `${control} is in persistent bottom navigation`);
+      const box = await button.boundingBox();
+      assert(
+        box && box.width >= 44 && box.height >= 44,
+        `${control} remains tappable on small phones`,
+      );
+      assert.equal(
+        await page.locator("header").getByRole("button", { name: control, exact: true }).count(),
+        0,
+      );
+    }
+    await page.getByRole("button", { name: "Vehicles", exact: true }).waitFor();
+    assert.equal(
+      await page.getByRole("button", { name: "Furniture & home", exact: true }).count(),
+      0,
+    );
+    const featuredVehicleRequest = page.waitForRequest(
+      (request) => new URL(request.url()).searchParams.get("group") === "motors",
+    );
+    await page.getByRole("button", { name: "Vehicles", exact: true }).click();
+    await featuredVehicleRequest;
+    await page.getByRole("heading", { name: "Vehicles", exact: true }).waitFor();
+    await primary.getByRole("link", { name: "Home", exact: true }).click();
+    await page.getByRole("heading", { name: /^Find / }).waitFor();
+    await page.getByRole("button", { name: "Open categories", exact: true }).click();
+    await page.getByRole("dialog", { name: "Marketplace categories", exact: true }).waitFor();
+    await page.evaluate(async () => {
+      const { dismissNativeOverlay } = await import("/src/native-back.ts");
+      if (!dismissNativeOverlay()) throw Error("Category menu was not detected");
+    });
+    await page
+      .getByRole("dialog", { name: "Marketplace categories", exact: true })
+      .waitFor({ state: "hidden" });
+    await page.getByRole("button", { name: "Open categories", exact: true }).click();
     assert.equal(await page.getByRole("link", { name: /Firearms/ }).count(), 0);
     const groupRequest = page.waitForRequest(
       (request) => new URL(request.url()).searchParams.get("group") === "motors",
@@ -148,21 +234,25 @@ try {
       .getByRole("link", { name: "Vehicles Cars, trucks, RVs & trailers", exact: true })
       .click();
     await groupRequest;
-    await page.waitForFunction(() => location.hash.startsWith("#/search?")&&new URLSearchParams(location.hash.split("?")[1]).get("group")==="motors");
-    await page.getByRole("heading",{name:"Vehicles",exact:true}).waitFor();
+    await page.waitForFunction(
+      () =>
+        location.hash.startsWith("#/search?") &&
+        new URLSearchParams(location.hash.split("?")[1]).get("group") === "motors",
+    );
+    await page.getByRole("heading", { name: "Vehicles", exact: true }).waitFor();
     await primary.getByRole("link", { name: "Sell", exact: true }).click();
     await page
       .getByRole("heading", { name: "Sign in to post your listing", exact: true })
       .waitFor();
-    await page.locator("header").getByRole("button", { name: "Sign in", exact: true }).click();
+    await primary.getByRole("button", { name: "Account", exact: true }).click();
     await page
       .getByRole("heading", { name: "Sign in to Bluebird Marketplace", exact: true })
       .waitFor();
     await page.screenshot({ path: resolve(output, `shared-signin-${viewport.width}.png`) });
     assert.equal(
       await page.getByRole("navigation", { name: "Primary" }).count(),
-      0,
-      "Website hides bottom tabs during authentication",
+      1,
+      "Native bottom controls stay available during authentication",
     );
     await page.getByRole("button", { name: "Email me a sign-in link", exact: true }).click();
     await page.getByRole("alert").filter({ hasText: "Enter your email address first." }).waitFor();
@@ -209,7 +299,13 @@ try {
       viewport,
       iosHomeFieldSize,
       websiteFieldStylingPreserved: true,
-      websitePhoneTabs: true,
+      persistentMenuAndAccount: true,
+      pinnedSearchAndSaved: true,
+      logoScrollsAway: true,
+      headerSearchPreservesFilters: true,
+      featuredVehiclesKeepMotorGroup: true,
+      categoryMenuBackDismissesOverlay: true,
+      floatingFiveControls: true,
       vehicleGroupMenuRetainsScope: true,
       appIneligibleCategoryAbsent: true,
       sellPreservesSignInIntent: true,

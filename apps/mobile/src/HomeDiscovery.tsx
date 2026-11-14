@@ -18,7 +18,7 @@ export function HomeDiscovery({
 }: {
   home: MobileHome;
   learning: boolean;
-  onBrowse: (category: string) => void;
+  onBrowse: (category: string, group?: "motors") => void;
   onOpen: (id: string) => void;
 }) {
   const adapted = {
@@ -84,16 +84,23 @@ export function HomeDiscovery({
       <div className="homepage-featured-categories mt-5 grid grid-cols-2 gap-2.5 sm:gap-4">
         {[
           { slug: "pets", title: "Pets & adoption", tone: "bg-brand-blue/7" },
-          { slug: "furniture", title: "Furniture & home", tone: "bg-brand-warm/10" },
+          {
+            slug: "cars-trucks",
+            title: "Vehicles",
+            group: "motors" as const,
+            tone: "bg-brand-warm/10",
+          },
         ].map((category) => (
           <button
             key={category.slug}
-            onClick={() => onBrowse(category.slug)}
+            onClick={() =>
+              onBrowse(category.slug, "group" in category ? category.group : undefined)
+            }
             className={`group flex min-w-0 items-center gap-3 rounded-[20px] border border-primary/15 p-3.5 text-left shadow-sm ${category.tone}`}
           >
             <CategoryArtwork slug={category.slug} size={40} />
             <span className="min-w-0 text-[15px] font-bold leading-tight">{category.title}</span>
-            <ArrowRight size={14} className="ml-auto shrink-0" />
+            <ArrowRight size={14} className="ml-auto hidden shrink-0 min-[360px]:block" />
           </button>
         ))}
       </div>

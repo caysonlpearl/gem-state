@@ -426,6 +426,7 @@ export function NativeListingDetail({
             />
           </div>
           <MobileContactBarView
+            aboveNavigation
             listing={data.listing}
             isSignedIn={Boolean(owner)}
             userId={owner}
