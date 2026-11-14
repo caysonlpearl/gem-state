@@ -31,7 +31,12 @@ export async function loadMobileAccountOverview(
       : table === "asks"
         ? `id,seller_id,status,approved_at,sold_at,is_demo,products!inner(${productColumns})`
         : `id,seller_id,status,is_demo,products!inner(${productColumns})`;
-    const rows: any[] = [];
+    const counts = {
+      watchlistCount: 0,
+      activeListings: 0,
+      pendingListings: 0,
+      completedSalesCount: 0,
+    };
     const seen = new Set<string>();
     let expected: number | undefined;
     for (let offset = 0; offset < 5000; offset += 500) {
@@ -64,10 +69,34 @@ export async function loadMobileAccountOverview(
         const id = row[watchlist ? "variant_id" : "id"];
         if (typeof id !== "string" || !id || seen.has(id)) throw unavailable();
         seen.add(id);
-        rows.push(row);
+        // Discard listing text after each page; only IDs and counts survive
+        // pagination, so a large seller cannot retain thousands of descriptions.
+        const product = watchlist ? row.product_variants?.products : row.products;
+        if (
+          (!watchlist && row.is_demo !== false) ||
+          !mobileListingAllowed({
+            categorySlug: product?.categories?.slug,
+            title: product?.name,
+            description: product?.description,
+          })
+        )
+          continue;
+        if (watchlist) counts.watchlistCount++;
+        else if (table === "orders") {
+          if (row.status === "completed") counts.completedSalesCount++;
+        } else {
+          const state = sellerListingState({
+            status: row.status,
+            approvedAt: row.approved_at,
+            soldAt: row.sold_at,
+            productStatus: product?.status,
+          });
+          if (state.group === "active") counts.activeListings++;
+          if (state.group === "pending") counts.pendingListings++;
+        }
       }
-      if (rows.length > count) throw unavailable();
-      if (rows.length === count) return rows;
+      if (seen.size > count) throw unavailable();
+      if (seen.size === count) return counts;
       // A provider row cap or concurrent deletion is an incomplete read, not zero activity.
       if (result.data.length !== 500) throw unavailable();
     }
@@ -82,35 +111,16 @@ export async function loadMobileAccountOverview(
     );
     const results = await Promise.allSettled(pending);
     if (results.some((r) => r.status === "rejected")) throw unavailable();
-    const [asks, orders, watchlist] = results.map((r) => (r.status === "fulfilled" ? r.value : []));
-    const allowed = (row: any, saved = false) => {
-      const product = saved ? row.product_variants?.products : row.products;
-      return (
-        (saved || row.is_demo === false) &&
-        mobileListingAllowed({
-          categorySlug: product?.categories?.slug,
-          title: product?.name,
-          description: product?.description,
-        })
-      );
-    };
-    const states = asks
-      .filter((row) => allowed(row))
-      .map((row) =>
-        sellerListingState({
-          status: row.status,
-          approvedAt: row.approved_at,
-          soldAt: row.sold_at,
-          productStatus: row.products?.status,
-        }),
-      );
+    const [asks, orders, watchlist] = results.map((r) => {
+      if (r.status !== "fulfilled") throw unavailable();
+      return r.value;
+    });
     return {
       ownerId,
-      watchlistCount: watchlist.filter((row) => allowed(row, true)).length,
-      activeListings: states.filter((state) => state.group === "active").length,
-      pendingListings: states.filter((state) => state.group === "pending").length,
-      completedSalesCount: orders.filter((row) => row.status === "completed" && allowed(row))
-        .length,
+      watchlistCount: watchlist.watchlistCount,
+      activeListings: asks.activeListings,
+      pendingListings: asks.pendingListings,
+      completedSalesCount: orders.completedSalesCount,
     };
   } catch {
     throw unavailable();
