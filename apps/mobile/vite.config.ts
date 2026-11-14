@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "VITE_");
   if (
@@ -21,6 +22,9 @@ export default defineConfig(({ mode }) => {
           fileURLToPath(new URL("../../src", import.meta.url)),
           fileURLToPath(new URL("../../public", import.meta.url)),
           fileURLToPath(new URL("../../node_modules", import.meta.url)),
+          // Isolated worktrees can share installed dependencies. Vite resolves
+          // CSS font URLs through that symlink; allow only that dependency root.
+          realpathSync(fileURLToPath(new URL("../../node_modules", import.meta.url))),
         ],
       },
     },

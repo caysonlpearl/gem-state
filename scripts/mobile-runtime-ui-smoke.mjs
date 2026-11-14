@@ -91,7 +91,15 @@ try {
       else if (path === "shopping")
         data = { personalization: false, trackingAvailable: true, recommendationsAvailable: true };
       else if (path === "home") data = { motors: [], recent: [] };
-      else if (path === "saved") data = { items: [] };
+      else if (path === "search") {
+        assert.equal(req.method(), "GET");
+        assert.deepEqual(Object.fromEntries(new URL(req.url()).searchParams), {
+          category: "jobs",
+          state: "ID",
+          page: "1",
+        });
+        data = { items: [], total: 0, page: 1, nextPage: null, incomplete: false };
+      } else if (path === "saved") data = { items: [] };
       else if (path?.startsWith("listings")) data = { items: [], total: 0, page: 1, pageSize: 24 };
       else throw Error("Unexpected runtime fixture request " + req.method() + " " + path);
       return route.fulfill({ status: 200, headers, body: JSON.stringify({ data }) });

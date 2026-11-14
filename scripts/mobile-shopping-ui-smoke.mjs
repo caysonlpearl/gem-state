@@ -392,7 +392,10 @@ try {
       .getByRole("heading", { name: "Recommended for you", exact: true })
       .waitFor({ state: "hidden" });
     await page.locator("#sort").selectOption("newest");
-    await page.getByRole("link", { name: "Bluebird home", exact: true }).click();
+    await page
+      .getByRole("navigation", { name: "Primary", exact: true })
+      .getByRole("link", { name: "Home", exact: true })
+      .click();
     await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     await openPrivacy();
     await dialog.getByRole("checkbox").click();
@@ -436,7 +439,10 @@ try {
     await openPrivacy();
     await dialog.getByText("Privacy choices could not be loaded.", { exact: true }).waitFor();
     await dialog.getByRole("button", { name: "Done", exact: true }).click();
-    await page.getByRole("link", { name: "Bluebird home", exact: true }).click();
+    await page
+      .getByRole("navigation", { name: "Primary", exact: true })
+      .getByRole("link", { name: "Home", exact: true })
+      .click();
     await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     await page.locator(".listing-card").first().waitFor();
     assert.deepEqual(errors, []);

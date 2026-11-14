@@ -169,7 +169,14 @@ try {
       else if (path === "shopping")
         data = { personalization: false, trackingAvailable: true, recommendationsAvailable: true };
       else if (path === "home") data = { motors: [], recent: [] };
-      else if (path === "saved") data = { items: [] };
+      else if (path === "search" && method === "GET") {
+        assert.deepEqual(Object.fromEntries(new URL(req.url()).searchParams), {
+          category: "jobs",
+          state: "ID",
+          page: "1",
+        });
+        data = { items: [], total: 0, page: 1, nextPage: null, incomplete: false };
+      } else if (path === "saved") data = { items: [] };
       else if (path === "conversations") data = [];
       else if (path === "activity") data = {};
       else if (path === "seller" && method === "GET") data = setup;
@@ -277,16 +284,14 @@ try {
     await page.getByRole("heading", { name: "Create a listing", exact: true }).waitFor();
     assert.equal(await form.getByLabel("Title", { exact: true }).inputValue(), "Fixture oak table");
     assert.equal(await form.getByLabel(/^City/).inputValue(), "Twin Falls");
-    await form
-      .locator("input[type=file]")
-      .setInputFiles({
-        name: "fixture.jpg",
-        mimeType: "image/jpeg",
-        buffer: Buffer.from(
-          "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9oADAMBAAIAAwAAABD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/EB//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EB//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EB//2Q==",
-          "base64",
-        ),
-      });
+    await form.locator("input[type=file]").setInputFiles({
+      name: "fixture.jpg",
+      mimeType: "image/jpeg",
+      buffer: Buffer.from(
+        "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABBQJ//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwF//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwF//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAGPwJ//8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPyF//9oADAMBAAIAAwAAABD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDAQE/EB//xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oACAECAQE/EB//xAAUEAEAAAAAAAAAAAAAAAAAAAAA/9oACAEBAAE/EB//2Q==",
+        "base64",
+      ),
+    });
     await form
       .getByRole("checkbox", {
         name: "I took these photos or have permission to publish them.",

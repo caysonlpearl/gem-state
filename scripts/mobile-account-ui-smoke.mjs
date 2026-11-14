@@ -401,7 +401,14 @@ try {
       else if (path === "recommendations")
         data = { recent: [], continuing: [], recommended: [], model: "fixture" };
       else if (path === "home") data = { motors: [], recent: [] };
-      else if (path === "saved") data = { items: [] };
+      else if (path === "search" && method === "GET") {
+        assert.deepEqual(Object.fromEntries(new URL(req.url()).searchParams), {
+          category: "jobs",
+          state: "ID",
+          page: "1",
+        });
+        data = { items: [], total: 0, page: 1, nextPage: null, incomplete: false };
+      } else if (path === "saved") data = { items: [] };
       else if (path === "conversations") data = [];
       else if (path === "activity") {
         activity.push(body);

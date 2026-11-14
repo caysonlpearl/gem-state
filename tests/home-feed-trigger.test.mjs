@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 function fixture() {
-  const calls = { homes: 0, ratings: 0, merchandise: 0, homepage: 0 };
+  const calls = { homes: 0, ratings: 0, merchandise: 0, homepage: 0, jobs: 0 };
   const exports = {};
   const action = (name) => async () => {
     calls[name]++;
@@ -43,6 +43,8 @@ function fixture() {
           return { advanceMerchandiseFeed: action("merchandise") };
         if (name === "@/lib/homepage-snapshot.server")
           return { refreshHomepageSnapshot: action("homepage") };
+        if (name === "@/lib/adzuna-home-refresh.server")
+          return { refreshAdzunaHomeJobs: action("jobs") };
         throw new Error("Unexpected module " + name);
       },
     },
@@ -61,17 +63,17 @@ function fixture() {
 test("home-only maintenance still requires cron authentication", async () => {
   const f = fixture();
   assert.equal((await f.run("?homesOnly=1", false)).status, 401);
-  assert.deepEqual(f.calls, { homes: 0, ratings: 0, merchandise: 0, homepage: 0 });
+  assert.deepEqual(f.calls, { homes: 0, ratings: 0, merchandise: 0, homepage: 0, jobs: 0 });
 });
 test("an authorized home-only backfill does not spend unrelated provider allowances", async () => {
   const f = fixture();
   assert.equal((await f.run("?homesOnly=1")).status, 200);
-  assert.deepEqual(f.calls, { homes: 1, ratings: 0, merchandise: 0, homepage: 0 });
+  assert.deepEqual(f.calls, { homes: 1, ratings: 0, merchandise: 0, homepage: 0, jobs: 0 });
 });
 test("the existing scheduled maintenance run retains all its source jobs", async () => {
   const f = fixture();
   assert.equal((await f.run()).status, 200);
-  assert.deepEqual(f.calls, { homes: 1, ratings: 1, merchandise: 1, homepage: 1 });
+  assert.deepEqual(f.calls, { homes: 1, ratings: 1, merchandise: 1, homepage: 1, jobs: 1 });
 });
 
 test("operator batches are bounded and cannot run unrelated source jobs", async () => {
@@ -79,7 +81,7 @@ test("operator batches are bounded and cannot run unrelated source jobs", async 
   const response = await f.run("?homesOnly=1&steps=1000");
   assert.equal(response.status, 200);
   assert.equal((await response.json()).completedSteps, 5);
-  assert.deepEqual(f.calls, { homes: 5, ratings: 0, merchandise: 0, homepage: 0 });
+  assert.deepEqual(f.calls, { homes: 5, ratings: 0, merchandise: 0, homepage: 0, jobs: 0 });
   const unauth = fixture();
   assert.equal((await unauth.run("?homesOnly=1&steps=5", false)).status, 401);
   assert.equal(unauth.calls.homes, 0);
