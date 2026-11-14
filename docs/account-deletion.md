@@ -555,3 +555,63 @@ exclusion, wrong scopes, missing known versions, rescan/pause, lost acknowledgem
 conflicting replay, cycles and bounded preparation. Two real PostgreSQL connections
 also serialize a concurrent provider-page replay into one durable receipt. No
 production account, object or provider credential is used as a fixture.
+
+## Resumable R2 hash-copy inventory — November 14, 2026
+
+`createAccountDeletionMediaInventory` now sequences database-reference discovery,
+Supabase version listing and private R2 discovery. Each step performs at most one
+bounded provider page and returns a stage/pass result, never the worker's phase
+`done` contract. It is not attached to the account-request route or a scheduler.
+
+`account-deletion-r2-inventory.server.ts` uses signed, read-only `ListObjectsV2`
+requests for `original/v1/<literal-path-sha256>/` and, for listing photos only,
+`thumbnail/v1/<literal-path-sha256>/`. It discovers older content-hash keys even
+when the current photo receipt only mentions the newest copy. Evidence remains
+in its separate physical bucket. It never downloads photos or exports owner
+names, signed URLs or arbitrary metadata. Store fingerprints match the existing
+private erasure transport; neither a path prefix nor this inventory authorizes
+erasure.
+
+Claimed/transferred photos may reuse a physical key created under an older
+logical path. Tasks therefore pin the physical path hash separately from the
+logical reference and include canonical prefixes, receipt aliases and older
+task prefixes. Each known verified key is reconciled by its matching physical
+prefix task. Shared references stay intact; an alias is not an instruction to
+erase the other member's copy. The eventual ownership/removal adapter must
+resolve those shared keys explicitly before binding erasure.
+
+The transport copies configuration/targets, checks live authority before and
+after HTTP, uses no automatic retries, limits pages to 100 objects (default 50),
+bounds streamed XML to 1 MiB and applies a 15-second deadline. It rejects DTDs,
+entity declarations, malformed XML, wrong bucket/prefix echoes, count mismatches, unexpected
+folders, invalid hashes/sizes/ETags and nonprogressing pages. Opaque continuation
+tokens are encoded as query parameters and never interpreted as object paths.
+The provider contract is documented by [Cloudflare's R2 S3 compatibility list](https://developers.cloudflare.com/r2/api/s3/api/)
+and [Amazon's ListObjectsV2 reference](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html).
+
+`20261114090000_account_deletion_r2_inventory.sql` adds service-read-only store
+pins, tasks, immutable page receipts and per-scan object metadata. Only private
+RPCs advance a current inventory job. They validate its lease/generation and
+coverage, serialize concurrent checkpoints, reject changed replays/cursor cycles
+and require increasing keys across pages. Ending pages must include known verified
+photo-receipt keys; a mismatch rolls back the page for reconciliation. Pending
+upload tickets do not by themselves assert that bytes exist. Rescans preserve
+older observations. These records survive Auth deletion and must be explicitly
+purged before the existing minimal completion receipt can be finalized.
+
+Before activation, the database owner must independently verify the deployment's
+R2 account and both physical bucket names, then pin the two non-secret fingerprints
+in `account_deletion_r2_stores`. The fingerprint is SHA-256 of the UTF-8 string
+`JSON.stringify(["photo-erasure-v1", accountId, physicalBucket])`. No credentials
+belong in that table. It starts empty; member and worker roles cannot alter it,
+and runtime configuration cannot silently select another store. A changed pin
+requires explicit review/reconciliation of existing tasks rather than retargeting.
+
+This source batch remains undeployed and processing remains disabled. A completed
+list pass does not prove stable inventory closure, multipart/upload cancellation,
+provider history coverage, ownership/shared-business decisions, cache removal,
+retention compliance, object erasure or final verification. Those remain required
+before the full deletion processor is operational. Tests use synthetic SQL and
+intercepted signed HTTP; two real PostgreSQL connections also verify concurrent
+R2 replay produces only one receipt/object observation. No live account, file or
+provider credential was used.
