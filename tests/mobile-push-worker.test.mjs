@@ -1,8 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { runMobilePushWorker } from "../infra/mobile/push-worker.mjs";
-function fixture(change = () => {}, kind = "shopping_alert") {
+import { apnsDeliveryOutcome, runMobilePushWorker } from "../infra/mobile/push-worker.mjs";
+function fixture(
+  change = () => {},
+  kind = "shopping_alert",
+  provider = async () => ({ sent: true }),
+) {
   const user = randomUUID(),
     other = randomUUID(),
     id = randomUUID(),
@@ -28,7 +32,13 @@ function fixture(change = () => {}, kind = "shopping_alert") {
       created_at: new Date(now).toISOString(),
       destination_url: "https://onbluebird.com/listings/dealerfeed-test",
     },
-    mobile_push_devices: { id: device, user_id: user, token: "private-token", platform: "ios" },
+    mobile_push_devices: {
+      id: device,
+      user_id: user,
+      token: "private-token",
+      platform: "ios",
+      updated_at: new Date(now - 10000).toISOString(),
+    },
     shopping_accounts: { shopping_alerts: true },
     account_notification_preferences: { message_alerts: true },
     mobile_account_deletions: null,
@@ -49,11 +59,13 @@ function fixture(change = () => {}, kind = "shopping_alert") {
     },
   };
   let claimed = false;
-  const sent = [];
+  const sent = [],
+    deletions = [];
   const db = {
     rpc: async () => ({ data: claimed ? [] : ((claimed = true), [row]) }),
     from(table) {
-      let update;
+      let update,
+        deleting = false;
       const filters = [];
       const q = {
         select() {
@@ -68,12 +80,25 @@ function fixture(change = () => {}, kind = "shopping_alert") {
           return q;
         },
         delete() {
-          update = null;
+          deleting = true;
           return q;
         },
-        maybeSingle: async () => ({ data: data[table] }),
-        single: async () => ({ data: data[table] }),
+        maybeSingle: async () => ({ data: structuredClone(data[table]) }),
+        single: async () => ({ data: structuredClone(data[table]) }),
         then(resolve) {
+          if (deleting) {
+            deletions.push({ table, filters });
+            if (data.cleanupError)
+              return Promise.resolve({ error: { code: "fixture" } }).then(resolve);
+            const removed = filters.every(([k, v]) => data[table]?.[k] === v) ? data[table] : null;
+            if (removed) {
+              data[table] = null;
+              if (table === "mobile_push_devices") data.mobile_push_outbox = null;
+            }
+            return Promise.resolve({ error: null, data: removed ? [{ id: removed.id }] : [] }).then(
+              resolve,
+            );
+          }
           if (update && filters.every(([k, v]) => k === "id" || data[table]?.[k] === v))
             Object.assign(data[table], update);
           return Promise.resolve({ error: null }).then(resolve);
@@ -93,11 +118,17 @@ function fixture(change = () => {}, kind = "shopping_alert") {
       },
       send: async (...args) => {
         sent.push(args);
-        return { sent: true };
+        return provider(data, args, sent.length, now);
       },
       max: 1,
     });
-  return { data, sent, run };
+  const reclaim = () => {
+    claimed = false;
+    row.attempts++;
+    row.lease_id = randomUUID();
+    Object.assign(data.mobile_push_outbox, { status: "processing", lease_id: row.lease_id });
+  };
+  return { data, sent, deletions, run, reclaim, now };
 }
 test("push hands off a generic message once using the stable delivery id", async () => {
   const f = fixture();
@@ -153,4 +184,109 @@ test("missing current-user conversation participant fails closed", async () => {
   }, "message");
   assert.equal((await f.run()).suppressed, 1);
   assert.equal(f.sent.length, 0);
+});
+
+test("APNs invalidation preserves its millisecond timestamp without trusting malformed failures", () => {
+  const timestamp = Date.now();
+  assert.deepEqual(apnsDeliveryOutcome(200, ""), { sent: true, invalidToken: false });
+  assert.deepEqual(
+    apnsDeliveryOutcome(410, JSON.stringify({ reason: "Unregistered", timestamp })),
+    {
+      sent: false,
+      invalidToken: true,
+      invalidatedAt: timestamp,
+    },
+  );
+  assert.deepEqual(
+    apnsDeliveryOutcome(410, JSON.stringify({ reason: "ExpiredToken", timestamp })),
+    {
+      sent: false,
+      invalidToken: true,
+      invalidatedAt: timestamp,
+    },
+  );
+  for (const value of [undefined, null, "123", -1, 0, 1.5, Number.MAX_SAFE_INTEGER + 1])
+    assert.equal(
+      apnsDeliveryOutcome(410, JSON.stringify({ reason: "Unregistered", timestamp: value }))
+        .invalidatedAt,
+      null,
+    );
+  assert.equal(apnsDeliveryOutcome(410, "not json").invalidToken, false);
+  assert.equal(apnsDeliveryOutcome(400, '{"reason":"BadDeviceToken"}').invalidToken, false);
+});
+
+test("confirmed invalid registration is removed only with its exact owner, token and version", async () => {
+  const f = fixture(undefined, "message", async (_data, _args, _count, now) => ({
+    sent: false,
+    invalidToken: true,
+    invalidatedAt: now,
+  }));
+  const original = structuredClone(f.data.mobile_push_devices);
+  assert.deepEqual(await f.run(), { sent: 0, suppressed: 1, retried: 0 });
+  assert.equal(f.data.mobile_push_devices, null);
+  assert.equal(
+    f.data.mobile_push_outbox,
+    null,
+    "Existing FK removes the invalid device's delivery",
+  );
+  assert.deepEqual(f.deletions[0].filters, [
+    ["id", original.id],
+    ["user_id", original.user_id],
+    ["token", original.token],
+    ["updated_at", original.updated_at],
+  ]);
+});
+
+test("registration renewed during a failed send survives and the logical delivery retries safely", async () => {
+  const f = fixture(undefined, "message", async (data, _args, count, now) => {
+    if (count > 1) return { sent: true };
+    data.mobile_push_devices.updated_at = new Date(now + 1).toISOString();
+    return { sent: false, invalidToken: true, invalidatedAt: now - 1000 };
+  });
+  assert.deepEqual(await f.run(), { sent: 0, suppressed: 0, retried: 1 });
+  assert.equal(f.data.mobile_push_devices.updated_at, new Date(f.now + 1).toISOString());
+  assert.equal(f.data.mobile_push_outbox.status, "pending");
+  f.reclaim();
+  assert.equal((await f.run()).sent, 1);
+  assert.equal(
+    f.sent[0][2],
+    f.sent[1][2],
+    "Retry keeps the same provider deduplication identifier",
+  );
+  assert.equal(f.data.mobile_push_outbox.status, "sent");
+});
+
+test("an old APNs invalidation cannot remove a later registration already read before sending", async () => {
+  const f = fixture(undefined, "message", async (_data, _args, _count, now) => ({
+    sent: false,
+    invalidToken: true,
+    invalidatedAt: now - 20000,
+  }));
+  assert.equal((await f.run()).retried, 1);
+  assert.equal(f.deletions.length, 0);
+  assert(f.data.mobile_push_devices);
+});
+
+test("missing invalidation metadata and failed cleanup retain the registration for retry", async () => {
+  for (const cleanupFailure of [false, true]) {
+    const f = fixture(undefined, "message", async (data, _args, _count, now) => {
+      data.cleanupError = cleanupFailure;
+      return { sent: false, invalidToken: true, ...(cleanupFailure ? { invalidatedAt: now } : {}) };
+    });
+    assert.equal((await f.run()).retried, 1);
+    assert(f.data.mobile_push_devices);
+    assert.equal(f.data.mobile_push_outbox.status, "pending");
+  }
+});
+
+test("FCM invalidation removes only the Android registration that actually failed", async () => {
+  const f = fixture(
+    (data) => {
+      data.mobile_push_devices.platform = "android";
+    },
+    "message",
+    async () => ({ sent: false, invalidToken: true }),
+  );
+  assert.equal((await f.run()).suppressed, 1);
+  assert.equal(f.data.mobile_push_devices, null);
 });
