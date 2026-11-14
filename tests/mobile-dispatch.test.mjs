@@ -220,6 +220,12 @@ function harness({
         return { removed: true };
       },
     },
+    "./mobile-account-reviews.server": {
+      loadMobileAccountReviews: async (_client, ownerId) => {
+        reads.push({ table: "account-reviews", ownerId });
+        return { ownerId, reviews: [], ratingAverage: null, sellerSlug: null };
+      },
+    },
     "./mobile-account-overview.server": {
       loadMobileAccountOverview: async (_client, ownerId) => {
         reads.push({ table: "overview", ownerId });
@@ -888,6 +894,27 @@ test("full search capability is additive for installed clients", async () => {
   assert.equal(features.advertising, false);
 });
 
+test("account reviews require the live member and never trust a caller-provided seller", async () => {
+  const h = harness();
+  assert.equal((await h.request("account/reviews", "GET", undefined, null)).status, 401);
+  const invalid = harness({ valid: false });
+  assert.equal((await invalid.request("account/reviews")).status, 401);
+  assert(!invalid.reads.some((r) => r.table === "account-reviews"));
+  const response = await h.request("account/reviews?ownerId=victim&sellerId=victim");
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).data, {
+    ownerId: h.user,
+    reviews: [],
+    ratingAverage: null,
+    sellerSlug: null,
+  });
+  assert.deepEqual(
+    h.reads.find((r) => r.table === "account-reviews"),
+    { table: "account-reviews", ownerId: h.user },
+  );
+  assert.equal((await (await h.request("bootstrap")).json()).data.features.accountReviews, true);
+});
+
 test("account overview is additive and derives its identity from verified authentication", async () => {
   const h = harness();
   assert.equal((await h.request("account/overview", "GET", undefined, null)).status, 401);
@@ -1343,6 +1370,7 @@ test("deletion-pending identities cannot read or mutate private native routes, w
   for (const [path, method, body] of [
     ["account", "GET"],
     ["account/overview", "GET"],
+    ["account/reviews", "GET"],
     ["account/saved", "GET"],
     ["account/saved/partner", "DELETE", { listingId: "marketcheck-dealer-retired" }],
     ["account/saved", "DELETE", { variantIds: [h.user] }],

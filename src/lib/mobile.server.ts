@@ -365,6 +365,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         accountControls: true,
         accountOverview: true,
         accountSaved: true,
+        accountReviews: true,
         fullSearch: true,
         notificationCenter: true,
         listingDetails: true,
@@ -652,6 +653,11 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     const { getMyAccount } = await import("./account.functions");
     return { account: await domain(getMyAccount), consent: await consent(user.id) };
   }
+  if (method === "GET" && path === "account/reviews")
+    return (await import("./mobile-account-reviews.server")).loadMobileAccountReviews(
+      client,
+      user.id,
+    );
   if (method === "GET" && path === "account/overview")
     return (await import("./mobile-account-overview.server")).loadMobileAccountOverview(
       client,
