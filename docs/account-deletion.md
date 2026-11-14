@@ -766,3 +766,66 @@ Primary references checked November 14:
 - [Apple client-secret creation](https://developer.apple.com/documentation/accountorganizationaldatasharing/creating-a-client-secret)
 - [Apple TN3107 response errors](https://developer.apple.com/documentation/technotes/tn3107-resolving-sign-in-with-apple-response-errors)
 - [Apple TN3194 account deletion and missing-token fallback](https://developer.apple.com/documentation/technotes/tn3194-handling-account-deletions-and-revoking-tokens-for-sign-in-with-apple)
+
+## Private saved/account records — November 14, 2026
+
+`20261114120000_account_deletion_private_records.sql` and
+`createAccountDeletionPrivateRecordErasure` add a private cleanup component for
+saved-search matches, phone push outbox/device records, notifications, the shared
+native retry-receipt table, member watchlist, saved partner homes/jobs/vehicles,
+saved searches and contact/notification preferences. One call deletes at most
+100 rows from one source. Reviewed child rows are removed before parents; parent
+selection excludes remaining children so cascades cannot expand the batch.
+Unknown incoming relationships, deletion hooks, partitions or inconsistent
+push-device/notification ownership require review before any rows are removed.
+
+All twelve sources have insert/update guards. They use the deletion request's
+shared/exclusive account lock and hold the live Auth key through commit. New
+collection stops for deletion-pending or removed accounts, including service-role
+writes. Status-only suppression of an existing push remains allowed after a
+request; it cannot alter ownership/content, create a row, or restart delivery.
+The private guard intentionally permits ordinary security notices for
+suspended accounts; a suspension is not a deletion request. Account ownership
+cannot change except for the existing shared-phone registration handoff, after
+its old delivery rows have been cleared. Other members' content, shared business
+records and financial fixtures are not deletion targets of this component.
+
+Notification enqueue now locks recipient devices before inserting outbox rows.
+If account switching wins first, the committed owner is rechecked and that device
+is omitted; the business notification still commits. If enqueue wins, account
+switching waits and then clears the old delivery rows before reassigning the
+phone token. The outbox guard also checks both parent owners. These rules prevent
+an account-switch race from creating cross-account delivery records or rolling
+back a valid business notification because its selected device changed owners.
+
+A private contract pins writer/remaining/completion functions, request locks, and
+all user-trigger definitions, functions and enabled states on these sources and
+the deletion ledgers. Drift stops cleanup and verification. Completion is checked
+after the final job-row update, so a preceding trigger cannot silently rewrite
+its state around the private-record check. Reviewed future schema changes must
+explicitly refresh this contract; service-role callers cannot rewrite its pins.
+
+Each operation requires the matching target, live lease, allowed phase, enabled
+worker and complete session-boundary coverage. Only service-role callers may
+invoke the erasure/verification RPCs. The adapter freezes its job scope, disables
+SDK retries, uses a fifteen-second request deadline, and exposes only source,
+deleted count and a component pass result. A lost acknowledgement may be retried
+against the remaining owned rows. Verification requires Auth absence, does not
+repair data, and checks all twelve sources again. The component never returns a
+whole-phase `done`, advances a queue, removes Auth, or enables a scheduler.
+
+Tests use actual SQL with synthetic records, count all physical fixture deletions
+per chunk, preserve the other account and financial fixtures, and exercise
+ordinary suppression, late writes, device handoff, missing identity, independent
+verification, stale scopes/leases, pauses, unknown relationships/hooks, private
+permissions and lost acknowledgements. The dedicated two-connection PostgreSQL
+gate covers request/writer ordering, concurrent cleanup, operator pause, Auth
+removal and notification-versus-account-switch ordering in both directions.
+No real member data, device token or message was deleted.
+
+This migration is not installed on production and the worker remains inactive.
+Recheck the owning database's schema/hooks/relationships and measured index/query
+cost before installation or activation. This is not full account deletion:
+public authored content, conversations, analytics, media and upload inventories,
+financial/consent/audit retention, Apple/manual revocation integration, identity
+removal, and independent final verification still need their complete adapters.
