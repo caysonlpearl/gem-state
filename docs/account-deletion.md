@@ -64,9 +64,12 @@ pending request as a completed deletion.
 The owner deferred finishing paid developer enrollment on November 13 so app
 implementation can continue first. Deletion processing, synthetic account/media
 cleanup tests and shared website/app enforcement can proceed before enrollment.
-Apple authorization revocation must have a tested provider adapter and must fail
-closed for linked accounts until its required credentials are configured. Do not
-delete real accounts to prove the processor or silently skip a failed cleanup.
+Apple authorization revocation must have a tested provider adapter. Never report
+an unavailable or failed revocation as successful. Missing historical Apple tokens
+must not indefinitely prevent account-data deletion: Apple's current TN3194
+provides a separate manual-revocation fallback, described below. Configure and
+verify token handling before enabling new Apple account creation. Do not delete
+real accounts to prove the processor or silently skip a failed cleanup.
 
 Sources: Supabase's deleteUser and user-data-management documentation, checked
 during this preflight. Soft deletion is irreversible in Supabase Auth, but auth
@@ -711,3 +714,55 @@ exercise real SQL, exact replay, rollback, missing stores, changed stores,
 unavailable accounts, unfinished uploads, legacy references, Auth removal and
 permissions. Real PostgreSQL additionally orders concurrent intents and deletion
 requests using the existing account locks.
+
+## Apple token-revocation transport — November 14, 2026
+
+`createAppleTokenRevoker` is a private server transport for Apple's documented
+`POST https://appleid.apple.com/auth/revoke`. It snapshots the configured client,
+Team ID, key ID, PKCS8 key and token descriptor before asynchronous work. A
+nonextractable P-256 key signs a fresh ES256 client secret, valid for five minutes,
+with Apple's audience and the exact configured App ID/Services ID. A token for a
+different client, an ID token, malformed credentials or an invalid clock is refused
+before any provider request.
+
+Requests use only the four documented form fields, percent encoding, a fixed
+HTTPS endpoint, redirect refusal and one fifteen-second deadline. Only an empty
+HTTP 200 acknowledges revocation; Apple's already-revoked response is accepted.
+Errors, other successes, redirects, nonempty bodies and cancelled/stalled reads
+raise only `authorization_unavailable`. There is no internal retry, private error
+text, logging, client secret return value, new dependency or public API. Ambiguous
+outcomes can be retried by the durable job using the same verified token.
+
+This component does **not** establish token ownership or complete the deletion
+phase. The authorization adapter still must read the leased member's verified
+Apple identity and client-bound token from private encrypted storage, recheck the
+live lease, durably record the provider outcome, and erase the stored token when
+appropriate. A browser-supplied token or an email match is insufficient evidence.
+Sign-in token exchange/verification, encrypted token storage, Apple configuration,
+revocation notifications, phase binding and real provider verification remain
+open. No real key/token was read, no Apple request was sent, and no worker was
+activated by this source batch.
+
+Apple's TN3194 explicitly addresses accounts for which no refresh/access token
+or authorization code remains: delete the account's data, direct the member to
+manually revoke the app's Apple access, and handle credential revocation/sign-out.
+The eventual coordinator must record that distinct fallback rather than inventing
+a successful automatic revocation or leaving data deletion pending indefinitely.
+This corrects the earlier blanket instruction to block linked-account deletion
+on missing historical tokens; temporary provider failures still require an honest,
+retryable outcome. Manual fallback is not yet operational and must be implemented
+and tested before the deletion worker can be enabled.
+
+Synthetic tests generate disposable signing keys and verify the actual ES256
+signature/claims and HTTP form. They cover both token hints, configuration/token
+mutation, mismatched clients, missing/invalid keys, provider errors, redirects,
+unexpected 2xx/nonempty bodies, lost acknowledgements, replay and cancellation
+before requests and during fetch/body reads. They do not use real credentials or
+prove the future identity/vault/queue integration.
+
+Primary references checked November 14:
+
+- [Apple token revocation](https://developer.apple.com/documentation/signinwithapplerestapi/revoke-tokens)
+- [Apple client-secret creation](https://developer.apple.com/documentation/accountorganizationaldatasharing/creating-a-client-secret)
+- [Apple TN3107 response errors](https://developer.apple.com/documentation/technotes/tn3107-resolving-sign-in-with-apple-response-errors)
+- [Apple TN3194 account deletion and missing-token fallback](https://developer.apple.com/documentation/technotes/tn3194-handling-account-deletions-and-revoking-tokens-for-sign-in-with-apple)
