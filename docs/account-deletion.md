@@ -243,3 +243,55 @@ are removed in these local tests.
 
 This batch adds no migration, scheduler, worker activation or production erasure.
 The real cleanup adapters and independent final verifier remain outstanding.
+
+## Private photo content erasure transport — November 13, 2026
+
+`account-deletion-photo.server.ts` is a background-only R2 transport. It is not
+connected to an account request route, a worker scheduler or the ordinary photo
+client. Constructing it starts no work. Each target pins its configured store,
+logical path, original/thumbnail variant, expected size and checksum. Scope is
+copied before asynchronous calls. A required authorization callback must return
+literal `true` before provider access, immediately before a replacement and
+before reporting success; cancellation and every provider request are bounded.
+Invalid scope, authorization loss, changed objects and ambiguous failures produce
+only the existing `media_unavailable` code, without signed URLs or provider text.
+
+The transport replaces the original bytes and metadata with a verified empty,
+noncacheable object at the same canonical key. The replacement is conditional on
+the inspected strong ETag; an absent object is fenced only after the planned
+bucket is independently reachable, with a create-only condition. A race cannot
+be resolved by an unconditional overwrite. Existing create-only upload tickets
+cannot restore content while the empty fence remains. A lost response is
+reconciled on the next attempt by reading that fence, without repeating a
+successful replacement. This uses R2's documented atomic conditional PUT behavior:
+https://developers.cloudflare.com/r2/api/s3/conditional-operations/.
+
+A separate `verify` method performs fresh, authorized reads only. It never
+repairs a missing fence, silently erases restored content or trusts a prior
+successful call. Both methods require an actual zero-byte object, the expected
+marker/type/cache policy and the absence of original custom metadata, encoding
+and disposition. Ordinary photo upload/sign/read APIs gain no erasure method.
+
+**This is content erasure, not object absence or completed account deletion.**
+Empty markers retain opaque path/content hashes in object keys; do not call those
+keys anonymous or claim that no record remains. An accurate retention policy and
+marker lifecycle are required before activation. This port neither removes
+Supabase originals, legacy copies, CDN/browser caches nor database photo receipts.
+The eventual private inventory must include every copy and unfinished upload,
+claim transfer or migration; provider-specific cleanup and independent final
+checks remain required.
+
+The callback is a mandatory interface, not an implemented ownership verifier.
+Before binding it to production, a private database adapter must check the current
+job/phase/lease, authoritative ownership, shared references, the pinned inventory
+and durable writer suppression. Rechecking references alone is insufficient if
+another writer can still attach or restore content after that check. A configured
+import operator is not automatically the business owner. All six processor phase
+adapters and independent verification must be connected before enabling work.
+
+Synthetic provider tests cover original/thumbnail/evidence keys, immutable late
+uploads, changed objects, conditional races, lost responses, retries, incorrect
+buckets/permissions, strict authorization, cancellation, scrubbed metadata,
+read-only verification and private-error suppression. These tests use an
+in-memory provider; they do not establish live R2 behavior. No real object or
+account was erased, no new migration was installed and the worker remains disabled.

@@ -109,30 +109,47 @@ export function createAccountDeletionPhotoEraser(
     !response.headers.has("content-encoding") &&
     [...response.headers.keys()].every((key) => !key.startsWith("x-amz-meta-") || key === marker);
 
+  function validatedTarget(suppliedTarget: DeletionPhotoTarget) {
+    // Authorization and provider callbacks cannot change the planned object.
+    const target = Object.freeze({
+      bucket: photoBucket(suppliedTarget.bucket),
+      path: suppliedTarget.path,
+      variant: suppliedTarget.variant,
+      sha256: suppliedTarget.sha256,
+      bytes: suppliedTarget.bytes,
+      storeFingerprint: suppliedTarget.storeFingerprint,
+    });
+    if (
+      !["original", "thumbnail"].includes(target.variant) ||
+      typeof target.sha256 !== "string" ||
+      (target.variant === "thumbnail" && target.bucket !== "listing-media") ||
+      !Number.isSafeInteger(target.bytes) ||
+      target.bytes <= 0 ||
+      target.bytes > (target.variant === "thumbnail" ? MAX_THUMBNAIL_BYTES : MAX_PHOTO_BYTES) ||
+      target.storeFingerprint !== fingerprint(target.bucket)
+    )
+      throw failed();
+    const key = photoObjectKey(target.path, target.sha256, target.variant === "thumbnail");
+    return { target, key };
+  }
+
   return {
     fingerprint,
+    /** Independent final checks must never repair a missing/changed erasure fence. */
+    async verify(suppliedTarget: DeletionPhotoTarget, signal: AbortSignal) {
+      try {
+        const { target, key } = validatedTarget(suppliedTarget);
+        await authorized(target, signal);
+        if (!isErased(await head(target.bucket, key, signal))) throw failed();
+        await authorized(target, signal);
+        return { contentErased: true as const, fenceRetained: true as const };
+      } catch {
+        throw failed();
+      }
+    },
     async erase(suppliedTarget: DeletionPhotoTarget, signal: AbortSignal) {
       try {
-        // Do not let asynchronous authorization/provider callbacks mutate scope.
-        const target = Object.freeze({
-          bucket: photoBucket(suppliedTarget.bucket),
-          path: suppliedTarget.path,
-          variant: suppliedTarget.variant,
-          sha256: suppliedTarget.sha256,
-          bytes: suppliedTarget.bytes,
-          storeFingerprint: suppliedTarget.storeFingerprint,
-        });
-        if (
-          !["original", "thumbnail"].includes(target.variant) ||
-          typeof target.sha256 !== "string" ||
-          (target.variant === "thumbnail" && target.bucket !== "listing-media") ||
-          !Number.isSafeInteger(target.bytes) ||
-          target.bytes <= 0 ||
-          target.bytes > (target.variant === "thumbnail" ? MAX_THUMBNAIL_BYTES : MAX_PHOTO_BYTES) ||
-          target.storeFingerprint !== fingerprint(target.bucket)
-        )
-          throw failed();
-        const key = photoObjectKey(target.path, target.sha256, target.variant === "thumbnail");
+        const { target, key } = validatedTarget(suppliedTarget);
         await authorized(target, signal);
         const before = await head(target.bucket, key, signal);
         if (!isErased(before)) {

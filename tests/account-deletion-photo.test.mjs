@@ -47,6 +47,9 @@ function fixture({ missing = false, authorize, intercept, beforePut, afterPut } 
     }
     assert.equal(request.method, "PUT", "Erasure never deletes a fence or a bucket");
     await beforePut?.(request, objects);
+    const body = new Uint8Array(await request.arrayBuffer());
+    // R2 evaluates conditions at the atomic commit, after reading the body.
+    // No asynchronous work may separate this check from the fixture's commit.
     const existing = objects.get(path);
     if (
       (request.headers.has("if-match") &&
@@ -54,7 +57,6 @@ function fixture({ missing = false, authorize, intercept, beforePut, afterPut } 
       (request.headers.get("if-none-match") === "*" && existing)
     )
       return new Response(null, { status: 412 });
-    const body = new Uint8Array(await request.arrayBuffer());
     objects.set(path, { body, headers: { ...erasedHeaders } });
     await afterPut?.(request, objects);
     return new Response(null, { status: 200 });
@@ -349,4 +351,149 @@ test("thumbnail and evidence targets use their own canonical keys and copies of 
   await f.eraser.erase(f.target, signal());
   assert.equal(f.objects.size, 1);
   assert.equal(f.objects.get(f.path).body.length, 0);
+});
+
+test("independent verification only reads current provider state and rejects later content restoration without repairing it", async () => {
+  const f = fixture();
+  await f.eraser.erase(f.target, signal());
+  const start = f.calls.length;
+  const authorizations = f.authorizations.length;
+  assert.deepEqual(
+    { ...(await f.eraser.verify(f.target, signal())) },
+    {
+      contentErased: true,
+      fenceRetained: true,
+    },
+  );
+  assert.equal(f.authorizations.length - authorizations, 2);
+  assert.deepEqual(
+    f.calls.slice(start).map((r) => r.method),
+    ["HEAD"],
+  );
+  f.objects.set(f.path, {
+    body: new TextEncoder().encode("restored"),
+    headers: { "content-length": "8", "x-amz-meta-sha256": checksum, etag: originalEtag },
+  });
+  const before = f.calls.length;
+  await assert.rejects(f.eraser.verify(f.target, signal()), unavailable);
+  assert.deepEqual(
+    f.calls.slice(before).map((r) => r.method),
+    ["HEAD"],
+  );
+  assert.equal(new TextDecoder().decode(f.objects.get(f.path).body), "restored");
+});
+
+test("verification does not accept missing, denied, malformed or metadata-bearing objects as erased", async () => {
+  const responses = [
+    ...[301, 403, 404, 429, 500].map((status) => ({ status, headers: erasedHeaders })),
+    ...[
+      { "content-length": "1" },
+      { "content-length": undefined },
+      { "content-type": "image/jpeg" },
+      { "x-amz-meta-bluebird-erasure": "other" },
+      { "x-amz-meta-private-name": "private@example.invalid" },
+      { "content-encoding": "gzip" },
+      { "content-disposition": "private filename.jpg" },
+      { "cache-control": "public" },
+    ].map((patch) => {
+      const headers = { ...erasedHeaders, ...patch };
+      for (const key of Object.keys(headers)) if (headers[key] === undefined) delete headers[key];
+      return { status: 200, headers };
+    }),
+  ];
+  for (const response of responses) {
+    const f = fixture({ intercept: async () => new Response(null, response) });
+    await assert.rejects(f.eraser.verify(f.target, signal()), unavailable);
+    assert.deepEqual(
+      f.calls.map((r) => r.method),
+      ["HEAD"],
+    );
+  }
+});
+
+test("verification reauthorizes a current lease before and after the read, and cannot use another store or mutated target", async () => {
+  for (const refuseAt of [1, 2]) {
+    const f = fixture({
+      authorize: async (target, count) => {
+        if (count === refuseAt) throw Error("private@example.invalid stale ownership or lease");
+      },
+      intercept: async () => new Response(null, { status: 200, headers: erasedHeaders }),
+    });
+    await assert.rejects(f.eraser.verify(f.target, signal()), unavailable);
+    assert.equal(f.calls.length, refuseAt - 1);
+  }
+  const f = fixture();
+  await assert.rejects(
+    f.eraser.verify({ ...f.target, storeFingerprint: "f".repeat(64) }, signal()),
+    unavailable,
+  );
+  assert.equal(f.calls.length, 0);
+  let reads = 0;
+  const pinned = fixture({
+    authorize: async () => {
+      pinned.target.path = "another-member/photo.jpg";
+    },
+    intercept: async () => {
+      reads++;
+      return new Response(null, { status: 200, headers: erasedHeaders });
+    },
+  });
+  const path = pinned.path;
+  await pinned.eraser.verify(pinned.target, signal());
+  assert.equal(new URL(pinned.calls[0].url).pathname, path);
+  assert.equal(reads, 1);
+});
+
+test("verification honors cancellation before provider access and after a response without retaining signed failure details", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const f = fixture();
+  await assert.rejects(f.eraser.verify(f.target, controller.signal), unavailable);
+  assert.equal(f.calls.length, 0);
+  const duringRead = new AbortController();
+  const cancelled = fixture({
+    intercept: async () => {
+      duringRead.abort();
+      return new Response(null, { status: 200, headers: erasedHeaders });
+    },
+  });
+  await assert.rejects(cancelled.eraser.verify(cancelled.target, duringRead.signal), unavailable);
+  const failedRead = fixture({
+    intercept: async (request) => {
+      throw Error(`private@example.invalid ${request.url} ${request.headers.get("authorization")}`);
+    },
+  });
+  await assert.rejects(failedRead.eraser.verify(failedRead.target, signal()), unavailable);
+  assert.equal(failedRead.calls.length, 1);
+});
+
+test("concurrent attempts cannot overwrite the winning fence and the losing attempt reconciles without another write", async () => {
+  for (const missing of [false, true]) {
+    let arrivals = 0,
+      release;
+    const bothArrived = new Promise((resolve) => {
+      release = resolve;
+    });
+    const f = fixture({
+      missing,
+      beforePut: async () => {
+        if (++arrivals === 2) release();
+        await bothArrived;
+      },
+    });
+    const attempts = await Promise.allSettled([
+      f.eraser.erase(f.target, signal()),
+      f.eraser.erase(f.target, signal()),
+    ]);
+    assert.equal(attempts.filter((r) => r.status === "fulfilled").length, 1);
+    const rejected = attempts.find((r) => r.status === "rejected");
+    assert(rejected);
+    unavailable(rejected.reason);
+    const writes = f.calls.filter((r) => r.method === "PUT").length;
+    assert.equal(writes, 2);
+    assert.equal(f.objects.get(f.path).body.length, 0);
+    await f.eraser.erase(f.target, signal());
+    await f.eraser.verify(f.target, signal());
+    assert.equal(f.calls.filter((r) => r.method === "PUT").length, writes);
+  }
 });
