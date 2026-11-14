@@ -3,6 +3,7 @@ import { rememberNativeAuthDestination } from "./auth-destination";
 import { NativeNotifications, useNativeNotifications } from "./Notifications";
 import { NativeSavedSearches } from "./SavedSearches";
 import { NativeAccountSaved } from "./AccountSaved";
+import { NativeAccountReviews } from "./AccountReviews";
 import { NativeAccountOverview } from "./AccountOverview";
 import { saveProfileAvatar } from "./account-media";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -46,6 +47,7 @@ const sections = [
   "searches",
   "messages",
   "notifications",
+  "reviews",
 ] as const;
 export function NativeAccount({
   ownerId,
@@ -60,9 +62,10 @@ export function NativeAccount({
   storefrontsReady = false,
   overviewReady = false,
   savedReady = false,
+  reviewsReady = false,
 }: {
   ownerId: string;
-  section: "overview" | "profile" | "settings" | "searches" | "notifications" | "saved";
+  section: "overview" | "profile" | "settings" | "searches" | "notifications" | "saved" | "reviews";
   policyVersion: string;
   onNavigate: (path: string) => void;
   onSignOut: (scope?: "local" | "global") => Promise<void>;
@@ -73,6 +76,7 @@ export function NativeAccount({
   storefrontsReady?: boolean;
   overviewReady?: boolean;
   savedReady?: boolean;
+  reviewsReady?: boolean;
 }) {
   const inbox = useNativeNotifications();
   const actor = useMemo(() => ({ userId: ownerId, installId: installIdentifier() }), [ownerId]);
@@ -83,7 +87,7 @@ export function NativeAccount({
     [version, setVersion] = useState(0);
   const locked = useRef(false);
   useEffect(() => {
-    if (["notifications", "overview", "saved"].includes(section)) return;
+    if (["notifications", "overview", "saved", "reviews"].includes(section)) return;
     if (!controlsReady) {
       setError("Account controls are temporarily unavailable. Please retry shortly.");
       return;
@@ -269,44 +273,66 @@ export function NativeAccount({
       section={section}
       onSelect={selectSection}
       onSignOut={() => void onSignOut()}
-      availableSections={sections.filter((value) => value !== "overview" || overviewReady)}
+      availableSections={sections.filter(
+        (value) => (value !== "overview" || overviewReady) && (value !== "reviews" || reviewsReady),
+      )}
       unreadMessages={inbox.data?.unreadMessages ?? 0}
       unreadNotifications={inbox.data?.unread ?? 0}
       signOutBusy={Boolean(busy) || signOutBusy}
     >
-      {section !== "notifications" && section !== "overview" && section !== "saved" && error && (
-        <div
-          className="mb-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
-          role="alert"
-        >
-          {error}
-          {!data && (
-            <button
-              type="button"
-              className="ml-3 font-semibold underline"
-              onClick={() => (controlsReady ? setVersion((v) => v + 1) : location.reload())}
-            >
-              Retry
-            </button>
-          )}
-          {!data && (
-            <button
-              type="button"
-              className="ml-3 font-semibold underline"
-              disabled={signOutBusy}
-              onClick={() => void onSignOut()}
-            >
-              Sign out
-            </button>
-          )}
-        </div>
-      )}
-      {section !== "notifications" && section !== "overview" && section !== "saved" && notice && (
-        <p className="mb-5 rounded-xl border border-border bg-card p-4 text-sm" role="status">
-          {notice}
-        </p>
-      )}
-      {section === "saved" && savedReady ? (
+      {section !== "notifications" &&
+        section !== "overview" &&
+        section !== "saved" &&
+        section !== "reviews" &&
+        error && (
+          <div
+            className="mb-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
+            role="alert"
+          >
+            {error}
+            {!data && (
+              <button
+                type="button"
+                className="ml-3 font-semibold underline"
+                onClick={() => (controlsReady ? setVersion((v) => v + 1) : location.reload())}
+              >
+                Retry
+              </button>
+            )}
+            {!data && (
+              <button
+                type="button"
+                className="ml-3 font-semibold underline"
+                disabled={signOutBusy}
+                onClick={() => void onSignOut()}
+              >
+                Sign out
+              </button>
+            )}
+          </div>
+        )}
+      {section !== "notifications" &&
+        section !== "overview" &&
+        section !== "saved" &&
+        section !== "reviews" &&
+        notice && (
+          <p className="mb-5 rounded-xl border border-border bg-card p-4 text-sm" role="status">
+            {notice}
+          </p>
+        )}
+      {section === "reviews" ? (
+        reviewsReady ? (
+          <NativeAccountReviews
+            ownerId={ownerId}
+            link={AccountLink}
+            publicProfileReady={storefrontsReady}
+          />
+        ) : (
+          <p role="alert" className="text-sm">
+            Reviews are temporarily unavailable. Please retry shortly.
+          </p>
+        )
+      ) : section === "saved" && savedReady ? (
         <NativeAccountSaved ownerId={ownerId} onNavigate={onNavigate} />
       ) : section === "overview" && overviewReady && controlsReady ? (
         <NativeAccountOverview ownerId={ownerId} onSelect={selectSection} link={AccountLink} />

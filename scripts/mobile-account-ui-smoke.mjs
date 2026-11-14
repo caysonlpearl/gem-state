@@ -138,6 +138,14 @@ try {
     let accountControls = false,
       overviewReady = false,
       savedReady = false,
+      reviewsReady = false,
+      reviewsOutage = false,
+      reviewsEmpty = false,
+      reviewSlug = "fixture-shop",
+      reviewsWrongOwner = false,
+      deferReview = false,
+      reviewStarted = false,
+      releaseReview,
       savedOutage = false,
       savedRemovalFailure = true,
       deferRemoval = false,
@@ -264,6 +272,8 @@ try {
             accountControls,
             accountOverview: overviewReady,
             accountSaved: savedReady,
+            accountReviews: reviewsReady,
+            storefronts: reviewsReady,
             notificationCenter: overviewReady,
             push: false,
             advertising: false,
@@ -283,6 +293,37 @@ try {
           pendingListings: 1,
           completedSalesCount: 4,
         };
+      } else if (path === "account/reviews" && method === "GET") {
+        if (reviewsOutage) return fail(503, "Fixture reviews unavailable.");
+        data = {
+          ownerId: reviewsWrongOwner ? b : actor,
+          sellerSlug: reviewSlug,
+          ratingAverage: reviewsEmpty ? null : 4.5,
+          reviews: reviewsEmpty
+            ? []
+            : [
+                {
+                  id: "fixture-review-one",
+                  rating: 5,
+                  comment:
+                    actor === a
+                      ? "First account private review."
+                      : "Second account private review.",
+                  createdAt: "2026-11-12T10:00:00Z",
+                },
+                {
+                  id: "fixture-review-two",
+                  rating: 4,
+                  comment: null,
+                  createdAt: "2026-11-11T10:00:00Z",
+                },
+              ],
+        };
+        if (deferReview) {
+          deferReview = false;
+          reviewStarted = true;
+          await new Promise((resolve) => (releaseReview = resolve));
+        }
       } else if (path === "account/saved" && method === "GET") {
         if (savedOutage) return fail(503, "Fixture saved listings unavailable.");
         data = {
@@ -697,6 +738,100 @@ try {
       await auth.auth.setSession(next);
     }, session(a));
     await page.getByText("Nothing saved yet", { exact: true }).waitFor();
+    // New review data is scoped to the current account and never becomes shopper activity.
+    reviewsReady = true;
+    await page.goto(origin + "/#/account/reviews");
+    await page.reload();
+    await page.getByRole("heading", { name: "Reviews & reputation", exact: true }).waitFor();
+    await page.getByText("First account private review.", { exact: true }).waitFor();
+    await page.getByText("4.5", { exact: true }).waitFor();
+    await page.getByText("2 received", { exact: true }).waitFor();
+    assert.equal(await page.getByText("No written comment.", { exact: true }).count(), 1);
+    assert.equal(
+      await page
+        .getByRole("link", { name: "View public profile", exact: true })
+        .getAttribute("href"),
+      "#/sellers/fixture-shop",
+    );
+    await page.evaluate(() => {
+      window.fixtureShares = [];
+      Object.defineProperty(navigator, "share", {
+        configurable: true,
+        value: async (value) => window.fixtureShares.push(value),
+      });
+    });
+    await page.getByRole("button", { name: "Share review link", exact: true }).click();
+    await page.waitForFunction(() => window.fixtureShares.length === 1);
+    assert.equal(
+      (await page.evaluate(() => window.fixtureShares[0])).url,
+      "https://fixture.bluebird.invalid/sellers/fixture-shop?review=1",
+    );
+    await page.evaluate(() => scrollTo(0, 0));
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
+    await page.screenshot({
+      path: resolve(output, `shared-reviews-${viewport.width}.png`),
+      fullPage: true,
+    });
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    const reviewNav = page.getByRole("combobox", { name: "Account section", exact: true });
+    if (await reviewNav.isVisible()) assert.equal(await reviewNav.inputValue(), "reviews");
+    else {
+      await page
+        .getByRole("navigation", { name: "Account sections", exact: true })
+        .getByRole("button", { name: "Reviews & reputation", exact: true })
+        .click();
+      assert.equal(new URL(page.url()).hash, "#/account/reviews");
+    }
+    reviewsOutage = true;
+    await page.reload();
+    await page.getByRole("alert").filter({ hasText: "Fixture reviews unavailable." }).waitFor();
+    assert.equal(await page.getByText("No reviews yet.", { exact: true }).count(), 0);
+    reviewsOutage = false;
+    await page.getByRole("button", { name: "Retry reviews", exact: true }).click();
+    await page.getByText("First account private review.", { exact: true }).waitFor();
+    reviewsEmpty = true;
+    reviewSlug = null;
+    await page.reload();
+    await page.getByText("No reviews yet.", { exact: true }).waitFor();
+    assert.equal(
+      await page.getByRole("link", { name: "View public profile", exact: true }).count(),
+      0,
+    );
+    await page.getByRole("button", { name: "Share review link", exact: true }).click();
+    await page
+      .getByText("Complete seller setup before sharing your review link.", { exact: true })
+      .waitFor();
+    reviewsEmpty = false;
+    reviewSlug = "fixture-shop";
+    reviewsWrongOwner = true;
+    await page.reload();
+    await page.getByRole("alert").filter({ hasText: "Your account changed." }).waitFor();
+    assert.equal(await page.getByText("First account private review.", { exact: true }).count(), 0);
+    reviewsWrongOwner = false;
+    deferReview = true;
+    await page.getByRole("button", { name: "Retry reviews", exact: true }).click();
+    for (let n = 0; !reviewStarted && n < 100; n++) await pause(10);
+    assert.equal(reviewStarted, true);
+    await page.evaluate(async (next) => {
+      sessionStorage.setItem("fixture.actor", next.user.id);
+      const { auth } = await import("/src/client.ts");
+      await auth.auth.setSession(next);
+    }, session(b));
+    await page.getByText("Second account private review.", { exact: true }).waitFor();
+    releaseReview();
+    await pause(100);
+    assert.equal(await page.getByText("First account private review.", { exact: true }).count(), 0);
+    await page.evaluate(async (next) => {
+      sessionStorage.setItem("fixture.actor", next.user.id);
+      const { auth } = await import("/src/client.ts");
+      await auth.auth.setSession(next);
+    }, session(a));
+    await page.getByText("First account private review.", { exact: true }).waitFor();
     activityOutage = true;
     await page.goto(origin + "/#/account");
     await page.reload();
@@ -769,6 +904,8 @@ try {
       sharedProfileAndSettings: true,
       sharedOverview: true,
       sharedSavedControls: true,
+      sharedReviewsAndNativeShare: true,
+      reviewRetryEmptyAndAccountSwitchIsolation: true,
       soldSavedRemovalAndLostAcknowledgement: true,
       savedLateAccountSwitchIsolation: true,
       overviewFailureAndActivityRetry: true,

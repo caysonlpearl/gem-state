@@ -778,3 +778,42 @@ create no real accounts or messages. Backend publication and a rebuilt installed
 app must be verified separately; these checks are not physical-device proof.
 
 A one-time server-render comparison against the pre-extraction website overview verified identical markup for seller/non-seller accounts with empty/populated activity. The browser screenshot round retained the incumbent fonts, spacing, profile card and responsive structure; no replacement account design was introduced.
+
+## Shared account reviews — November 14, 2026
+
+The website and app use `ReviewsSectionView` for Reviews & reputation: average
+rating, star distribution, received review cards, empty state and public profile
+and share actions. The website keeps its existing share/clipboard behavior. The
+app uses the existing Capacitor Share plugin with the canonical public review
+URL, and its Account sections include Reviews when `features.accountReviews` is
+published. A backend without this capability produces an unavailable state for a direct
+review route; storefront links additionally require the existing app storefront
+capability. No paid screen or checkout is added.
+
+`GET account/reviews` derives the seller from verified session identity and uses
+the member-scoped database client. It reads the website's same latest-20 review
+window, with an ID tie-breaker, and only the matching public storefront identity.
+It returns eligible comments, ratings, dates and the eligible public slug; payout,
+buyer and reviewer identity fields are never read. App-ineligible comments do not
+contribute to the app's rating. Missing public profiles are normal and do not hide
+received reviews. A single eight-second server deadline, disabled SDK retries,
+exact sample counts and owner/duplicate/field checks reject incomplete or malformed
+responses. Guest, invalid-session and deletion-pending requests remain denied by
+the existing private-route boundary. This endpoint needs no migration or provider
+request.
+
+Native reads use the current account/install identity and a 20-second deadline.
+Cancellation, response ownership and render ownership checks prevent a delayed
+prior-account result from appearing after a switch. Read failures offer Retry
+reviews and are not displayed as zero reputation. Private review content creates
+no shopping activity or advertising exports.
+
+A comparison against the pre-extraction website screen verified identical markup
+for empty, public-empty and populated cases except three intentional accessibility
+classes: 44px public-profile/share targets and unwrapped rating labels. Browser
+checks at 320/390/1280 pixels cover populated/empty/error/retry states, a native
+share-adapter handoff, missing public profiles, foreign responses, delayed account
+switches, navigation, no horizontal overflow and excluded private analytics. The
+mechanical design check reported no findings. These are synthetic source/browser
+checks; physical iPhone/Android journeys and actual OS share sheets remain separate
+release gates. Publication and native installation require their own evidence.

@@ -609,22 +609,25 @@ function Application() {
                   storefrontsReady={bootstrap.features.storefronts === true}
                   overviewReady={bootstrap.features.accountOverview === true}
                   savedReady={bootstrap.features.accountSaved === true}
+                  reviewsReady={bootstrap.features.accountReviews === true}
                   key={session!.user.id}
                   ownerId={session!.user.id}
                   section={
                     ["/saved", "/account/saved"].includes(path) &&
                     bootstrap.features.accountSaved === true
                       ? "saved"
-                      : path === "/account/settings"
-                        ? "settings"
-                        : path === "/account/notifications"
-                          ? "notifications"
-                          : path === "/account/searches"
-                            ? "searches"
-                            : ["/account", "/account/overview"].includes(path) &&
-                                bootstrap.features.accountOverview === true
-                              ? "overview"
-                              : "profile"
+                      : path === "/account/reviews"
+                        ? "reviews"
+                        : path === "/account/settings"
+                          ? "settings"
+                          : path === "/account/notifications"
+                            ? "notifications"
+                            : path === "/account/searches"
+                              ? "searches"
+                              : ["/account", "/account/overview"].includes(path) &&
+                                  bootstrap.features.accountOverview === true
+                                ? "overview"
+                                : "profile"
                   }
                   policyVersion={bootstrap.policyVersion}
                   onNavigate={go}
