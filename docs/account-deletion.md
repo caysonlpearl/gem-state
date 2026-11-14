@@ -414,6 +414,51 @@ Existing administrator and database authorization still applies. A pending
 account must not acquire ownership of catalog media merely through a coincident
 identifier. Product images, model files and model posters must all be included
 in the eventual shared-media inventory and ownership plan before any erasure.
+
+## Private media reference inventory — November 14, 2026
+
+The next source batch adds a durable, service-only inventory of database media
+references. `scan_account_deletion_media_inventory` reads one source page (50
+entries by default, at most 100) and commits its observations and cursor together.
+The target comes from the matching processing job, user, inventory phase and live
+lease. The operator control is locked for the short transaction, access coverage
+must be complete, and an expired lease at the final check rolls back the page.
+
+The 28 sources include profile/business avatars, listing/evidence references,
+authored catalog/models/posters, suggestions, requests, order evidence, sent
+message attachments, resumes, identity-document references, sightings, dealer
+inventory media, seller import arrays, upload tickets, claim old/new paths,
+migration journals, private photo receipts and Storage metadata. Configuring a
+dealer feed does not make its operator the business/media owner. Business and
+financial associations remain labeled shared/unreviewed. Unknown legacy model,
+suggestion or sighting buckets remain unresolved rather than being guessed.
+
+Only allowlisted file metadata is persisted. Message bodies, applicant notes,
+document bytes, financial credentials, arbitrary upload payload fields, provider
+URLs and signed access tokens are excluded. Trusted URLs are normalized against
+the owning GemList project and Bluebird catalog proxy; foreign URLs are recorded
+as external without their contents. Literal object names are not URL-decoded.
+Old observations remain after references disappear, receipts change, or a rescan
+restarts its cursors. Rescans also find Storage metadata for previously observed
+paths and include archived versions and delete markers without claiming that
+Storage metadata is a provider erasure API.
+
+`createAccountDeletionReferenceInventory` returns a bounded pass report, never a
+deletion-phase `done` result. `passDone` means only that this database scan pass
+reached its end. It does not prove a stable reference closure, physical provider
+coverage, exclusive ownership, retention decisions or completed deletion. The
+future full inventory adapter still needs rescans/reconciliation, configured
+provider/version inventories, shared-reference authorization, late-writer/copy
+handling and an explicit verification/purge path. Private inventory survives an
+Auth cascade and prevents a job's minimal completion receipt while it remains.
+
+This migration is not installed on production and activates no worker, provider
+call, account erasure or scheduler. The earlier photo-barrier migrations remain
+an independent deployment prerequisite. Synthetic SQL tests exercise every source,
+pagination/rescans, physical-key history, privacy exclusions, pending upload and
+copy metadata, access controls, lease rollback and premature completion. The real
+two-connection PostgreSQL gate also checks concurrent page retry and operator
+pause ordering. No production member, message, file or account is used as a test.
 This correction does not authorize catalog or financial erasure.
 
 Deploy the original write-barrier migration and this correction in one atomic
