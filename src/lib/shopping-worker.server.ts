@@ -3,6 +3,7 @@ import {
   interests,
   matchesShoppingSearch,
   reminderStep,
+  shoppingPriceInterest,
   type ShoppingCard,
   type ShoppingEvent,
 } from "./shopping-contract";
@@ -145,6 +146,7 @@ export async function generateShoppingAlerts(db: any) {
         const row = byId.get(interest.listingId);
         if (!row || interest.dismissed || interest.purchased) continue;
         if (
+          shoppingPriceInterest(interest) &&
           row.previous_price_cents > row.price_cents &&
           interest.lastAt < Date.parse(row.price_changed_at ?? "")
         ) {

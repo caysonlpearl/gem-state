@@ -1,6 +1,11 @@
 import { accountDeletionPending } from "./account-deletion-access.server.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- shared private queue rows */
-import { interests, reminderStep, matchesShoppingSearch } from "./shopping-contract.ts";
+import {
+  interests,
+  reminderStep,
+  matchesShoppingSearch,
+  shoppingPriceInterest,
+} from "./shopping-contract.ts";
 import {
   shoppingPermission,
   shoppingActivity,
@@ -27,6 +32,10 @@ export async function shoppingDeliveryCandidates(
 ) {
   if (await accountDeletionPending(db, delivery.user_id))
     return { account: { delivery_blocked: true }, permission: null, eligible: [] };
+  // History can require several pages. Read it before the final recipient,
+  // queue, search and availability snapshots, so withdrawal during that work
+  // cannot leave a discretionary delivery using earlier permission flags.
+  const activity = await shoppingActivity(db, `u:${delivery.user_id}`);
   const [accountResult, permission, queued, searches, prefs] = await Promise.all([
     db.from("shopping_accounts").select("*").eq("user_id", delivery.user_id).single(),
     shoppingPermission(db, `u:${delivery.user_id}`),
@@ -74,9 +83,7 @@ export async function shoppingDeliveryCandidates(
   if (native.error) throw Error("Native availability unavailable.");
   const liveNative = new Set(native.data.map((r: any) => r.id)),
     byId = new Map<string, any>(inventory.data.map((r: any) => [r.listing_id, r]));
-  const profile = interests(
-    permission?.personalization ? await shoppingActivity(db, `u:${delivery.user_id}`) : [],
-  );
+  const profile = interests(permission?.personalization ? activity : []);
   const progress = await shoppingReminderProgress(db, `u:${delivery.user_id}`);
   const eligible: any[] = [];
   for (const item of items) {
@@ -113,7 +120,8 @@ export async function shoppingDeliveryCandidates(
       continue;
     if (
       item.kind === "price_drop" &&
-      (inv.price_version !== item.payload.price_version ||
+      (!shoppingPriceInterest(interest) ||
+        inv.price_version !== item.payload.price_version ||
         inv.price_cents >= item.payload.previous_price_cents)
     )
       continue;

@@ -279,6 +279,17 @@ export function reminderStep(interest: Interest, now = Date.now()): number | nul
   const age = now - interest.lastAt;
   return age >= 7 * 86400000 ? 7 : age >= 72 * 3600000 ? 3 : age >= 24 * 3600000 ? 1 : null;
 }
+/** A queued price change still needs current positive interest at handoff. */
+export function shoppingPriceInterest(interest: Interest | undefined): boolean {
+  return Boolean(
+    interest &&
+    !interest.dismissed &&
+    !interest.purchased &&
+    interest.lastAt > 0 &&
+    Number.isFinite(interest.score) &&
+    interest.score > 0,
+  );
+}
 export function cosine(a: number[], b: number[]): number {
   if (!a.length || a.length !== b.length) return 0;
   let dot = 0,

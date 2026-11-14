@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import ts from "typescript";
+import { shoppingActivity } from "../src/lib/shopping.server.ts";
 import * as contract from "../src/lib/shopping-contract.ts";
 import * as deliveryEligibility from "../src/lib/shopping-delivery-eligibility.ts";
 const source = readFileSync(
@@ -12,7 +13,12 @@ const source = readFileSync(
 const compiled = ts.transpileModule(source, {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText;
-function harness({ alerts = true, requested = false, beforeHandoff = () => {} } = {}) {
+function harness({
+  alerts = true,
+  requested = false,
+  beforeHandoff = () => {},
+  duringActivity = () => {},
+} = {}) {
   const user = randomUUID(),
     qid = randomUUID(),
     search = randomUUID(),
@@ -76,8 +82,21 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
       },
     ],
     mobile_account_deletions: [],
-    shopping_privacy: [{ subject: "u:" + user, personalization: true }],
-    shopping_events: [],
+    shopping_privacy: [
+      { subject: "u:" + user, personalization: true, history_after: "1970-01-01" },
+    ],
+    shopping_events: [
+      {
+        id: randomUUID(),
+        subject: "u:" + user,
+        session_id: randomUUID(),
+        kind: "view",
+        listing_id: card.id,
+        occurred_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+        search: {},
+        context: {},
+      },
+    ],
     shopping_favorites: [],
     account_notification_preferences: [],
     shopping_deliveries: [],
@@ -96,6 +115,13 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
         return q;
       },
       order() {
+        return q;
+      },
+      abortSignal() {
+        return q;
+      },
+      retry(value) {
+        assert.equal(value, false);
         return q;
       },
       limit(n) {
@@ -181,7 +207,12 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
               }
             }
           }
-          resolve({ data: structuredClone(one ? (selected[0] ?? null) : selected), error: null });
+          if (table === "shopping_events" && mode === "read") duringActivity(tables);
+          resolve({
+            data: structuredClone(one ? (selected[0] ?? null) : selected),
+            error: null,
+            count: rows.filter((r) => filters.every((f) => f(r))).length,
+          });
         } catch (e) {
           reject(e);
         }
@@ -199,8 +230,40 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
         }),
       },
     },
-    rpc: async (name) => {
-      if (name === "shopping_saved_interests") return { data: [], error: null };
+    rpc: (name) => {
+      if (name === "shopping_saved_interests") {
+        let start = 0,
+          end = 499;
+        const q = {
+          order() {
+            return q;
+          },
+          range(a, b) {
+            start = a;
+            end = b;
+            return q;
+          },
+          select() {
+            return q;
+          },
+          abortSignal() {
+            return q;
+          },
+          retry(value) {
+            assert.equal(value, false);
+            return q;
+          },
+          then(resolve) {
+            const rows = tables.saved_interests ?? [];
+            resolve({
+              data: structuredClone(rows.slice(start, end + 1)),
+              count: rows.length,
+              error: null,
+            });
+          },
+        };
+        return q;
+      }
       if (name === "read_published_dealer_inventory")
         return { data: { vehicles: tables.published_feed ?? [{ id: "a" }] }, error: null };
       assert.equal(name, "claim_shopping_delivery");
@@ -249,7 +312,7 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
         shoppingExternalEligibility: gateExports.shoppingExternalEligibility,
         shoppingControls: async () => ({ notifications: true, catalog_ready_at: "2026-01-01" }),
         shoppingPermission: async () => ({ personalization: true }),
-        shoppingActivity: async () => [],
+        shoppingActivity,
         shoppingHoldout: async () => false,
       };
     if (name === "@/config/brand")
@@ -361,4 +424,105 @@ test("pending account deletion suppresses requested saved-search email as well a
     await f.worker.deliverShoppingAlerts(f.db);
     assert.equal(f.emails.length, 0);
   }
+});
+
+test("removed favorites cannot qualify queued reminders or price alerts through an obsolete analytics copy", async () => {
+  for (const kind of ["price_drop", "reminder"]) {
+    const h = harness(),
+      at = new Date(Date.now() - 3 * 86400000).toISOString();
+    h.tables.shopping_events = [
+      {
+        id: randomUUID(),
+        subject: "u:" + h.user,
+        session_id: randomUUID(),
+        kind: "save",
+        listing_id: h.card.id,
+        occurred_at: at,
+        search: {},
+        context: {},
+      },
+    ];
+    h.tables.shopping_favorites = [{ subject: "u:" + h.user, listing_id: h.card.id, saved_at: at }];
+    h.tables.shopping_queue[0].kind = kind;
+    if (kind === "reminder")
+      h.tables.shopping_queue[0].payload = { interest_at: Date.parse(at), step: 3 };
+    await h.worker.deliverShoppingAlerts(h.db);
+    assert.equal(h.emails.length, 0);
+    assert.equal(h.tables.shopping_queue[0].status, "suppressed");
+  }
+});
+test("actual bookmark removal during email rendering is rechecked before reminder or price provider handoff", async () => {
+  for (const kind of ["price_drop", "reminder"]) {
+    let reached = false;
+    const h = harness({
+        beforeHandoff: (tables) => {
+          reached = true;
+          tables.saved_interests = [];
+        },
+      }),
+      at = new Date(Date.now() - 3 * 86400000).toISOString();
+    h.tables.shopping_events = [
+      {
+        id: randomUUID(),
+        subject: "u:" + h.user,
+        session_id: randomUUID(),
+        kind: "save",
+        listing_id: h.card.id,
+        occurred_at: at,
+        search: {},
+        context: {},
+      },
+    ];
+    h.tables.saved_interests = [{ listing_id: h.card.id, saved_at: at }];
+    h.tables.shopping_queue[0].kind = kind;
+    if (kind === "reminder")
+      h.tables.shopping_queue[0].payload = { interest_at: Date.parse(at), step: 3 };
+    await h.worker.deliverShoppingAlerts(h.db);
+    assert.equal(reached, true);
+    assert.equal(h.emails.length, 0);
+    assert.equal(h.tables.shopping_queue[0].status, "suppressed");
+  }
+});
+test("genuine browsing interest still qualifies a confirmed price change without a favorite", async () => {
+  const h = harness();
+  await h.worker.deliverShoppingAlerts(h.db);
+  assert.equal(h.emails.length, 1);
+  assert.equal(h.tables.shopping_queue[0].status, "sent");
+});
+
+test("alert generation needs positive current interest for a price change, while a genuine view remains sufficient", async () => {
+  for (const kind of ["unsave", "view"]) {
+    const h = harness();
+    h.tables.shopping_queue = [];
+    h.tables.shopping_inventory[0].price_changed_at = new Date().toISOString();
+    h.tables.shopping_events[0].kind = kind;
+    await h.worker.generateShoppingAlerts(h.db);
+    assert.equal(
+      h.tables.shopping_queue.filter((q) => q.kind === "price_drop").length,
+      kind === "view" ? 1 : 0,
+    );
+  }
+});
+
+test("withdrawal during the final history read cannot leave alternatives using stale permission flags", async () => {
+  let rendered = false,
+    withdrawn = false;
+  const h = harness({
+    beforeHandoff: () => {
+      rendered = true;
+    },
+    duringActivity: (tables) => {
+      if (rendered && !withdrawn) {
+        withdrawn = true;
+        tables.shopping_privacy[0].personalization = false;
+      }
+    },
+  });
+  h.tables.shopping_queue[0].kind = "alternative";
+  h.tables.shopping_queue[0].payload = {};
+  await h.worker.deliverShoppingAlerts(h.db);
+  assert.equal(rendered, true);
+  assert.equal(withdrawn, true);
+  assert.equal(h.emails.length, 0);
+  assert.equal(h.tables.shopping_queue[0].status, "suppressed");
 });

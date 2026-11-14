@@ -42,80 +42,7 @@ export function sameShoppingOrigin(request: Request) {
   return !origin || origin === new URL(request.url).origin;
 }
 export async function shoppingActivity(db: any, subject: string): Promise<ShoppingEvent[]> {
-  const { data, error } = await db
-    .from("shopping_events")
-    .select("id,kind,listing_id,session_id,search,context,occurred_at")
-    .eq("subject", subject)
-    .gte("occurred_at", new Date(Date.now() - 90 * 86400000).toISOString())
-    .order("occurred_at", { ascending: false })
-    .limit(1500);
-  if (error) throw Error("Shopping history could not be read.");
-  const events: ShoppingEvent[] = (data ?? []).map((e: any) => ({
-    id: e.id,
-    kind: e.kind,
-    listingId: e.listing_id,
-    session: e.session_id,
-    search: e.search,
-    context: e.context,
-    at: e.occurred_at,
-  }));
-  const favorites = await db
-    .from("shopping_favorites")
-    .select("listing_id,saved_at")
-    .eq("subject", subject)
-    .limit(500);
-  if (favorites.error) throw Error("Saved interests could not be read.");
-  for (const row of favorites.data ?? [])
-    events.push({
-      id: `favorite:${row.listing_id}`,
-      kind: "save",
-      listingId: row.listing_id,
-      session: "favorite",
-      at: row.saved_at,
-    });
-  if (subject.startsWith("u:")) {
-    const saved = await db.rpc("shopping_saved_interests", { member_id: subject.slice(2) });
-    if (saved.error) throw Error("Saved listings unavailable.");
-    // Respect clear-history without deleting the shopper's explicit saved listings.
-    const permission = await shoppingPermission(db, subject);
-    for (const row of saved.data ?? [])
-      if (Date.parse(row.saved_at) > Date.parse(permission?.history_after ?? "1970-01-01"))
-        events.push({
-          id: `existing:${row.listing_id}`,
-          kind: "save",
-          listingId: row.listing_id,
-          session: "favorite",
-          at: row.saved_at,
-        });
-  }
-  const choices = await db
-    .from("shopping_choices")
-    .select("listing_id,dismissed,choice_at,purchased_at")
-    .eq("subject", subject)
-    .limit(1500);
-  if (choices.error) throw Error("Shopping choices unavailable.");
-  for (const row of choices.data ?? []) {
-    if (row.dismissed)
-      events.push({
-        id: `dismissed:${row.listing_id}`,
-        kind: "dismiss",
-        listingId: row.listing_id,
-        session: "choice",
-        at: row.choice_at,
-      });
-    if (
-      row.purchased_at &&
-      !events.some((event) => event.kind === "purchase" && event.listingId === row.listing_id)
-    )
-      events.push({
-        id: `purchased:${row.listing_id}`,
-        kind: "purchase",
-        listingId: row.listing_id,
-        session: "choice",
-        at: row.purchased_at,
-      });
-  }
-  return events;
+  return (await import("./shopping-activity.server.ts")).loadShoppingActivity(db, subject);
 }
 export async function recordShoppingActivity(
   db: any,
@@ -161,6 +88,9 @@ export async function recordShoppingActivity(
     .upsert(rows, { onConflict: "id", ignoreDuplicates: true })
     .select("id");
   if (error) throw Error("Shopping activity could not be saved.");
+  // Member favorites already live in watchlist/partner saves. Do not build a
+  // second state from delayed analytics; it cannot observe every removal.
+  if (actor.user) return { accepted: inserted?.length ?? 0 };
   for (const e of valid.filter((e) => (inserted ?? []).some((r: any) => r.id === e.id))) {
     if (e.kind === "save")
       await db
