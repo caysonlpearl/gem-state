@@ -5,6 +5,7 @@ import { savedSearchBrowseInput } from "../src/lib/saved-search-contract.ts";
 import { mobileSearchInput } from "../src/lib/mobile-search.ts";
 import { mobileSearchPage, mobileCachedSearch } from "../src/lib/mobile-catalog.ts";
 import { matchesShoppingSearch } from "../src/lib/shopping-contract.ts";
+import { browseApiQuery } from "../apps/mobile/src/browse-state.ts";
 
 const now = Date.now();
 const card = (overrides = {}) => ({
@@ -297,6 +298,28 @@ test("full mobile search and cached fallback preserve advanced filters and store
     ).total,
     0,
   );
+});
+
+test("native first-page requests and filter previews accept explicit paging without relaxing filters", () => {
+  for (const query of [
+    "category=cars-trucks&make=Ford&priceMax=25000&sort=price_low",
+    "category=services&city=Boise&radiusMiles=25&serviceExpandSearch=false",
+    "category=other-real-estate&homeTab=rent&bedrooms=Studio",
+  ]) {
+    const params = new URLSearchParams(query);
+    const expected = mobileSearchInput(browseApiQuery(params));
+    assert(expected, query);
+    for (const page of [1, 2, 209]) {
+      const request = browseApiQuery(params, page);
+      assert.equal(request.get("page"), String(page));
+      assert.deepEqual(mobileSearchInput(request), { ...expected, page });
+    }
+    const unknown = browseApiQuery(params, 1);
+    unknown.set("futureConstraint", "must-remain-authoritative");
+    assert.equal(mobileSearchInput(unknown), null);
+  }
+  for (const query of ["page=1&page=2", "page=-1", "page=1e0", "page=NaN", "page=1.0"])
+    assert.equal(mobileSearchInput(new URLSearchParams(query)), null, query);
 });
 
 test("app-origin shopping searches permanently exclude prohibited inventory without narrowing website searches", () => {
