@@ -18,6 +18,7 @@ import {
 import { storageProviderMigration } from "./helpers/account-deletion-storage-provider-database.mjs";
 import { r2InventoryMigration } from "./helpers/account-deletion-r2-database.mjs";
 import { installShoppingErasureSources } from "./helpers/account-deletion-shopping-database.mjs";
+import { photoWriteIntentMigration } from "./helpers/photo-write-intent-database.mjs";
 import { createHash } from "node:crypto";
 const exec = promisify(execFile);
 async function binaries() {
@@ -753,6 +754,62 @@ test(
           )
         ).rows[0].p,
         true,
+      );
+      await a.query("update account_deletion_controls set worker_enabled=false");
+      await a.query(photoWriteIntentMigration());
+      const intentUser = randomUUID(),
+        intentPath = `${intentUser}/planned.jpg`;
+      await a.query("insert into auth.users(id) values($1)", [intentUser]);
+      const intents = [
+        {
+          bucket: "listing-media",
+          path: intentPath,
+          variant: "original",
+          sha256: "e".repeat(64),
+          bytes: 100,
+          storeFingerprint: "a".repeat(64),
+        },
+      ];
+      const planSql = "select plan_private_photo_writes($1) p",
+        planArgs = [JSON.stringify(intents)];
+      await a.query("begin");
+      assert.equal((await a.query(planSql, planArgs)).rows[0].p, true);
+      const replayIntent = b.query(planSql, planArgs);
+      replayIntent.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "concurrent copies share one durable physical-write intent",
+      );
+      await a.query("commit");
+      assert.equal((await replayIntent).rows[0].p, true);
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from private_photo_write_intents where path=$1", [
+            intentPath,
+          ])
+        ).rows[0].n,
+        1,
+      );
+      const lateIntentUser = randomUUID(),
+        lateIntentPath = `${lateIntentUser}/late.jpg`;
+      await a.query("insert into auth.users(id) values($1)", [lateIntentUser]);
+      await a.query("begin");
+      await a.query("select mobile_request_deletion($1)", [lateIntentUser]);
+      const blockedIntent = b.query(planSql, [
+        JSON.stringify([{ ...intents[0], path: lateIntentPath }]),
+      ]);
+      blockedIntent.catch(() => {});
+      assert.equal(await waitsForLock(), true, "planning waits for a pending deletion transaction");
+      await a.query("commit");
+      await assert.rejects(blockedIntent, /Photo account is unavailable/);
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from private_photo_write_intents where path=$1", [
+            lateIntentPath,
+          ])
+        ).rows[0].n,
+        0,
       );
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);

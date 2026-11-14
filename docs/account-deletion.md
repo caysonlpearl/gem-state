@@ -664,3 +664,50 @@ financial fixtures, permission loss, changed guards, unknown relationships,
 account isolation and late opt-outs. Real PostgreSQL connections verify
 request/write ordering, operator pause, concurrent cleanup and identity/decline
 ordering. No production account or member data was used or deleted.
+
+## Durable photo-write planning preparation — November 14, 2026
+
+`20261114110000_private_photo_write_intents.sql` prepares an immutable private
+ledger for physical R2 writes. `plan_private_photo_writes` records up to three
+bounded original/thumbnail descriptors for one literal logical path in a single
+transaction. It checks live member-write authority and independently pinned store
+fingerprints before returning success. Exact retries keep one intent; changed
+byte counts, scopes, paths or unapproved destinations fail without a partial
+batch. Reusing a previously recorded intent does not grant new permission after
+an account becomes unavailable.
+
+These are planned files, not verified receipts. Planning never signs an upload
+URL, downloads/transfers bytes or makes an object visible. It preserves pending
+hashes and sizes through Auth removal and lost acknowledgements. Ordinary
+member/worker roles cannot mutate or delete the ledger directly. Literal filename
+characters are retained without URL interpretation or normalization. The R2
+factory now copies its configuration and adds a non-secret destination
+fingerprint, consistent with the inventory/erasure transports, so caller changes
+cannot silently retarget a planned operation.
+
+The reviewed R2 candidate function is upgraded only if its previous source matches
+the expected definition. Its discovery includes unattached member-prefix plans
+and plans linked through private inventory references. It refuses a changed
+physical store until reconciliation. A missing provider object is still a planned
+write to handle, not a completed erasure. Known verified-receipt reconciliation
+continues separately. A completion guard refuses remaining member-prefix/linked
+intent evidence; this does not replace full legacy/shared ownership verification.
+
+This is the schema-first preparation batch. Existing upload/copy paths have
+**not yet been connected** to this ledger. The next runtime batch must require
+planning before every R2 PUT and before returning native upload links, after the
+schema and independently verified store pins have been installed. Deploying those
+runtime hooks before their database prerequisites would reject uploads. Old
+writers and already accepted operations must be drained/reconciled before the
+complete deletion processor can be enabled. Recording a plan is not evidence
+that all deployed writers use this protocol.
+
+The ledger has no Auth cascade or automatic expiry. Its removal/anonymization
+must be bound to verified media cleanup and shared-reference decisions before
+the final receipt is allowed. No such cleanup RPC or scheduler is enabled by this
+migration. The entire batch remains undeployed; real uploads, provider credentials,
+production data and worker switches were not used/changed during tests. Tests
+exercise real SQL, exact replay, rollback, missing stores, changed stores,
+unavailable accounts, unfinished uploads, legacy references, Auth removal and
+permissions. Real PostgreSQL additionally orders concurrent intents and deletion
+requests using the existing account locks.

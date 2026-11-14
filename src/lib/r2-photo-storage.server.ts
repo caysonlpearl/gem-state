@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { AwsClient } from "aws4fetch";
 
 import type { PhotoBucket } from "./photo-storage";
-import { MAX_PHOTO_BYTES, photoPath } from "./photo-storage";
+import { MAX_PHOTO_BYTES, photoBucket, photoPath } from "./photo-storage";
 
 export type R2PhotoConfig = {
   accountId: string;
@@ -52,10 +52,21 @@ export function photoObjectKey(path: string, sha256: string, thumbnail = false) 
 
 /** No bucket creation, public-access changes, deletion or automatic retries. */
 export function createR2PhotoStore(
-  config: R2PhotoConfig,
+  supplied: R2PhotoConfig,
   fetcher: typeof fetch = fetch,
   clock = Date.now,
 ) {
+  // Keep signatures and write-intent identity pinned to this store instance.
+  const values = {
+    BLUEBIRD_R2_ACCOUNT_ID: supplied.accountId,
+    BLUEBIRD_R2_ACCESS_KEY_ID: supplied.accessKeyId,
+    BLUEBIRD_R2_SECRET_ACCESS_KEY: supplied.secretAccessKey,
+    BLUEBIRD_R2_LISTING_BUCKET: supplied.buckets["listing-media"],
+    BLUEBIRD_R2_EVIDENCE_BUCKET: supplied.buckets["ask-evidence"],
+  };
+  if (!Object.values(values).every((value) => typeof value === "string"))
+    throw new Error("Private photo storage configuration is incomplete.");
+  const config = readR2PhotoConfig(values);
   const signer = new AwsClient({
     accessKeyId: config.accessKeyId,
     secretAccessKey: config.secretAccessKey,
@@ -105,6 +116,11 @@ export function createR2PhotoStore(
     return signed;
   }
   return {
+    fingerprint(bucket: PhotoBucket) {
+      return photoSha256(
+        JSON.stringify(["photo-erasure-v1", config.accountId, config.buckets[photoBucket(bucket)]]),
+      );
+    },
     async available(bucket: PhotoBucket) {
       const result = await request(bucket, undefined, {
         method: "HEAD",
