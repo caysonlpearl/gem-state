@@ -364,9 +364,10 @@ and is refused after it commits. No lock spans provider HTTP. The real PostgreSQ
 gate tests both orders with separate connections, along with operator-control and
 job-lease races.
 
-New logical paths in listing/evidence/catalog/request/order media and import
-photo arrays also use this guard. Existing shared references can retain unrelated
-edits, be removed or be replaced with an active account's path. A claim cannot
+New logical paths in member listing/evidence media and import photo arrays use
+the member-folder guard. Request, suggestion and order media use their explicit
+author relationships, as corrected below. Existing member-folder references can
+retain unrelated edits, be removed or be replaced with an active account's path. A claim cannot
 evade the barrier by changing its pending claimant. Failed migration bookkeeping
 can settle an earlier lease; a new copy lease or receipt cannot revive it. All
 new helper/trigger functions deny direct member, guest and service execution;
@@ -387,3 +388,38 @@ Synthetic tests run the actual upload/receipt and current photo-runner migration
 the surrounding media-reference and claim relations are disposable fixtures. No
 production migration, account erasure or object change is performed by this
 source batch.
+
+### Reference scope correction — November 14, 2026
+
+Schema/source review showed that a UUID folder alone is not an Auth ownership
+contract across every media table. The original generic reference trigger was
+too broad. `20261114050000_account_deletion_photo_reference_scope.sql` corrects it
+before production installation: member listing/evidence keeps its existing
+folder contract; sourcing-request photos check the buyer, suggestion photos check
+the submitting member, and order evidence checks its actual uploader. Request
+and suggestion author reads lock their parent while the write is checked.
+Changing just the parent/uploader cannot escape a pending author's barrier.
+Known member-prefixed references are checked as an additional restriction, not
+as proof that every UUID namespace names an account.
+
+Member writes require the normal `READ COMMITTED` transaction isolation. The
+post-lock check refuses snapshot-retaining transaction levels instead of reading
+an older permission state. Real PostgreSQL tests reject both `REPEATABLE READ`
+and `SERIALIZABLE` writes and prove that a child reference waits for a concurrent
+parent-author reassignment, then checks the committed author before inserting.
+
+Catalog product/model guards are removed: catalog storage includes product
+namespaces and public delivery paths, with separate product/business ownership.
+Existing administrator and database authorization still applies. A pending
+account must not acquire ownership of catalog media merely through a coincident
+identifier. Product images, model files and model posters must all be included
+in the eventual shared-media inventory and ownership plan before any erasure.
+This correction does not authorize catalog or financial erasure.
+
+Deploy the original write-barrier migration and this correction in one atomic
+installation when neither is installed, journaling both exact sources. Neither
+has been installed on production by this source batch. The tests now include
+parent/uploader columns, legacy reference keys, parent-only retargeting and
+catalog UUID/public-path namespaces, in addition to the actual upload/receipt and
+photo-runner SQL. Real PostgreSQL still checks request/write ordering with two
+connections. The cleanup worker remains disabled.
