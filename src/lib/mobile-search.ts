@@ -19,6 +19,11 @@ export function mobileSearchInput(params: URLSearchParams): ClassifiedBrowseInpu
       normalizeBrowsePage(raw.page) !== Number(raw.page))
   )
     return null;
+  // The website omits its default page from canonical URLs. Validate paging
+  // here, then keep it out of saved-filter validation so an explicit page=1
+  // (used by native filter previews) is not mistaken for an unknown filter.
+  const page = raw.page ? Number(raw.page) : 1;
+  delete raw.page;
   const { input, unsupported } = savedSearchBrowseInput(raw);
-  return unsupported.length ? null : { ...input, mobileCatalog: true };
+  return unsupported.length ? null : { ...input, page, mobileCatalog: true };
 }

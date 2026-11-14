@@ -824,6 +824,25 @@ test("full-filter search never broadens to basic discovery when the catalog read
   assert.equal(result.total, 0);
 });
 
+test("explicit first-page native requests reach the catalog and preserve rejection and fallback boundaries", async () => {
+  const h = harness();
+  const response = await h.request("search?category=cars-trucks&make=Ford&page=1");
+  assert.equal(response.status, 200);
+  assert.equal(h.catalogInputs[0].page, 1);
+  assert.equal(h.catalogInputs[0].make, "Ford");
+  assert.equal(h.catalogInputs[0].mobileCatalog, true);
+  assert.equal((await response.json()).data.incomplete, false);
+  const failed = harness({ catalogError: true });
+  const fallback = await failed.request("search?category=cars-trucks&make=Ford&page=1");
+  assert.equal(fallback.status, 200);
+  assert.equal((await fallback.json()).data.incomplete, true);
+  for (const query of ["page=1&futureFilter=true", "page=1&page=2", "page=0", "page=1.5"])
+    assert.equal((await h.request("search?" + query)).status, 400);
+  const restricted = await h.request("search?category=firearms&page=1");
+  assert.deepEqual((await restricted.json()).data.items, []);
+  assert.equal(h.catalogInputs.length, 1);
+});
+
 test("full search capability is additive for installed clients", async () => {
   const h = harness();
   const result = await h.request("bootstrap");

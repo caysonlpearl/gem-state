@@ -552,6 +552,8 @@ Official release references:
 
 ## Verification and next batches
 
+First-page search correction, November 14: the stable API previously rejected explicit `page=1` because the website canonicalizer intentionally omits that default. This affected native filter count previews and explicit first-page links. The API now validates paging separately from saved inventory filters, preserving page one and later pages without weakening unsupported-filter, duplicate-parameter or permanent app-catalog checks. Regression tests build the real native preview query and exercise the HTTP dispatcher, including catalog failure fallback. This is a backend correction for already-installed apps; no phone reinstall is required after verified backend publication.
+
 Local checks at this milestone: root TypeScript, website production build,
 mobile TypeScript/Vite build, Android debug compile, mobile security/queue/SQL
 tests, the full marketplace test suite, and responsive browser smoke
