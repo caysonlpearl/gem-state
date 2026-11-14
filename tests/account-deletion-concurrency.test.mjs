@@ -296,6 +296,59 @@ test(
         a.query("select record_private_photo($1)", [memberPhotoReceipt(writing)]),
         /Photo account is unavailable/,
       );
+      const activeAuthor = randomUUID();
+      await a.query("insert into auth.users(id) values($1)", [activeAuthor]);
+      for (const scope of [
+        {
+          parent: "sourcing_requests",
+          owner: "buyer_id",
+          media: "request_media",
+          link: "request_id",
+        },
+        {
+          parent: "product_suggestions",
+          owner: "submitted_by",
+          media: "product_suggestion_media",
+          link: "suggestion_id",
+        },
+      ]) {
+        const parent = randomUUID(),
+          media = randomUUID();
+        await a.query(`insert into ${scope.parent}(id,${scope.owner}) values($1,$2)`, [
+          parent,
+          activeAuthor,
+        ]);
+        await a.query("begin");
+        await a.query(`update ${scope.parent} set ${scope.owner}=$2 where id=$1`, [
+          parent,
+          deleting,
+        ]);
+        const reference = b.query(
+          `insert into ${scope.media}(id,${scope.link},storage_path) values($1,$2,'legacy/photo.jpg')`,
+          [media, parent],
+        );
+        reference.catch(() => {});
+        assert.equal(
+          await waitsForLock(),
+          true,
+          "a new reference must wait for a pending parent reassignment",
+        );
+        await a.query("commit");
+        await assert.rejects(reference, /Photo account is unavailable/);
+        assert.equal(
+          (await a.query(`select count(*)::int n from ${scope.media} where id=$1`, [media])).rows[0]
+            .n,
+          0,
+        );
+      }
+      for (const isolation of ["repeatable read", "serializable"]) {
+        await a.query(`begin isolation level ${isolation}`);
+        await assert.rejects(
+          a.query("select record_private_photo($1)", [memberPhotoReceipt(activeAuthor)]),
+          /Photo account is unavailable/,
+        );
+        await a.query("rollback");
+      }
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);
       if (initialized) {

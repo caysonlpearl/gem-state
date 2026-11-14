@@ -87,15 +87,7 @@ test("new cross-account references stop while existing shared rows can be edited
       other = await member(db),
       path = `${user}/photo.jpg`,
       otherPath = `${other}/photo.jpg`;
-    const tables = [
-      "listing_media",
-      "ask_media",
-      "product_images",
-      "product_models",
-      "product_suggestion_media",
-      "request_media",
-      "order_evidence",
-    ];
+    const tables = ["listing_media", "ask_media"];
     const ids = new Map();
     for (const table of tables) {
       const id = randomUUID();
@@ -362,6 +354,140 @@ test("banned, removed and job-only pending accounts cannot add receipts, includi
     }
     const live = await member(db);
     await record(db, live);
+  } finally {
+    await db.close();
+  }
+});
+
+test("catalog and order namespaces do not require an unrelated UUID folder to be an Auth account", async () => {
+  const db = await deletionPhotoWriterDatabase();
+  try {
+    const author = await member(db),
+      product = randomUUID(),
+      order = randomUUID();
+    await db.exec("set role service_role");
+    await db.query("insert into product_images(id,storage_path) values($1,$2)", [
+      randomUUID(),
+      `${product}/image.jpg`,
+    ]);
+    await db.query("insert into product_models(id,storage_path,poster_path) values($1,$2,$3)", [
+      randomUUID(),
+      `${product}/model.glb`,
+      `/api/public/catalog-media/${product}/poster.webp`,
+    ]);
+    await db.query(
+      "insert into order_evidence(id,order_id,uploaded_by,storage_path) values($1,$2,$3,$4)",
+      [randomUUID(), order, author, `${order}/legacy-receipt.jpg`],
+    );
+    await db.exec("reset role");
+    await db.query("select mobile_request_deletion($1)", [author]);
+    // Catalog ids and licenses have separate ownership. Even a coincident UUID
+    // must not become a deleting account's personal folder by assumption.
+    await db.query("insert into product_images(id,storage_path) values($1,$2)", [
+      randomUUID(),
+      `${author}/catalog-image.jpg`,
+    ]);
+    await db.query("insert into product_models(id,storage_path,poster_path) values($1,$2,$3)", [
+      randomUUID(),
+      `/api/public/catalog-media/${author}/model.glb`,
+      `${author}/catalog-poster.jpg`,
+    ]);
+    assert.equal((await db.query("select count(*)::int n from product_images")).rows[0].n, 2);
+    assert.equal((await db.query("select count(*)::int n from product_models")).rows[0].n, 2);
+  } finally {
+    await db.close();
+  }
+});
+
+test("request, suggestion and order media bind actual authors, including legacy keys and parent-only retargeting", async () => {
+  const db = await deletionPhotoWriterDatabase();
+  try {
+    const target = await member(db),
+      other = await member(db),
+      request = randomUUID(),
+      otherRequest = randomUUID(),
+      suggestion = randomUUID(),
+      otherSuggestion = randomUUID();
+    await db.query("insert into sourcing_requests(id,buyer_id) values($1,$2),($3,$4)", [
+      request,
+      target,
+      otherRequest,
+      other,
+    ]);
+    await db.query("insert into product_suggestions(id,submitted_by) values($1,$2),($3,$4)", [
+      suggestion,
+      target,
+      otherSuggestion,
+      other,
+    ]);
+    const relations = [
+      { table: "request_media", column: "request_id", target: request, other: otherRequest },
+      {
+        table: "product_suggestion_media",
+        column: "suggestion_id",
+        target: suggestion,
+        other: otherSuggestion,
+      },
+      { table: "order_evidence", column: "uploaded_by", target, other },
+    ];
+    const ids = new Map();
+    for (const r of relations) {
+      const id = randomUUID();
+      ids.set(r.table, id);
+      await db.query(`insert into ${r.table}(id,${r.column},storage_path) values($1,$2,$3)`, [
+        id,
+        r.target,
+        `legacy/${r.table}.jpg`,
+      ]);
+    }
+    await db.query("select mobile_request_deletion($1)", [target]);
+    for (const r of relations) {
+      const id = ids.get(r.table);
+      await assert.rejects(
+        db.query(
+          `insert into ${r.table}(id,${r.column},storage_path) values($1,$2,'legacy/late.jpg')`,
+          [randomUUID(), r.target],
+        ),
+        unavailable,
+      );
+      await db.query(
+        `update ${r.table} set label='retained evidence',storage_path=storage_path where id=$1`,
+        [id],
+      );
+      await assert.rejects(
+        db.query(`update ${r.table} set ${r.column}=$2 where id=$1`, [id, r.other]),
+        unavailable,
+      );
+      const active = randomUUID();
+      await db.query(
+        `insert into ${r.table}(id,${r.column},storage_path) values($1,$2,'legacy/active.jpg')`,
+        [active, r.other],
+      );
+      await assert.rejects(
+        db.query(`update ${r.table} set ${r.column}=$2 where id=$1`, [active, r.target]),
+        unavailable,
+      );
+      await assert.rejects(
+        db.query(`insert into ${r.table}(id,${r.column},storage_path) values($1,$2,$3)`, [
+          randomUUID(),
+          r.other,
+          `${target}/private.jpg`,
+        ]),
+        unavailable,
+      );
+      await db.query(`delete from ${r.table} where id=$1`, [id]);
+    }
+    await db.exec("set role service_role");
+    await assert.rejects(
+      db.query("select assert_known_member_photo_reference('legacy/file.jpg')"),
+      /permission denied/,
+    );
+    await db.exec("reset role");
+    assert.deepEqual((await db.query("select account_access_coverage() c")).rows[0].c, {
+      unguarded_functions: 0,
+      unguarded_tables: 0,
+      helper_privilege_gaps: 0,
+    });
   } finally {
     await db.close();
   }

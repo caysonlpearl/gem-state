@@ -38,12 +38,22 @@ export async function installDeletionPhotoWriterSchema(db) {
     );
   }
   await db.exec("grant all on seller_claim_transfers,fb_marketplace_import_items to service_role");
+  await db.exec(`
+    create table sourcing_requests(id uuid primary key,buyer_id uuid not null references auth.users(id));
+    create table product_suggestions(id uuid primary key,submitted_by uuid not null references auth.users(id));
+    alter table request_media add column request_id uuid references sourcing_requests(id);
+    alter table product_suggestion_media add column suggestion_id uuid references product_suggestions(id);
+    alter table order_evidence add column order_id uuid,add column uploaded_by uuid references auth.users(id);
+    alter table product_models add column poster_path text;
+    grant select,insert,update,delete on sourcing_requests,product_suggestions to service_role;
+  `);
   for (const name of [
     "20261102100000_private_photo_storage_receipts.sql",
     "20261102110000_bounded_photo_migration_runs.sql",
     "20261102220000_bounded_photo_preview_preparation.sql",
     "20261102230000_reuse_prepared_photo_source.sql",
     "20261114040000_account_deletion_photo_writes.sql",
+    "20261114050000_account_deletion_photo_reference_scope.sql",
   ]) {
     await db.exec(
       readFileSync(new URL("../../supabase/migrations/" + name, import.meta.url), "utf8"),
