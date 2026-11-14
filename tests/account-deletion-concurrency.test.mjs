@@ -95,6 +95,10 @@ test(
       });
       for (const c of [a, b]) {
         await c.query("set statement_timeout='3s'");
+        // Tiny, deliberately unanalysed synthetic tables can trigger costly
+        // LLVM planning on Linux. This gate measures locks and replay, not JIT
+        // compilation; keep its strict query timeout and all lock assertions.
+        await c.query("set jit=off");
         await c.query("select set_config('request.jwt.claim.role','service_role',false)");
       }
       const waitsForLock = async () => {
