@@ -16,6 +16,8 @@ import {
   storageWriterMigration,
 } from "./helpers/account-deletion-storage-database.mjs";
 import { storageProviderMigration } from "./helpers/account-deletion-storage-provider-database.mjs";
+import { r2InventoryMigration } from "./helpers/account-deletion-r2-database.mjs";
+import { createHash } from "node:crypto";
 const exec = promisify(execFile);
 async function binaries() {
   const choices = [];
@@ -581,6 +583,59 @@ test(
           await a.query(
             "select count(*)::int n from account_deletion_storage_pages where scan_id=$1",
             [providerTarget.id],
+          )
+        ).rows[0].n,
+        1,
+      );
+      await a.query("update account_deletion_controls set worker_enabled=false");
+      await a.query(r2InventoryMigration());
+      await a.query(
+        "insert into account_deletion_r2_stores values('listing-media',repeat('a',64)),('ask-evidence',repeat('b',64))",
+      );
+      await a.query("update account_deletion_controls set worker_enabled=true");
+      const r2Target = (
+        await a.query("select prepare_account_deletion_r2_inventory($1,$2,$3) p", providerArgs)
+      ).rows[0].p.target;
+      const r2Metadata = [
+        {
+          key: `original/v1/${createHash("sha256").update(providerPath).digest("hex")}/${"c".repeat(64)}`,
+          sha256: "c".repeat(64),
+          bytes: 100,
+          etag: '"' + "d".repeat(32) + '"',
+          modifiedAt: "2026-11-13T12:00:00.000Z",
+        },
+      ];
+      const r2Args = [
+        ...providerArgs,
+        r2Target.id,
+        r2Target.generation,
+        r2Target.page,
+        null,
+        JSON.stringify(r2Metadata),
+        null,
+        true,
+      ];
+      const r2Sql = "select commit_account_deletion_r2_page($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) p";
+      await a.query("begin");
+      assert.equal((await a.query(r2Sql, r2Args)).rows[0].p, true);
+      const r2Replay = b.query(r2Sql, r2Args);
+      r2Replay.catch(() => {});
+      assert.equal(await waitsForLock(), true, "concurrent R2 pages serialize at the live job");
+      await a.query("commit");
+      assert.equal((await r2Replay).rows[0].p, true);
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from account_deletion_r2_pages where scan_id=$1", [
+            r2Target.id,
+          ])
+        ).rows[0].n,
+        1,
+      );
+      assert.equal(
+        (
+          await a.query(
+            "select count(*)::int n from account_deletion_r2_objects where scan_id=$1",
+            [r2Target.id],
           )
         ).rows[0].n,
         1,
