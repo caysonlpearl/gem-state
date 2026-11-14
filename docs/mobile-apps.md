@@ -863,14 +863,36 @@ Version-only reads do not sign images. Visible rows request one thumbnail each,
 separately from the metadata read. Existing storage signing still needs its
 effective transport timeout checked during production preflight.
 
-Before activation: regain owning-database access; inspect current domain function
-signatures, definitions, privileges, triggers, indexes and capacity; rehearse the
-additive migration and account-boundary checks against that actual schema; apply
-and verify source/capability agreement; then complete authenticated production
-and physical iPhone/Android journeys. Source/browser validation is described below. The fixtures
-execute real transaction/access-boundary SQL with synthetic domain stand-ins.
-They prove rollback, receipt/ownership/session behavior and concurrency, not the
-uninspected production domain definitions or a live seller workspace.
+Before activation: recheck schema drift and deployment prerequisites, rehearse
+the exact additive installation/history transaction, apply and verify
+source/capability agreement, then complete authenticated production and physical
+iPhone/Android journeys. Owner-dashboard access and the real-domain rehearsal
+are now available, as described below. No real seller workspace has been enabled.
+The original transaction fixtures retain explicit domain stand-ins to isolate
+rollback, receipt/ownership/session behavior and concurrency.
+
+A separate November 14 metadata-only capture now supplies the actual affected
+domain function definitions and effective execution grants, enum values, exact
+column types/defaults (including generated columns), core constraints and triggers.
+`mobile-listing-production-domain.test.mjs` installs migration 150000 over those
+definitions in a disposable database. It verifies normal edits and photo counts,
+the corrected high-price vehicle/home helper, job/service arrays and pricing,
+required pet details and free pets, imported-seller edit flags, private/public
+photo requirements on relist, return to moderation, late validation rollback,
+stale revisions, foreign ownership and revoked sessions. An archived import
+source rejects the edit under its existing rule, with no partial listing, event,
+flag or receipt write. It does not bypass that source guard.
+
+`mobile-listing-production-concurrency.test.mjs` additionally runs the captured
+domain on an isolated PostgreSQL server with two real connections. A simultaneous
+retry waits for the original commit and replays one receipt without repeating
+the actual domain event; account-boundary coverage remains zero-gap. It runs in
+the dedicated PostgreSQL CI gate alongside the existing concurrency cases.
+Accounts, sessions and unrelated FK parents are synthetic; seed construction
+temporarily disables insert triggers in this local fixture only, restoring them
+before every tested operation. This is neither a full production clone nor proof
+of create/upload flows, production RLS, authenticated live operations, provider
+capacity, or physical-device seller journeys. No member records are in the capture.
 
 The metadata read uses the verified member client, stable 500-row pages, exact
 counts and a 5,000-row safety bound; incomplete/capped results are unavailable.
