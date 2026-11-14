@@ -17,6 +17,7 @@ import {
 } from "./helpers/account-deletion-storage-database.mjs";
 import { storageProviderMigration } from "./helpers/account-deletion-storage-provider-database.mjs";
 import { r2InventoryMigration } from "./helpers/account-deletion-r2-database.mjs";
+import { installShoppingErasureSources } from "./helpers/account-deletion-shopping-database.mjs";
 import { createHash } from "node:crypto";
 const exec = promisify(execFile);
 async function binaries() {
@@ -643,6 +644,115 @@ test(
           )
         ).rows[0].n,
         1,
+      );
+      await a.query("update account_deletion_controls set worker_enabled=false");
+      await installShoppingErasureSources({
+        exec: (sql) => a.query(sql),
+        query: (sql, args) => a.query(sql, args),
+      });
+      const shoppingUser = randomUUID(),
+        shoppingSubject = "u:" + shoppingUser;
+      await a.query("insert into auth.users(id) values($1)", [shoppingUser]);
+      await a.query(
+        "insert into shopping_privacy(subject,personalization,advertising) values($1,true,true)",
+        [shoppingSubject],
+      );
+      await a.query(
+        "insert into shopping_events(id,subject,user_id,session_id,kind) values($1,$2,$3,$4,'view')",
+        [randomUUID(), shoppingSubject, shoppingUser, randomUUID()],
+      );
+      await a.query("begin");
+      await a.query(
+        "insert into shopping_favorites(subject,listing_id) values($1,'preserved-before-request')",
+        [shoppingSubject],
+      );
+      const shoppingRequest = b.query("select mobile_request_deletion($1)", [shoppingUser]);
+      shoppingRequest.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "a deletion request waits for an earlier shopping writer",
+      );
+      await a.query("commit");
+      await shoppingRequest;
+      await assert.rejects(
+        a.query("insert into shopping_favorites(subject,listing_id) values($1,'late')", [
+          shoppingSubject,
+        ]),
+        /Photo account is unavailable/,
+      );
+      await a.query("update account_deletion_controls set worker_enabled=true");
+      const shoppingJob = (
+        await a.query(
+          "update account_deletion_jobs set phase='records',status='processing',lease_token=gen_random_uuid(),lease_until=clock_timestamp()+interval '5 minutes' where user_id=$1 returning *",
+          [shoppingUser],
+        )
+      ).rows[0];
+      const shoppingArgs = [shoppingJob.id, shoppingUser, shoppingJob.lease_token, "records", 100];
+      const shoppingSql = "select purge_account_deletion_shopping($1,$2,$3,$4,$5) p";
+      await a.query("begin");
+      assert.equal((await a.query(shoppingSql, shoppingArgs)).rows[0].p.source, "shopping_events");
+      const shoppingPause = b.query("update account_deletion_controls set worker_enabled=false");
+      shoppingPause.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "an operator pause waits for the bounded erasure transaction",
+      );
+      await a.query("commit");
+      await shoppingPause;
+      await assert.rejects(a.query(shoppingSql, shoppingArgs), /Shopping erasure unavailable/);
+      await a.query("update account_deletion_controls set worker_enabled=true");
+      await a.query("begin");
+      assert.equal(
+        (await a.query(shoppingSql, shoppingArgs)).rows[0].p.source,
+        "shopping_favorites",
+      );
+      const shoppingConcurrent = b.query(shoppingSql, shoppingArgs);
+      shoppingConcurrent.catch(() => {});
+      assert.equal(await waitsForLock(), true, "concurrent shopping cleanup serializes at the job");
+      await a.query("commit");
+      assert.equal((await shoppingConcurrent).rows[0].p.source, "shopping_privacy");
+      await a.query("begin");
+      await a.query(
+        "insert into shopping_privacy(subject,personalization,advertising) values($1,false,false)",
+        [shoppingSubject],
+      );
+      const identityRemoval = b.query("delete from auth.users where id=$1", [shoppingUser]);
+      identityRemoval.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "Auth removal waits for an already authorized decline write",
+      );
+      await a.query("commit");
+      await identityRemoval;
+      await a.query("update account_deletion_jobs set phase='identity' where id=$1", [
+        shoppingJob.id,
+      ]);
+      assert.equal(
+        (await a.query(shoppingSql, [...shoppingArgs.slice(0, 3), "identity", 100])).rows[0].p
+          .source,
+        "shopping_privacy",
+      );
+      await assert.rejects(
+        a.query(
+          "insert into shopping_privacy(subject,personalization,advertising) values($1,false,false)",
+          [shoppingSubject],
+        ),
+        /Shopping account is unavailable/,
+      );
+      await a.query("update account_deletion_jobs set phase='verification' where id=$1", [
+        shoppingJob.id,
+      ]);
+      assert.equal(
+        (
+          await a.query(
+            "select verify_account_deletion_shopping($1,$2,$3) p",
+            shoppingArgs.slice(0, 3),
+          )
+        ).rows[0].p,
+        true,
       );
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);
