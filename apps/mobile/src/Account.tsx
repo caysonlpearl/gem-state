@@ -2,6 +2,7 @@ import { nativeListingDestination } from "./listing-links";
 import { rememberNativeAuthDestination } from "./auth-destination";
 import { NativeNotifications, useNativeNotifications } from "./Notifications";
 import { NativeSavedSearches } from "./SavedSearches";
+import { NativeAccountSaved } from "./AccountSaved";
 import { NativeAccountOverview } from "./AccountOverview";
 import { saveProfileAvatar } from "./account-media";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -58,9 +59,10 @@ export function NativeAccount({
   controlsReady,
   storefrontsReady = false,
   overviewReady = false,
+  savedReady = false,
 }: {
   ownerId: string;
-  section: "overview" | "profile" | "settings" | "searches" | "notifications";
+  section: "overview" | "profile" | "settings" | "searches" | "notifications" | "saved";
   policyVersion: string;
   onNavigate: (path: string) => void;
   onSignOut: (scope?: "local" | "global") => Promise<void>;
@@ -70,6 +72,7 @@ export function NativeAccount({
   controlsReady: boolean;
   storefrontsReady?: boolean;
   overviewReady?: boolean;
+  savedReady?: boolean;
 }) {
   const inbox = useNativeNotifications();
   const actor = useMemo(() => ({ userId: ownerId, installId: installIdentifier() }), [ownerId]);
@@ -80,7 +83,7 @@ export function NativeAccount({
     [version, setVersion] = useState(0);
   const locked = useRef(false);
   useEffect(() => {
-    if (section === "notifications" || section === "overview") return;
+    if (["notifications", "overview", "saved"].includes(section)) return;
     if (!controlsReady) {
       setError("Account controls are temporarily unavailable. Please retry shortly.");
       return;
@@ -271,7 +274,7 @@ export function NativeAccount({
       unreadNotifications={inbox.data?.unread ?? 0}
       signOutBusy={Boolean(busy) || signOutBusy}
     >
-      {section !== "notifications" && section !== "overview" && error && (
+      {section !== "notifications" && section !== "overview" && section !== "saved" && error && (
         <div
           className="mb-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
           role="alert"
@@ -298,12 +301,14 @@ export function NativeAccount({
           )}
         </div>
       )}
-      {section !== "notifications" && section !== "overview" && notice && (
+      {section !== "notifications" && section !== "overview" && section !== "saved" && notice && (
         <p className="mb-5 rounded-xl border border-border bg-card p-4 text-sm" role="status">
           {notice}
         </p>
       )}
-      {section === "overview" && overviewReady && controlsReady ? (
+      {section === "saved" && savedReady ? (
+        <NativeAccountSaved ownerId={ownerId} onNavigate={onNavigate} />
+      ) : section === "overview" && overviewReady && controlsReady ? (
         <NativeAccountOverview ownerId={ownerId} onSelect={selectSection} link={AccountLink} />
       ) : section === "overview" ? (
         <p role="alert" className="text-sm">

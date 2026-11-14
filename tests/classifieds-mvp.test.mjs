@@ -79,6 +79,8 @@ const accountCenterSource =
   (await read("src/components/account/AccountOverviewView.tsx")) +
   "\n" +
   (await read("src/components/account/SavedSearchesSectionView.tsx")) +
+  (await read("src/components/account/SavedListingsSectionView.tsx")) +
+  (await read("src/components/account/SavedPartnerSectionView.tsx")) +
   (await read("src/components/account/AccountProfileView.tsx")) +
   (await read("src/components/account/AccountSettingsView.tsx")) +
   (await read("src/components/account/AccountLayoutView.tsx")) +

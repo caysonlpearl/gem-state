@@ -375,7 +375,12 @@ function Application() {
   const needsTerms =
     session && account && bootstrap && account.consent.terms_version !== bootstrap.policyVersion;
   return (
-    <SavedCardsProvider userId={session?.user.id ?? null} revision={revision} onError={setError}>
+    <SavedCardsProvider
+      userId={session?.user.id ?? null}
+      revision={revision}
+      accountSaved={bootstrap?.features.accountSaved === true}
+      onError={setError}
+    >
       <SavedSearchActions
         owner={session?.user.id}
         ready={bootstrap?.features.durableSavedSearches === true}
@@ -597,24 +602,29 @@ function Application() {
                   onOpen={(id) => go(`/messages/${id}`)}
                   onBrowse={() => go("/search")}
                 />
-              ) : path.startsWith("/account") ? (
+              ) : path.startsWith("/account") ||
+                (path === "/saved" && bootstrap.features.accountSaved === true) ? (
                 <NativeAccount
                   controlsReady={bootstrap.features.accountControls === true}
                   storefrontsReady={bootstrap.features.storefronts === true}
                   overviewReady={bootstrap.features.accountOverview === true}
+                  savedReady={bootstrap.features.accountSaved === true}
                   key={session!.user.id}
                   ownerId={session!.user.id}
                   section={
-                    path === "/account/settings"
-                      ? "settings"
-                      : path === "/account/notifications"
-                        ? "notifications"
-                        : path === "/account/searches"
-                          ? "searches"
-                          : ["/account", "/account/overview"].includes(path) &&
-                              bootstrap.features.accountOverview === true
-                            ? "overview"
-                            : "profile"
+                    ["/saved", "/account/saved"].includes(path) &&
+                    bootstrap.features.accountSaved === true
+                      ? "saved"
+                      : path === "/account/settings"
+                        ? "settings"
+                        : path === "/account/notifications"
+                          ? "notifications"
+                          : path === "/account/searches"
+                            ? "searches"
+                            : ["/account", "/account/overview"].includes(path) &&
+                                bootstrap.features.accountOverview === true
+                              ? "overview"
+                              : "profile"
                   }
                   policyVersion={bootstrap.policyVersion}
                   onNavigate={go}

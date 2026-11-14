@@ -65,14 +65,6 @@ export type WatchedVariant = {
   sightingCount: number;
 };
 
-function variantLabel(
-  v: { size: string | null; color: string | null; edition: string | null } | null,
-) {
-  if (!v) return "One variation";
-  const parts = [v.size, v.color, v.edition].filter(Boolean) as string[];
-  return parts.length > 0 ? parts.join(" · ") : "One variation";
-}
-
 /* ------------------------------------------------------------------ sightings */
 
 /** Public, identity-free sighting feed for one variation. */
@@ -272,73 +264,11 @@ export const setWatchState = createServerFn({ method: "POST" })
 export const getMyWatchlist = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<WatchedVariant[]> => {
-    const { data: rows, error } = await context.supabase
-      .from("watchlist")
-      .select(
-        "variant_id, created_at, product_variants!inner(id, size, color, edition, products!inner(slug, name, categories(name)))",
-      )
-      .eq("user_id", context.userId)
-      .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-
-    const variantIds = (rows ?? []).map((r) => r.variant_id as string);
-    if (variantIds.length === 0) return [];
-
-    const client = publicServerClient();
-    const [{ data: markets }, { data: sightings }, { data: classifiedListings }] =
-      await Promise.all([
-        client
-          .from("variant_market_summary")
-          .select(
-            "variant_id, lowest_ask_cents, highest_bid_cents, active_ask_count, active_bid_count",
-          )
-          .in("variant_id", variantIds),
-        client.from("variant_sightings_public").select("variant_id").in("variant_id", variantIds),
-        client
-          .from("asks")
-          .select("id,variant_id,products!inner(status)")
-          .in("variant_id", variantIds)
-          .eq("status", "active")
-          .eq("is_demo", false)
-          .not("approved_at", "is", null)
-          .gt("expires_at", new Date().toISOString())
-          .eq("products.status", "published")
-          .limit(100),
-      ]);
-
-    const marketByVariant = new Map((markets ?? []).map((m) => [m.variant_id as string, m]));
-    const sightingCounts = new Map<string, number>();
-    for (const s of sightings ?? []) {
-      const key = s.variant_id as string;
-      sightingCounts.set(key, (sightingCounts.get(key) ?? 0) + 1);
-    }
-    const listingByVariant = new Map(
-      (classifiedListings ?? []).map((row) => [row.variant_id as string, row.id as string]),
+    return (await import("./account-saved.server")).loadAccountWatchlist(
+      context.supabase,
+      publicServerClient(),
+      context.userId,
     );
-
-    return (rows ?? []).map((r) => {
-      const variant = r.product_variants as unknown as {
-        size: string | null;
-        color: string | null;
-        edition: string | null;
-        products: { slug: string; name: string; categories?: { name: string } | null };
-      };
-      const market = marketByVariant.get(r.variant_id as string);
-      return {
-        variantId: r.variant_id as string,
-        listingId: listingByVariant.get(r.variant_id as string) ?? null,
-        productSlug: variant.products.slug,
-        productName: variant.products.name,
-        categoryName: variant.products.categories?.name ?? null,
-        variantLabel: variantLabel(variant),
-        createdAt: r.created_at as string,
-        lowestAskCents: (market?.lowest_ask_cents as number | null) ?? null,
-        highestBidCents: (market?.highest_bid_cents as number | null) ?? null,
-        activeAskCount: Number(market?.active_ask_count ?? 0),
-        activeBidCount: Number(market?.active_bid_count ?? 0),
-        sightingCount: sightingCounts.get(r.variant_id as string) ?? 0,
-      };
-    });
   });
 
 /* --------------------------------------------------------- product suggestion */

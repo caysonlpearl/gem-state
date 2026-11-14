@@ -45,6 +45,7 @@ function harness({
   dealerReplay = false,
   reviewBlocked = false,
   scopedDealerConversation = false,
+  legacySavedCount = 0,
 } = {}) {
   const user = "11111111-1111-4111-8111-111111111111",
     nativeListing = "22222222-2222-4222-8222-222222222222",
@@ -204,6 +205,21 @@ function harness({
     "./mobile-message-context.server": messageContext,
     "./mobile-write": mobileWrite,
     "./mobile-account-contract": accountContracts,
+    "./supabase-public.server": { publicServerClient: () => db },
+    "./account-saved.server": {
+      loadMobileSavedAccount: async (_client, _public, ownerId) => {
+        reads.push({ table: "account-saved", ownerId });
+        return { ownerId, watched: [], jobs: [], homes: [], vehicles: [] };
+      },
+      removeAccountSavedPartner: async (_client, ownerId, listingId) => {
+        writes.push({ kind: "remove-partner", ownerId, listingId });
+        return { removed: true };
+      },
+      removeAccountSavedVariants: async (_client, ownerId, variantIds) => {
+        writes.push({ kind: "remove-saved", ownerId, variantIds });
+        return { removed: true };
+      },
+    },
     "./mobile-account-overview.server": {
       loadMobileAccountOverview: async (_client, ownerId) => {
         reads.push({ table: "overview", ownerId });
@@ -384,7 +400,14 @@ function harness({
         return { status: "pending" };
       },
     },
+    "./community.functions": {
+      getMyWatchlist: async () =>
+        Array.from({ length: legacySavedCount }, (_, i) => ({ listingId: "dealerfeed-" + i })),
+    },
+    "./saved-vehicles.functions": { getMySavedPartnerVehicles: async () => [] },
+    "./saved-homes.functions": { getMySavedPartnerHomes: async () => [] },
     "./saved-jobs.functions": {
+      getMySavedPartnerJobs: async () => [],
       setPartnerJobSaved: async ({ data }) => {
         writes.push({ kind: "partner_save", ...data });
         return { saved: data.saved };
@@ -888,6 +911,69 @@ test("account overview is additive and derives its identity from verified authen
   assert.equal((await (await h.request("bootstrap")).json()).data.features.accountOverview, true);
 });
 
+test("legacy flat saves keep their detail-read ceiling and explicitly identify a selection", async () => {
+  const h = harness({ legacySavedCount: 101 });
+  const response = await h.request("saved");
+  assert.equal(response.status, 200);
+  const data = (await response.json()).data;
+  assert.equal(data.items.length, 100);
+  assert.equal(data.incomplete, true);
+  assert.equal(data.selection, true);
+});
+
+test("saved-account reads and removals derive identity, preserve their additive capability and reject caller-owned scopes", async () => {
+  const h = harness();
+  for (const method of ["GET", "DELETE"])
+    assert.equal(
+      (
+        await h.request(
+          "account/saved",
+          method,
+          method === "DELETE" ? { variantIds: [h.user] } : undefined,
+          null,
+        )
+      ).status,
+      401,
+    );
+  const r = await h.request("account/saved?ownerId=victim");
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).data.ownerId, h.user);
+  assert.deepEqual(
+    h.reads.find((r) => r.table === "account-saved"),
+    { table: "account-saved", ownerId: h.user },
+  );
+  assert.equal((await (await h.request("bootstrap")).json()).data.features.accountSaved, true);
+  assert.equal((await h.request("account/saved", "DELETE", { variantIds: [h.user] })).status, 200);
+  assert.deepEqual(
+    h.writes.find((w) => w.kind === "remove-saved"),
+    { kind: "remove-saved", ownerId: h.user, variantIds: [h.user] },
+  );
+  const before = h.writes.length;
+  for (const body of [
+    { variantIds: [] },
+    { variantIds: ["bad"] },
+    { variantIds: [h.user], ownerId: "victim" },
+    { variantIds: Array(101).fill(h.user) },
+  ])
+    assert.equal((await h.request("account/saved", "DELETE", body)).status, 400);
+  assert.equal(h.writes.length, before);
+});
+
+test("owned partner removals remain available without current terms or a live listing and reject prohibited/unknown sources", async () => {
+  const h = harness({ terms: false });
+  const response = await h.request("account/saved/partner", "DELETE", {
+    listingId: "marketcheck-dealer-retired",
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(h.writes, [
+    { kind: "remove-partner", ownerId: h.user, listingId: "marketcheck-dealer-retired" },
+  ]);
+  for (const listingId of ["avantlink-1", "unknown-1", "firearms"]) {
+    assert.equal((await h.request("account/saved/partner", "DELETE", { listingId })).status, 400);
+  }
+  assert.equal(h.writes.length, 1);
+});
+
 test("saved-search dispatch authenticates reads, keeps reads during write outage and enforces server-owned scope", async () => {
   const off = harness();
   assert.equal((await off.request("saved-searches", "GET", undefined, null)).status, 401);
@@ -1257,6 +1343,9 @@ test("deletion-pending identities cannot read or mutate private native routes, w
   for (const [path, method, body] of [
     ["account", "GET"],
     ["account/overview", "GET"],
+    ["account/saved", "GET"],
+    ["account/saved/partner", "DELETE", { listingId: "marketcheck-dealer-retired" }],
+    ["account/saved", "DELETE", { variantIds: [h.user] }],
     ["conversations", "GET"],
     ["notifications", "GET"],
     ["saved", "GET"],
