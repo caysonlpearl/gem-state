@@ -76,6 +76,7 @@ const sellingSource = await read("src/routes/_authenticated/selling.tsx");
 const accountSource = await read("src/routes/_authenticated/account.tsx");
 const accountCenterSource =
   (await read("src/components/account/AccountCenter.tsx")) +
+  (await read("src/components/account/AccountOverviewView.tsx")) +
   "\n" +
   (await read("src/components/account/SavedSearchesSectionView.tsx")) +
   (await read("src/components/account/AccountProfileView.tsx")) +
