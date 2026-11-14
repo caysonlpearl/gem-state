@@ -1,6 +1,6 @@
 # Bluebird native apps: implementation and release ledger
 
-Updated November 13, 2026. This is a source/build milestone, not store approval or a completed beta.
+Updated November 14, 2026. This ledger distinguishes verified implementation from store approval and a completed beta.
 
 ## Current result
 
@@ -905,3 +905,35 @@ identical. These are controlled fixture observations, not real-phone timings or
 a production-capacity claim. The existing native design, website, backend API,
 catalog controls and selected icon remain unchanged. Signed builds, actual
 device journeys and production launch checks still require their own evidence.
+
+## Registration-safe push cleanup — November 14, 2026
+
+An APNs invalidation response previously removed a matching device row by ID and
+owner alone. The same token can be registered again while the request is in
+flight. Cleanup now reads the registration timestamp, preserves APNs' millisecond
+invalidation timestamp, and removes only the exact ID/owner/token/timestamp
+version used for that send. A later registration survives. The original logical
+delivery is retried under its existing ID and rechecks consent, ownership,
+unread state, catalog eligibility and lease before another handoff.
+
+Both APNs 410 Unregistered and ExpiredToken are handled. A missing or malformed
+invalidation timestamp cannot authorize removal. FCM UNREGISTERED cleanup uses
+the same exact-registration comparison without inventing an APNs timestamp.
+Failed cleanup retains the registration and follows the existing bounded retry
+policy. Synthetic tests cover renewal during provider I/O, newer registrations,
+malformed APNs failures, the unchanged invalid device, Android invalidation and
+cleanup failure. No provider credentials, push activation, real send, schema
+change or phone reinstall is part of this batch. Actual APNs/FCM device delivery
+remains a release gate.
+
+The existing owner dashboard session was usable even though the CLI connection
+listed only other projects and Lovable's query endpoint rejected this external
+database. A fresh metadata-only read verified GemList Pro, 299,584,659 database
+bytes and 26 connections of 60. These point observations do not measure request
+latency, egress, workload capacity or future headroom. Installed deletion
+migrations still end at 20261113130000; the later erasure inventory and listing
+management migrations need their own schema preflight and rehearsal. No member
+records were queried or deleted by this inspection.
+
+References: [Apple APNs responses](https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns),
+[Firebase token management](https://firebase.google.com/docs/cloud-messaging/manage-tokens).
