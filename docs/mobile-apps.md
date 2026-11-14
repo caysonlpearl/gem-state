@@ -1068,3 +1068,27 @@ records were queried or deleted by this inspection.
 
 References: [Apple APNs responses](https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns),
 [Firebase token management](https://firebase.google.com/docs/cloud-messaging/manage-tokens).
+
+## Internal listing-detail helper access — November 14, 2026
+
+Metadata inspection found explicit anonymous/member execution grants on the
+internal category and pet detail helpers. Their existing migrations had revoked
+PUBLIC, which does not remove separately granted roles. These helpers belong
+behind the owner-checked create/edit functions, rather than direct member RPCs.
+
+Migration `20261114180000_classified_detail_helper_permissions.sql` revokes
+PUBLIC, `anon` and `authenticated` execution while preserving existing
+`service_role` and definer-owner execution. It pins both inspected function bodies
+and their account-boundary registration, checks zero access gaps, and refuses
+unexpected definition/service-access drift. It checks every discovered direct
+caller remains a definer with real execution rights after tightening. Any failed
+check rolls back all permission changes; reapplication is safe. Function source,
+ownership, signatures, attributes and listing records remain intact.
+
+Tests execute the captured helper definitions and detail constraints in disposable
+databases with synthetic accounts. They cover explicit-role and PUBLIC grants,
+direct guest/member denial, retained owner-checked calls, unchanged function
+metadata, idempotence and rollback on unknown callers/definition/access drift.
+No real listing is modified to demonstrate this permission issue or its repair.
+The larger native Listings rollout and real-device seller journeys remain
+separate release work.

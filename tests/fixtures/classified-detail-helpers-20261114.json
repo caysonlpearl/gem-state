@@ -1,0 +1,754 @@
+{
+  "capturedAt": "2026-11-14",
+  "scope": "Actual internal helper definitions and detail table types/constraints only. Synthetic callers and accounts in permission tests. No member records.",
+  "functions": [
+    {
+      "kind": "function",
+      "name": "_apply_classified_category_details(uuid,jsonb,jsonb,jsonb)",
+      "definition": {
+        "body_md5": "5c828c65bc7efa360a626d3727756844",
+        "definition": "CREATE OR REPLACE FUNCTION public._apply_classified_category_details(_listing_id uuid, _home jsonb DEFAULT '{}'::jsonb, _job jsonb DEFAULT '{}'::jsonb, _service jsonb DEFAULT '{}'::jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  home_bedrooms_value numeric;\n  home_bathrooms_value numeric;\n  home_square_feet_value integer;\n  home_year_built_value smallint;\n  home_acres_value numeric;\n  job_pay_min_value numeric;\n  job_pay_max_value numeric;\n  service_price_max_value integer;\nBEGIN\n  BEGIN\n    home_bedrooms_value := nullif(_home->>'bedrooms', '')::numeric;\n    home_bathrooms_value := nullif(_home->>'bathrooms', '')::numeric;\n    home_square_feet_value := nullif(_home->>'squareFeet', '')::integer;\n    home_year_built_value := nullif(_home->>'yearBuilt', '')::smallint;\n    home_acres_value := NULLIF(regexp_replace(_home->>'acreage', '[^0-9.]', '', 'g'), '')::numeric;\n    job_pay_min_value := nullif(_job->>'payMin', '')::numeric;\n    job_pay_max_value := nullif(_job->>'payMax', '')::numeric;\n    service_price_max_value := nullif(_service->>'priceMaxCents', '')::integer;\n  EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n    RAISE EXCEPTION 'Home, job, or service numeric fields must be valid numbers';\n  END;\n\n  UPDATE public.classified_listing_details\n  SET\n    home_mode = nullif(btrim(_home->>'mode'), ''),\n    home_property_type = nullif(btrim(_home->>'propertyType'), ''),\n    home_bedrooms = home_bedrooms_value,\n    home_bathrooms = home_bathrooms_value,\n    home_square_feet = home_square_feet_value,\n    home_year_built = home_year_built_value,\n    home_acreage = nullif(btrim(_home->>'acreage'), ''),\n    home_acres = home_acres_value,\n    home_heating = nullif(btrim(_home->>'heating'), ''),\n    home_cooling = nullif(btrim(_home->>'cooling'), ''),\n    home_garage_parking = nullif(btrim(_home->>'garageParking'), ''),\n    home_yard = nullif(btrim(_home->>'yard'), ''),\n    home_appliances_included = nullif(btrim(_home->>'appliancesIncluded'), ''),\n    home_floor_coverings = nullif(btrim(_home->>'floorCoverings'), ''),\n    home_basement_type = nullif(btrim(_home->>'basementType'), ''),\n    home_exterior_material = nullif(btrim(_home->>'exteriorMaterial'), ''),\n    home_special_features = nullif(btrim(_home->>'specialFeatures'), ''),\n    home_hoa_fees = nullif(btrim(_home->>'hoaFees'), ''),\n    home_school_district = nullif(btrim(_home->>'schoolDistrict'), ''),\n    home_lease_length = nullif(btrim(_home->>'leaseLength'), ''),\n    home_available = nullif(btrim(_home->>'available'), ''),\n    home_pets_policy = nullif(btrim(_home->>'pets'), ''),\n    home_smoking_policy = nullif(btrim(_home->>'smoking'), ''),\n    home_open_house = nullif(btrim(_home->>'openHouse'), ''),\n    job_category = nullif(btrim(_job->>'category'), ''),\n    job_employer_name = nullif(btrim(_job->>'employerName'), ''),\n    job_employer_address = nullif(btrim(_job->>'employerAddress'), ''),\n    job_pay_type = nullif(btrim(_job->>'payType'), ''),\n    job_pay_min = job_pay_min_value,\n    job_pay_max = job_pay_max_value,\n    job_employment_type = nullif(btrim(_job->>'employmentType'), ''),\n    job_experience_required = nullif(btrim(_job->>'experienceRequired'), ''),\n    job_education_level = nullif(btrim(_job->>'educationLevel'), ''),\n    job_responsibilities = CASE WHEN jsonb_typeof(_job->'responsibilities') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_job->'responsibilities') AS value)\n      ELSE NULL END,\n    job_qualifications = CASE WHEN jsonb_typeof(_job->'qualifications') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_job->'qualifications') AS value)\n      ELSE NULL END,\n    service_subcategory = nullif(btrim(_service->>'subcategory'), ''),\n    service_area = nullif(btrim(_service->>'serviceArea'), ''),\n    service_availability = nullif(btrim(_service->>'availability'), ''),\n    service_business_address = nullif(btrim(_service->>'businessAddress'), ''),\n    service_license_number = nullif(btrim(_service->>'licenseNumber'), ''),\n    service_license_lookup_url = nullif(btrim(_service->>'licenseLookupUrl'), ''),\n    service_offerings = CASE WHEN jsonb_typeof(_service->'offerings') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_service->'offerings') AS value)\n      ELSE NULL END,\n    service_pricing_type = nullif(btrim(_service->>'pricingType'), ''),\n    service_price_max_cents = service_price_max_value\n  WHERE listing_id = _listing_id;\nEND;\nEND;$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public._apply_classified_category_details(_listing_id uuid, _home jsonb DEFAULT '{}'::jsonb, _job jsonb DEFAULT '{}'::jsonb, _service jsonb DEFAULT '{}'::jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE\n  home_bedrooms_value numeric;\n  home_bathrooms_value numeric;\n  home_square_feet_value integer;\n  home_year_built_value smallint;\n  home_acres_value numeric;\n  job_pay_min_value numeric;\n  job_pay_max_value numeric;\n  service_price_max_value integer;\nBEGIN\n  BEGIN\n    home_bedrooms_value := nullif(_home->>'bedrooms', '')::numeric;\n    home_bathrooms_value := nullif(_home->>'bathrooms', '')::numeric;\n    home_square_feet_value := nullif(_home->>'squareFeet', '')::integer;\n    home_year_built_value := nullif(_home->>'yearBuilt', '')::smallint;\n    home_acres_value := NULLIF(regexp_replace(_home->>'acreage', '[^0-9.]', '', 'g'), '')::numeric;\n    job_pay_min_value := nullif(_job->>'payMin', '')::numeric;\n    job_pay_max_value := nullif(_job->>'payMax', '')::numeric;\n    service_price_max_value := nullif(_service->>'priceMaxCents', '')::integer;\n  EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n    RAISE EXCEPTION 'Home, job, or service numeric fields must be valid numbers';\n  END;\n\n  UPDATE public.classified_listing_details\n  SET\n    home_mode = nullif(btrim(_home->>'mode'), ''),\n    home_property_type = nullif(btrim(_home->>'propertyType'), ''),\n    home_bedrooms = home_bedrooms_value,\n    home_bathrooms = home_bathrooms_value,\n    home_square_feet = home_square_feet_value,\n    home_year_built = home_year_built_value,\n    home_acreage = nullif(btrim(_home->>'acreage'), ''),\n    home_acres = home_acres_value,\n    home_heating = nullif(btrim(_home->>'heating'), ''),\n    home_cooling = nullif(btrim(_home->>'cooling'), ''),\n    home_garage_parking = nullif(btrim(_home->>'garageParking'), ''),\n    home_yard = nullif(btrim(_home->>'yard'), ''),\n    home_appliances_included = nullif(btrim(_home->>'appliancesIncluded'), ''),\n    home_floor_coverings = nullif(btrim(_home->>'floorCoverings'), ''),\n    home_basement_type = nullif(btrim(_home->>'basementType'), ''),\n    home_exterior_material = nullif(btrim(_home->>'exteriorMaterial'), ''),\n    home_special_features = nullif(btrim(_home->>'specialFeatures'), ''),\n    home_hoa_fees = nullif(btrim(_home->>'hoaFees'), ''),\n    home_school_district = nullif(btrim(_home->>'schoolDistrict'), ''),\n    home_lease_length = nullif(btrim(_home->>'leaseLength'), ''),\n    home_available = nullif(btrim(_home->>'available'), ''),\n    home_pets_policy = nullif(btrim(_home->>'pets'), ''),\n    home_smoking_policy = nullif(btrim(_home->>'smoking'), ''),\n    home_open_house = nullif(btrim(_home->>'openHouse'), ''),\n    job_category = nullif(btrim(_job->>'category'), ''),\n    job_employer_name = nullif(btrim(_job->>'employerName'), ''),\n    job_employer_address = nullif(btrim(_job->>'employerAddress'), ''),\n    job_pay_type = nullif(btrim(_job->>'payType'), ''),\n    job_pay_min = job_pay_min_value,\n    job_pay_max = job_pay_max_value,\n    job_employment_type = nullif(btrim(_job->>'employmentType'), ''),\n    job_experience_required = nullif(btrim(_job->>'experienceRequired'), ''),\n    job_education_level = nullif(btrim(_job->>'educationLevel'), ''),\n    job_responsibilities = CASE WHEN jsonb_typeof(_job->'responsibilities') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_job->'responsibilities') AS value)\n      ELSE NULL END,\n    job_qualifications = CASE WHEN jsonb_typeof(_job->'qualifications') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_job->'qualifications') AS value)\n      ELSE NULL END,\n    service_subcategory = nullif(btrim(_service->>'subcategory'), ''),\n    service_area = nullif(btrim(_service->>'serviceArea'), ''),\n    service_availability = nullif(btrim(_service->>'availability'), ''),\n    service_business_address = nullif(btrim(_service->>'businessAddress'), ''),\n    service_license_number = nullif(btrim(_service->>'licenseNumber'), ''),\n    service_license_lookup_url = nullif(btrim(_service->>'licenseLookupUrl'), ''),\n    service_offerings = CASE WHEN jsonb_typeof(_service->'offerings') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_service->'offerings') AS value)\n      ELSE NULL END,\n    service_pricing_type = nullif(btrim(_service->>'pricingType'), ''),\n    service_price_max_cents = service_price_max_value\n  WHERE listing_id = _listing_id;\nEND;\n$function$\n",
+        "registered_body_md5": "5c828c65bc7efa360a626d3727756844"
+      }
+    },
+    {
+      "kind": "function",
+      "name": "_apply_classified_pet_details(uuid,jsonb)",
+      "definition": {
+        "body_md5": "ad2bc12f4bb71a6777a7d04f7aec958d",
+        "definition": "CREATE OR REPLACE FUNCTION public._apply_classified_pet_details(_listing_id uuid, _pet jsonb DEFAULT '{}'::jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  category_slug text;\nBEGIN\n  SELECT c.slug INTO category_slug\n  FROM public.asks a\n  JOIN public.products p ON p.id = a.product_id\n  JOIN public.categories c ON c.id = p.category_id\n  WHERE a.id = _listing_id;\n\n  IF category_slug = 'pets' AND (\n    nullif(btrim(_pet->>'subcategory'), '') IS NULL\n    OR nullif(btrim(_pet->>'species'), '') IS NULL\n    OR nullif(btrim(_pet->>'placementType'), '') IS NULL\n    OR nullif(btrim(_pet->>'offeredBy'), '') IS NULL\n  ) THEN\n    RAISE EXCEPTION 'Pet subcategory, species, placement type, and offered by are required';\n  END IF;\n\n  UPDATE public.classified_listing_details\n  SET\n    pet_subcategory = nullif(btrim(_pet->>'subcategory'), ''),\n    pet_species = nullif(btrim(_pet->>'species'), ''),\n    pet_breed = nullif(btrim(_pet->>'breed'), ''),\n    pet_name = nullif(btrim(_pet->>'name'), ''),\n    pet_age = nullif(btrim(_pet->>'age'), ''),\n    pet_sex = nullif(btrim(_pet->>'sex'), ''),\n    pet_placement_type = nullif(btrim(_pet->>'placementType'), ''),\n    pet_offered_by = nullif(btrim(_pet->>'offeredBy'), ''),\n    pet_hypoallergenic = nullif(btrim(_pet->>'hypoallergenic'), ''),\n    pet_vaccinated = nullif(btrim(_pet->>'vaccinated'), ''),\n    pet_spayed_neutered = nullif(btrim(_pet->>'spayedNeutered'), ''),\n    pet_microchipped = nullif(btrim(_pet->>'microchipped'), ''),\n    pet_records_available = nullif(btrim(_pet->>'recordsAvailable'), ''),\n    pet_good_with_kids = nullif(btrim(_pet->>'goodWithKids'), ''),\n    pet_good_with_dogs = nullif(btrim(_pet->>'goodWithDogs'), ''),\n    pet_good_with_cats = nullif(btrim(_pet->>'goodWithCats'), ''),\n    pet_indoor_outdoor = nullif(btrim(_pet->>'indoorOutdoor'), ''),\n    pet_special_needs = nullif(btrim(_pet->>'specialNeeds'), ''),\n    pet_breeding_terms = nullif(btrim(_pet->>'breedingTerms'), '')\n  WHERE listing_id = _listing_id;\nEND;\nEND;$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public._apply_classified_pet_details(_listing_id uuid, _pet jsonb DEFAULT '{}'::jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE\n  category_slug text;\nBEGIN\n  SELECT c.slug INTO category_slug\n  FROM public.asks a\n  JOIN public.products p ON p.id = a.product_id\n  JOIN public.categories c ON c.id = p.category_id\n  WHERE a.id = _listing_id;\n\n  IF category_slug = 'pets' AND (\n    nullif(btrim(_pet->>'subcategory'), '') IS NULL\n    OR nullif(btrim(_pet->>'species'), '') IS NULL\n    OR nullif(btrim(_pet->>'placementType'), '') IS NULL\n    OR nullif(btrim(_pet->>'offeredBy'), '') IS NULL\n  ) THEN\n    RAISE EXCEPTION 'Pet subcategory, species, placement type, and offered by are required';\n  END IF;\n\n  UPDATE public.classified_listing_details\n  SET\n    pet_subcategory = nullif(btrim(_pet->>'subcategory'), ''),\n    pet_species = nullif(btrim(_pet->>'species'), ''),\n    pet_breed = nullif(btrim(_pet->>'breed'), ''),\n    pet_name = nullif(btrim(_pet->>'name'), ''),\n    pet_age = nullif(btrim(_pet->>'age'), ''),\n    pet_sex = nullif(btrim(_pet->>'sex'), ''),\n    pet_placement_type = nullif(btrim(_pet->>'placementType'), ''),\n    pet_offered_by = nullif(btrim(_pet->>'offeredBy'), ''),\n    pet_hypoallergenic = nullif(btrim(_pet->>'hypoallergenic'), ''),\n    pet_vaccinated = nullif(btrim(_pet->>'vaccinated'), ''),\n    pet_spayed_neutered = nullif(btrim(_pet->>'spayedNeutered'), ''),\n    pet_microchipped = nullif(btrim(_pet->>'microchipped'), ''),\n    pet_records_available = nullif(btrim(_pet->>'recordsAvailable'), ''),\n    pet_good_with_kids = nullif(btrim(_pet->>'goodWithKids'), ''),\n    pet_good_with_dogs = nullif(btrim(_pet->>'goodWithDogs'), ''),\n    pet_good_with_cats = nullif(btrim(_pet->>'goodWithCats'), ''),\n    pet_indoor_outdoor = nullif(btrim(_pet->>'indoorOutdoor'), ''),\n    pet_special_needs = nullif(btrim(_pet->>'specialNeeds'), ''),\n    pet_breeding_terms = nullif(btrim(_pet->>'breedingTerms'), '')\n  WHERE listing_id = _listing_id;\nEND;\n$function$\n",
+        "registered_body_md5": "ad2bc12f4bb71a6777a7d04f7aec958d"
+      }
+    }
+  ],
+  "detailsColumns": [
+    {
+      "name": "listing_id",
+      "default": null,
+      "identity": "",
+      "nullable": false,
+      "sql_type": "uuid",
+      "generated": ""
+    },
+    {
+      "name": "region",
+      "default": null,
+      "identity": "",
+      "nullable": false,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "city",
+      "default": null,
+      "identity": "",
+      "nullable": false,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "postal_code",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "fulfillment_mode",
+      "default": null,
+      "identity": "",
+      "nullable": false,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "vehicle_make",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "vehicle_model",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "vehicle_year",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "smallint",
+      "generated": ""
+    },
+    {
+      "name": "vehicle_trim",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "vehicle_mileage",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "integer",
+      "generated": ""
+    },
+    {
+      "name": "vehicle_body_style",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "vehicle_transmission",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "vehicle_drivetrain",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "vehicle_fuel_type",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "vehicle_exterior_color",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "vehicle_title_status",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "vin",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "created_at",
+      "default": "now()",
+      "identity": "",
+      "nullable": false,
+      "sql_type": "timestamp with time zone",
+      "generated": ""
+    },
+    {
+      "name": "updated_at",
+      "default": "now()",
+      "identity": "",
+      "nullable": false,
+      "sql_type": "timestamp with time zone",
+      "generated": ""
+    },
+    {
+      "name": "state",
+      "default": "'ID'::text",
+      "identity": "",
+      "nullable": false,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_mode",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_property_type",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_bedrooms",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "numeric(4,1)",
+      "generated": ""
+    },
+    {
+      "name": "home_bathrooms",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "numeric(4,1)",
+      "generated": ""
+    },
+    {
+      "name": "home_square_feet",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "integer",
+      "generated": ""
+    },
+    {
+      "name": "home_year_built",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "smallint",
+      "generated": ""
+    },
+    {
+      "name": "home_acreage",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_heating",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_cooling",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_garage_parking",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_yard",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_appliances_included",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_floor_coverings",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_basement_type",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_exterior_material",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_special_features",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_hoa_fees",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_school_district",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_lease_length",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_available",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_pets_policy",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_smoking_policy",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_open_house",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "job_employer_name",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "job_employer_address",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "job_pay_type",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "job_pay_min",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "numeric",
+      "generated": ""
+    },
+    {
+      "name": "job_pay_max",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "numeric",
+      "generated": ""
+    },
+    {
+      "name": "job_employment_type",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "job_experience_required",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "job_education_level",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "job_responsibilities",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text[]",
+      "generated": ""
+    },
+    {
+      "name": "job_qualifications",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text[]",
+      "generated": ""
+    },
+    {
+      "name": "service_subcategory",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "service_area",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "service_availability",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "service_business_address",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "service_license_number",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "service_license_lookup_url",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "service_offerings",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text[]",
+      "generated": ""
+    },
+    {
+      "name": "job_application_method",
+      "default": "'gemlist'::text",
+      "identity": "",
+      "nullable": false,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "job_application_external_contact",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_subcategory",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_species",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_breed",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_name",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_age",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_sex",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_placement_type",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_offered_by",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_hypoallergenic",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_vaccinated",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_spayed_neutered",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_microchipped",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_records_available",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_good_with_kids",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_good_with_dogs",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_good_with_cats",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_indoor_outdoor",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_special_needs",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "pet_breeding_terms",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "home_acres",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "numeric",
+      "generated": ""
+    },
+    {
+      "name": "job_category",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "item_details",
+      "default": "'{}'::jsonb",
+      "identity": "",
+      "nullable": false,
+      "sql_type": "jsonb",
+      "generated": ""
+    },
+    {
+      "name": "service_pricing_type",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "text",
+      "generated": ""
+    },
+    {
+      "name": "service_price_max_cents",
+      "default": null,
+      "identity": "",
+      "nullable": true,
+      "sql_type": "integer",
+      "generated": ""
+    }
+  ],
+  "detailsConstraints": [
+    "CHECK (((char_length(btrim(city)) >= 2) AND (char_length(btrim(city)) <= 80)))",
+    "CHECK ((fulfillment_mode = ANY (ARRAY['local_pickup'::text, 'shipping'::text, 'both'::text])))",
+    "CHECK (((home_acres IS NULL) OR ((home_acres >= (0)::numeric) AND (home_acres <= (100000)::numeric))))",
+    "CHECK (((home_bathrooms IS NULL) OR ((home_bathrooms >= (0)::numeric) AND (home_bathrooms <= (20)::numeric))))",
+    "CHECK (((home_bedrooms IS NULL) OR ((home_bedrooms >= (0)::numeric) AND (home_bedrooms <= (20)::numeric))))",
+    "CHECK (((home_mode IS NULL) OR (home_mode = ANY (ARRAY['rent'::text, 'buy'::text, 'build'::text]))))",
+    "CHECK (((home_square_feet IS NULL) OR ((home_square_feet >= 0) AND (home_square_feet <= 50000))))",
+    "CHECK (((home_year_built IS NULL) OR ((home_year_built >= 1800) AND (home_year_built <= 2100))))",
+    "CHECK ((jsonb_typeof(item_details) = 'object'::text))",
+    "CHECK ((job_application_method = ANY (ARRAY['gemlist'::text, 'external'::text])))",
+    "CHECK (((job_category IS NULL) OR ((char_length(btrim(job_category)) >= 2) AND (char_length(btrim(job_category)) <= 80))))",
+    "CHECK (((job_employment_type IS NULL) OR (job_employment_type = ANY (ARRAY['Full-time'::text, 'Part-time'::text, 'Seasonal'::text, 'Contract'::text, 'Temporary'::text]))))",
+    "CHECK (((job_pay_max IS NULL) OR (job_pay_max >= (0)::numeric)))",
+    "CHECK (((job_pay_min IS NULL) OR (job_pay_min >= (0)::numeric)))",
+    "CHECK (((job_pay_type IS NULL) OR (job_pay_type = ANY (ARRAY['Hourly'::text, 'Salary'::text, 'Commission'::text, 'Contract'::text]))))",
+    "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE",
+    "CHECK (((pet_offered_by IS NULL) OR (pet_offered_by = ANY (ARRAY['Owner'::text, 'Breeder'::text, 'Rescue'::text, 'Shelter'::text, 'Foster'::text, 'Business'::text]))))",
+    "CHECK (((pet_placement_type IS NULL) OR (pet_placement_type = ANY (ARRAY['sale'::text, 'adoption'::text, 'rehoming'::text, 'free'::text, 'stud_breeding'::text, 'lost_found'::text, 'wanted'::text]))))",
+    "CHECK (((pet_sex IS NULL) OR (pet_sex = ANY (ARRAY['Male'::text, 'Female'::text, 'Unknown / not disclosed'::text]))))",
+    "PRIMARY KEY (listing_id)",
+    "CHECK (((postal_code IS NULL) OR (postal_code ~ '^[0-9]{5}$'::text)))",
+    "CHECK (((char_length(btrim(region)) >= 2) AND (char_length(btrim(region)) <= 80)))",
+    "CHECK (((service_price_max_cents IS NULL) OR (service_price_max_cents >= 0)))",
+    "CHECK (((service_pricing_type IS NULL) OR (service_pricing_type = ANY (ARRAY['quote'::text, 'flat'::text, 'visit'::text, 'hour'::text]))))",
+    "CHECK ((state ~ '^[A-Z]{2}$'::text))",
+    "CHECK (((vehicle_mileage IS NULL) OR ((vehicle_mileage >= 0) AND (vehicle_mileage <= 2000000))))",
+    "CHECK (((vehicle_year IS NULL) OR ((vehicle_year >= 1900) AND (vehicle_year <= 2100))))",
+    "CHECK (((vin IS NULL) OR (vin ~ '^[A-HJ-NPR-Z0-9]{17}$'::text)))"
+  ]
+}
