@@ -817,3 +817,54 @@ switches, navigation, no horizontal overflow and excluded private analytics. The
 mechanical design check reported no findings. These are synthetic source/browser
 checks; physical iPhone/Android journeys and actual OS share sheets remain separate
 release gates. Publication and native installation require their own evidence.
+
+## Listing management transaction foundation — November 14, 2026
+
+The native Listings workspace still needs its shared website presenter, owned
+listing read, editor/duplicate integration and account-scoped retry UI. This
+batch prepares the write foundation first; no Listings capability or API route
+is activated and no production migration or mutation has run.
+
+Migration `20261114150000_mobile_listing_management.sql` adds private owned
+editor snapshots and one atomic edit/archive/relist operation. An exact request
+ID and normalized input hash share the existing private mobile receipt table.
+A committed retry returns its original receipt; changed inputs cannot reuse it.
+Category details, replacement photo references, moderation state and the receipt
+commit together. Failed domain/detail/media writes roll back every change.
+Existing website domain RPCs remain unchanged. Relisting and editing in this new
+native operation always remove approval and return the listing to review.
+
+The snapshot version covers editable text, category details, price, status,
+expiry, approval and ordered photo references. Views and impressions do not
+invalidate an open draft. Writes reject changed snapshots before touching content.
+The permanent app catalog predicate covers all 28 current eligible categories and
+misplaced prohibited text; unknown, restricted, demo and foreign-owned listings
+are inaccessible. A taxonomy/predicate parity test must remain green when the
+app catalog changes.
+
+Every operation locks the member's live session and identity and verifies pending
+deletion, suspension and current terms. Session revocation during deletion thus
+serializes with the entire operation and receipt. Both race orders are exercised
+against a real temporary PostgreSQL server. Helpers and receipt rows deny guest
+and member access; only the guarded owned-snapshot and mutation RPCs are member
+callable. Installation reruns account-boundary protection and requires zero gaps.
+The service-only capability is versioned separately from existing messaging flags.
+
+The private server adapters use explicit caller/operation IDs, ownership and
+result validation, disabled automatic retries and eight/15-second client read/write
+budgets. The SQL requests statement limits and a one-second lock-wait timeout;
+verify the effective PostgREST/database timeouts in the deployment preflight.
+A timeout remains uncertain: the app must retain the same original request and
+payload. A stale snapshot receives a reload conflict, and private database/provider
+diagnostics are never exposed. These adapters are not a raw-row public endpoint;
+the eventual editor route must project domain fields and sign owned media.
+
+Before activation: regain owning-database access; inspect current domain function
+signatures, definitions, privileges, triggers, indexes and capacity; rehearse the
+additive migration and account-boundary checks against that actual schema; apply
+and verify source/capability agreement; connect and test the shared workspace,
+owned listing/editor reads, duplicate/new-photo behavior, durable retry UI and
+listing actions; then complete authenticated iPhone/Android journeys. The fixtures
+execute real transaction/access-boundary SQL with synthetic domain stand-ins.
+They prove rollback, receipt/ownership/session behavior and concurrency, not the
+uninspected production domain definitions or a complete working seller workspace.
