@@ -15,6 +15,7 @@ import {
   installStorageAccessFixture,
   storageWriterMigration,
 } from "./helpers/account-deletion-storage-database.mjs";
+import { storageProviderMigration } from "./helpers/account-deletion-storage-provider-database.mjs";
 const exec = promisify(execFile);
 async function binaries() {
   const choices = [];
@@ -510,6 +511,79 @@ test(
         (await a.query("select count(*)::int n from storage.objects where name=$1", [latePath]))
           .rows[0].n,
         0,
+      );
+      await a.query(storageProviderMigration());
+      const providerUser = randomUUID(),
+        providerObject = randomUUID(),
+        providerPath = `${providerUser}/provider.jpg`;
+      await a.query("insert into auth.users(id) values($1)", [providerUser]);
+      await a.query(
+        "insert into storage.buckets(id,versioning_status) values('listing-media','ENABLED') on conflict do nothing",
+      );
+      await a.query(
+        "insert into storage.objects(id,bucket_id,name,owner,version,metadata) values($1,'listing-media',$2,$3,'fixture-version',$4)",
+        [providerObject, providerPath, providerUser, { size: 100 }],
+      );
+      await a.query("select mobile_request_deletion($1)", [providerUser]);
+      await a.query("update account_deletion_controls set worker_enabled=true");
+      const providerJob = (
+        await a.query(
+          "update account_deletion_jobs set status='processing',phase='inventory',lease_token=gen_random_uuid(),lease_until=clock_timestamp()+interval '5 minutes' where user_id=$1 returning *",
+          [providerUser],
+        )
+      ).rows[0];
+      const providerArgs = [providerJob.id, providerUser, providerJob.lease_token];
+      for (let i = 0; i < 30; i++) {
+        const page = (
+          await a.query("select scan_account_deletion_media_inventory($1,$2,$3,50) p", providerArgs)
+        ).rows[0].p;
+        if (page.pass_done) break;
+      }
+      const providerTarget = (
+        await a.query("select prepare_account_deletion_storage_inventory($1,$2,$3) p", providerArgs)
+      ).rows[0].p.target;
+      const metadata = [
+        {
+          objectId: providerObject,
+          key: providerPath,
+          versionId: "fixture-version",
+          bytes: 100,
+          archivedAt: null,
+          deleteMarker: null,
+          versioned: null,
+        },
+      ];
+      const pageArgs = [
+        ...providerArgs,
+        providerTarget.id,
+        providerTarget.generation,
+        providerTarget.page,
+        null,
+        JSON.stringify(metadata),
+        null,
+        true,
+      ];
+      const pageSql =
+        "select commit_account_deletion_storage_page($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) p";
+      await a.query("begin");
+      assert.equal((await a.query(pageSql, pageArgs)).rows[0].p, true);
+      const replayPage = b.query(pageSql, pageArgs);
+      replayPage.catch(() => {});
+      assert.equal(
+        await waitsForLock(),
+        true,
+        "concurrent provider checkpoints serialize at the job",
+      );
+      await a.query("commit");
+      assert.equal((await replayPage).rows[0].p, true);
+      assert.equal(
+        (
+          await a.query(
+            "select count(*)::int n from account_deletion_storage_pages where scan_id=$1",
+            [providerTarget.id],
+          )
+        ).rows[0].n,
+        1,
       );
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);

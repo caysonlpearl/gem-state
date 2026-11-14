@@ -7,6 +7,7 @@ const nodeRequire = createRequire(import.meta.url);
 export function loadPhotoModules(overrides = {}) {
   const cache = new Map();
   function load(name) {
+    if (name.startsWith("./") && name.endsWith(".ts")) name = name.slice(0, -3);
     if (overrides[name]) return overrides[name];
     if (name === "./photo-photon.server")
       return { photoProcessor: () => nodeRequire("@cf-wasm/photon") };

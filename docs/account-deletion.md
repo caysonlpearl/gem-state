@@ -502,3 +502,56 @@ remain required. The migration is not installed on production and enables no
 worker or deletion. Synthetic tests cover active/other/pending/revoked accounts,
 retained snapshots, denied guest access, policy drift/repair, installation refusal,
 and both write/request orders in real PostgreSQL. No live file is a test fixture.
+
+## Resumable Storage provider inventory — November 14, 2026
+
+The next source batch connects the database reference scanner to the installed
+Supabase SDK's version-aware Storage listing API. It requests an exact literal
+object key, archived versions and delete markers, with no folder delimiter.
+Targets combine historical resolved references and current owned/member-prefixed
+Storage metadata. Those are discovery associations, never authority to erase a
+shared or business file. Current metadata also fills gaps in historical snapshots.
+
+Each step reads one bounded reference page and, once that pass ends, prepares at
+most 50 new targets and fetches at most one provider page. The private target pins
+the owning GemList origin/bucket fingerprint, generation, page and cursor. A live
+job/lease/control/coverage check runs before and after the HTTP request; the page
+commit locks and rechecks that context. It saves version observations, a replay
+receipt and cursor progress atomically. Lost acknowledgements resume the next
+page; identical retries cannot rewind it, conflicting retries and cursor cycles
+are rejected, and reference rescans invalidate older in-flight targets. Private
+scan/page records survive Auth deletion and must be purged before the final
+minimal completion receipt, along with the other inventory records.
+
+Before accepting an ending page, SQL compares its accumulated provider results
+with every current Storage metadata version for that exact key. A provider which
+omits a known archived version cannot silently finish. Such a mismatch requires
+reference/provider reconciliation. Legacy unknown version/size/marker fields are
+retained as unknown, without being treated as ownership or erasure proof.
+
+The transport uses a private, nonpersistent SDK client, exact endpoint checks,
+disabled redirects/caching, a 15-second deadline and a one-MiB response bound.
+It validates a server-key configuration rather than accepting an anonymous/member
+key; the provider still verifies the actual credential. It stores only object
+IDs, literal keys, versions, sizes and archive/marker metadata. It drops arbitrary
+metadata fields and returns coded errors without signed URLs or private content.
+Literal object keys are passed unchanged in a JSON body, including percent signs
+and URL-like filename characters; public URL normalization and upload validation
+are not relaxed.
+
+This is provider metadata discovery, not a check of underlying blob bytes,
+orphan cleanup, cache purge or physical erasure. `step().passDone` covers only the
+reference/Supabase inventory component and is deliberately not a deletion-phase
+`done` result. R2 originals/thumbnails, stable reconciliation, shared ownership,
+retention, actual provider removal and final verification remain open work.
+The version-list API is experimental in the installed SDK; real-project behavior
+must be verified before activation. The migration requires the existing Storage
+boundary and a disabled worker. It is not installed on production and activates
+no worker, provider request or real deletion by itself.
+
+Tests use the real SDK with intercepted HTTP and actual synthetic SQL. They cover
+archived versions/markers, response bounds/cancellation, private metadata
+exclusion, wrong scopes, missing known versions, rescan/pause, lost acknowledgement,
+conflicting replay, cycles and bounded preparation. Two real PostgreSQL connections
+also serialize a concurrent provider-page replay into one durable receipt. No
+production account, object or provider credential is used as a fixture.
