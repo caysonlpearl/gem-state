@@ -131,7 +131,7 @@ try {
       "The inventory section starts near the top",
     );
     const shortcuts = page.getByRole("navigation", { name: "Shop by category", exact: true });
-    const tagline = page.getByText("Find your next Idaho gem.", { exact: true });
+    const tagline = page.getByText("Find your next gem in the gem state", { exact: true });
     const taglineBox = await tagline.boundingBox(),
       shortcutsBox = await shortcuts.boundingBox();
     assert(taglineBox && shortcutsBox && taglineBox.y >= shortcutsBox.y + shortcutsBox.height - 1);
