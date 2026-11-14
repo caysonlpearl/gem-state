@@ -258,13 +258,22 @@ try {
     const titleHeight = await homeCards
       .nth(0)
       .getByRole("heading", { level: 3 })
-      .evaluate((title) => ({
-        height: title.getBoundingClientRect().height,
-        line: parseFloat(getComputedStyle(title).lineHeight),
-      }));
+      .evaluate((title) => {
+        const text = document.createRange();
+        text.selectNodeContents(title);
+        const lines = new Set(
+          [...text.getClientRects()].filter((rect) => rect.width > 0).map((rect) => rect.top),
+        ).size;
+        return {
+          height: title.getBoundingClientRect().height,
+          line: parseFloat(getComputedStyle(title).lineHeight),
+          lines,
+        };
+      });
+    assert(titleHeight.lines >= 1 && titleHeight.lines <= 2, "Titles use at most two text lines");
     assert(
-      titleHeight.height <= titleHeight.line + 1,
-      "A one-line title must not reserve an empty second line",
+      titleHeight.height <= titleHeight.line * titleHeight.lines + 1,
+      "A title must not reserve empty lines beyond its actual text",
     );
     const homeCardText = await homeCards.nth(0).innerText();
     assert(homeCardText.includes("$10,000") && homeCardText.includes("Boise, ID"));
