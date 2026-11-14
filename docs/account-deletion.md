@@ -829,3 +829,50 @@ cost before installation or activation. This is not full account deletion:
 public authored content, conversations, analytics, media and upload inventories,
 financial/consent/audit retention, Apple/manual revocation integration, identity
 removal, and independent final verification still need their complete adapters.
+
+## Direct Auth dependency inspection — November 14, 2026
+
+`20261114160000_account_deletion_auth_dependencies.sql` and
+`createAccountDeletionAuthDependencyInspection` add a private diagnostic before
+identity removal. The catalog is discovered from actual foreign keys referencing
+`auth.users`, across schemas, rather than a fixed table list. Each relationship
+reports its child column, deletion action, validation/deferral state and a bounded
+lower-bound count for the leased member. A count exceeding the requested limit is
+explicitly capped; it is never an exact total. Row payloads, identity values and
+provider diagnostics are not returned.
+
+This exposes relationships such as the previously observed `orders.buyer_id`
+Auth cascade for explicit retention handling. New relationships, changed actions
+and constraint validation change the catalog fingerprint. Unsupported composite
+or non-UUID identity keys require schema review rather than being skipped.
+Identifiers from the catalog are quoted. A changed catalog during inspection
+rejects the report. The helper catalog is private even from service-role callers;
+only the scoped inspection is service callable. Guest/member execution is denied.
+
+Inspection requires an enabled worker, matching records/identity lease, existing
+request, complete session-boundary coverage and the still-existing Auth row.
+The control row, job and Auth key are locked through the diagnostic transaction.
+Expired leases, pauses, missing identities and schema/boundary failures reject.
+The function requests eight-second SQL and one-second lock timeouts; verify the
+effective database/PostgREST limits during production preflight. The server
+adapter uses a ten-second request budget, disables SDK retries and freezes the
+job scope before awaiting transport. It exposes only a closed, immutable report.
+
+**This is not deletion authorization or full account inventory.** It covers only
+direct Auth foreign keys, including Auth-internal tables. Non-FK account data,
+text subjects, indirect children, shared content/media, provider state and legal
+retention decisions still need their complete handling. Neither zero counts nor
+an unchanged fingerprint prove that identity removal is safe. Counts can change
+after this diagnostic. It cannot be cached as an erasure permit, and inspecting
+after an Auth cascade is refused rather than mistaken for successful cleanup.
+
+The migration performs no account/record erasure, changes no existing foreign
+keys, binds no worker phase and enables no scheduler. It remains source-only;
+owning-database schema/cost verification, actual installation and production
+inspection are outstanding. Synthetic SQL tests cover all five deletion actions,
+bounded/other-owner counts, quoted identifiers, Auth-schema dependencies, future
+constraints, unvalidated/changed constraints, composite-key rejection, permissions,
+lease/phase/pause checks and unchanged financial rows. The server tests also use
+the installed Supabase client with a controlled fetch transport for failures,
+single requests, cancellation and diagnostic suppression. No real account data
+is read or deleted by these tests. The full deletion processor remains inactive.
