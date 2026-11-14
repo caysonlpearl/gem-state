@@ -5,6 +5,10 @@ import { shoppingActivityDatabase } from "./helpers/shopping-activity-database.m
 import { readFileSync } from "node:fs";
 import { shoppingActivity, recordShoppingActivity } from "../src/lib/shopping.server.ts";
 import { interests, reminderStep, shoppingPriceInterest } from "../src/lib/shopping-contract.ts";
+import {
+  shoppingReminderProgress,
+  completedReminder,
+} from "../src/lib/shopping-delivery-eligibility.ts";
 test("removing an actual bookmark stops a delayed/cache save from acting like a current favorite", async () => {
   const f = await shoppingActivityDatabase();
   try {
@@ -444,5 +448,61 @@ test("cache retirement refuses an unreviewed cascading child instead of expandin
     );
   } finally {
     await f.db.close();
+  }
+});
+
+test("complete reminder history preserves sent steps beyond the API row cap and isolates accounts", async () => {
+  const f = await shoppingActivityDatabase();
+  try {
+    const anchor = Date.now() - 8 * 86400000;
+    await f.db.query(
+      "insert into shopping_choices(subject,listing_id,user_id,reminder_anchor,reminder_step) select $1,'dealerfeed-ledger-'||lpad(n::text,4,'0'),$2,$3,7 from generate_series(1,1601) n",
+      [f.subject, f.user, anchor],
+    );
+    const other = randomUUID();
+    await f.db.query("insert into auth.users(id) values($1)", [other]);
+    await f.db.query("select set_shopping_privacy($1,$2,true,false,'test')", ["u:" + other, other]);
+    await f.db.query(
+      "insert into shopping_choices(subject,listing_id,user_id) values($1,'dealerfeed-other',$2)",
+      ["u:" + other, other],
+    );
+    const progress = await shoppingReminderProgress(f.client, f.subject);
+    assert.equal(progress.size, 1601);
+    assert.equal(progress.has("dealerfeed-other"), false);
+    assert.equal(completedReminder(progress.get("dealerfeed-ledger-1601"), anchor, 7), true);
+    assert.equal(f.calls.filter((c) => c.name === "shopping_choices").length, 4);
+  } finally {
+    await f.db.close();
+  }
+});
+
+test("incomplete or foreign reminder ledgers fail without authorizing another send", async () => {
+  for (const scenario of ["capped", "foreign", "invalid", "overflow"]) {
+    const f = await shoppingActivityDatabase((call) => {
+      if (call.name !== "shopping_choices") return;
+      const row = {
+        subject: call.q.get("subject").slice(3),
+        listing_id: "dealerfeed-ledger",
+        reminder_anchor: 1,
+        reminder_step: 7,
+      };
+      if (scenario === "foreign") row.subject = "u:" + randomUUID();
+      if (scenario === "invalid") row.reminder_step = 2;
+      return Response.json([row], {
+        headers: {
+          "content-range":
+            "0-0/" + (scenario === "overflow" ? 5001 : scenario === "capped" ? 501 : 1),
+        },
+      });
+    });
+    try {
+      await assert.rejects(
+        shoppingReminderProgress(f.client, f.subject),
+        /Shopping history could not be read/,
+      );
+      assert.equal(f.calls.length, 1);
+    } finally {
+      await f.db.close();
+    }
   }
 });

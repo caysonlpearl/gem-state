@@ -12,13 +12,7 @@ import {
   shoppingExternalEligibility,
 } from "./shopping.server.ts";
 export async function shoppingReminderProgress(db: any, subject: string) {
-  const result = await db
-    .from("shopping_choices")
-    .select("listing_id,reminder_anchor,reminder_step")
-    .eq("subject", subject)
-    .limit(1500);
-  if (result.error) throw Error("Reminder history unavailable.");
-  return new Map<string, any>((result.data ?? []).map((row: any) => [row.listing_id, row]));
+  return (await import("./shopping-activity.server.ts")).loadShoppingReminderProgress(db, subject);
 }
 export function completedReminder(progress: any, anchor: number, step: number) {
   return (
@@ -32,9 +26,10 @@ export async function shoppingDeliveryCandidates(
 ) {
   if (await accountDeletionPending(db, delivery.user_id))
     return { account: { delivery_blocked: true }, permission: null, eligible: [] };
-  // History can require several pages. Read it before the final recipient,
+  // History and sent steps can require several pages. Read them before the final recipient,
   // queue, search and availability snapshots, so withdrawal during that work
   // cannot leave a discretionary delivery using earlier permission flags.
+  const progress = await shoppingReminderProgress(db, `u:${delivery.user_id}`);
   const activity = await shoppingActivity(db, `u:${delivery.user_id}`);
   const [accountResult, permission, queued, searches, prefs] = await Promise.all([
     db.from("shopping_accounts").select("*").eq("user_id", delivery.user_id).single(),
@@ -84,7 +79,6 @@ export async function shoppingDeliveryCandidates(
   const liveNative = new Set(native.data.map((r: any) => r.id)),
     byId = new Map<string, any>(inventory.data.map((r: any) => [r.listing_id, r]));
   const profile = interests(permission?.personalization ? activity : []);
-  const progress = await shoppingReminderProgress(db, `u:${delivery.user_id}`);
   const eligible: any[] = [];
   for (const item of items) {
     if (Date.parse(item.created_at) < Date.parse(account.history_after)) continue;

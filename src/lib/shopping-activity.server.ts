@@ -46,6 +46,38 @@ async function pages(
   }
   throw unavailable();
 }
+/** Never treat a capped reminder ledger as proof that a step has not been sent. */
+export async function loadShoppingReminderProgress(db: any, subject: string) {
+  if (!subjectPattern.test(subject)) throw unavailable();
+  const controller = new AbortController(),
+    signal = AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]);
+  try {
+    const rows = await pages(
+      () =>
+        db
+          .from("shopping_choices")
+          .select("subject,listing_id,reminder_anchor,reminder_step", { count: "exact" })
+          .eq("subject", subject),
+      "listing_id",
+      signal,
+    );
+    for (const row of rows)
+      if (
+        row.subject !== subject ||
+        !validShoppingId(row.listing_id) ||
+        (typeof row.reminder_anchor !== "number" &&
+          !(typeof row.reminder_anchor === "string" && /^\d+$/.test(row.reminder_anchor))) ||
+        !Number.isSafeInteger(Number(row.reminder_anchor)) ||
+        Number(row.reminder_anchor) < 0 ||
+        ![0, 1, 3, 7].includes(row.reminder_step)
+      )
+        throw unavailable();
+    return new Map<string, any>(rows.map((row: any) => [row.listing_id, row]));
+  } catch {
+    controller.abort();
+    throw unavailable();
+  }
+}
 /** Actual owned bookmarks are the authority for a member's favorite state.
  * Historical events remain evidence of views/contacts/outcomes, never a second bookmark database. */
 export async function loadShoppingActivity(db: any, subject: string): Promise<ShoppingEvent[]> {

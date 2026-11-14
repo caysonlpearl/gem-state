@@ -55,7 +55,7 @@ meaning. Current saves retain their original reminder anchor, including a later
 real save event; removing and genuinely saving again creates renewed interest.
 History clear keeps real bookmarks while excluding older optional interests.
 
-Delivery checks load history before taking their final recipient, queue, search and inventory snapshots; a withdrawal during a slower history read also suppresses discretionary alternatives.
+Delivery checks load complete sent-reminder progress and history before taking their final recipient, queue, search and inventory snapshots; a withdrawal during a slower history read also suppresses discretionary alternatives. Sent steps use the same bounded, exact-count pages and ownership checks as durable choices. A capped or malformed ledger is unavailable, never treated as permission to repeat an older reminder.
 
 The reader validates the subject, checks personalization/deletion state before
 and after the read, and discards the earlier snapshot if permission/history
