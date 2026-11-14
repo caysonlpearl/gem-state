@@ -159,7 +159,22 @@ Validation: isolated SQL and HTTP tests cover replay after later deletion, owner
 
 Android 36 emulator verification also loaded the production catalog (12 Ford vehicles under 25,000 miles), showed the operating system’s approximate-only permission prompt, preserved manual map/city entry after denial, closed the filter drawer with hardware Back without changing the search, and returned from a real listing to that exact filtered search with hardware Back. This is emulator evidence only; iPhone compilation and physical-device proof remain pending.
 
-Nearby services read hardening, November 14: the directory's distance RPC and subsequent card lookup now share one eight-second deadline, including response bodies, and disable SDK retries. Caller cancellation can shorten that deadline. Either database error, or a business disappearing/becoming hidden between reads, rejects the native search into its existing explicitly incomplete fallback rather than reporting a successful empty/partial page. Ordinary empty and count-only results remain valid. Synthetic SDK transport tests cover both reads, cancellation, errors, visibility changes, order and totals; no listing-provider API is called. A fresh public native-API sample returned Studio results in 0.89 seconds, title-only services in 2.763 seconds and nearby services in 0.983 seconds. These individual samples do not establish acceptable performance under load or prove physical-device behavior. Nearby query text still uses the existing RPC's name/trade matching; title-only and expanded-description parity for that distance path remains to be resolved before beta.
+Nearby services read hardening, November 14: the directory's distance RPC and subsequent card lookup now share one eight-second deadline, including response bodies, and disable SDK retries. Caller cancellation can shorten that deadline. Either database error, or a business disappearing/becoming hidden between reads, rejects the native search into its existing explicitly incomplete fallback rather than reporting a successful empty/partial page. Ordinary empty and count-only results remain valid. Synthetic SDK transport tests cover both reads, cancellation, errors, visibility changes, order and totals; no listing-provider API is called. A fresh public native-API sample returned Studio results in 0.89 seconds, title-only services in 2.763 seconds and nearby services in 0.983 seconds. These individual samples do not establish acceptable performance under load or prove physical-device behavior.
+
+Nearby text-mode parity is prepared in the additive migration
+`20261114130000_service_directory_nearby_search_modes.sql`. Explicit title-only
+queries match business names; expanded queries also match trades and saved
+enrichment summaries. Predicates run before distance-result counting and
+pagination. Ordinary queries and calls without meaningful text retain the
+installed legacy RPC. A missing new RPC returns the existing unavailable path,
+never a broader legacy query. Both website and app share this reader; the
+eight-second budget, zero retries and database-only source remain unchanged.
+Synthetic SQL tests verify all three modes, distance/state/trade/visibility,
+pagination totals, legacy results and service-only execution. SDK transport tests
+verify mode routing, sanitization, count-only reads and missing-migration behavior.
+The migration is not installed on production: hold the source release until the
+owning database is verified and the migration is applied and checked. Physical
+device journeys and load measurements remain separate beta gates.
 
 Dependency hardening, November 13: the declared native package tree went from six high-severity findings to zero reported findings after Vite 8.1.6 and a pinned `@grpc/grpc-js` 1.13.6 override. Firebase 12.19.0, its analytics adapter 8.6.0, Capacitor 8.6.2 and app permissions remain unchanged. CI audits both shared and native dependency trees for high/critical findings. Package audits do not establish whole-app security approval or store readiness.
 

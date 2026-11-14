@@ -99,6 +99,7 @@ export async function directoryCards(
         data.radiusMiles,
         data.serviceSubcategory,
         q,
+        data.searchDescriptions,
         offset,
         limit,
         signal,
@@ -159,17 +160,23 @@ async function nearbyCards(
   miles: number,
   trade: string | undefined,
   q: string | undefined,
+  searchDescriptions: boolean | undefined,
   offset: number,
   limit: number,
   signal: AbortSignal,
 ): Promise<{ cards: ClassifiedCard[]; total: number }> {
+  // Keep the installed legacy path for ordinary searches. Explicit text modes
+  // require their database predicate before pagination/counting; filtering a
+  // legacy page afterward would silently omit matches and misstate the total.
+  const explicitTextMode = !!q && typeof searchDescriptions === "boolean";
   const { data: hits, error } = await client
-    .rpc("service_directory_nearby", {
+    .rpc(explicitTextMode ? "service_directory_nearby_search" : "service_directory_nearby", {
       p_lat: center.latitude,
       p_lon: center.longitude,
       p_miles: miles,
       p_trade: trade ?? null,
       p_q: q || null,
+      ...(explicitTextMode ? { p_search_descriptions: searchDescriptions } : {}),
       p_offset: offset,
       p_limit: Math.max(limit, 1),
     })
