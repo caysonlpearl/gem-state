@@ -4,6 +4,15 @@ Updated November 13, 2026. This is a source/build milestone, not store approval 
 
 ## Current result
 
+The owner selected the blue-background bird artwork on November 14. Its original
+is `apps/mobile/assets/icon-source.jpg`; `icon-only.png` is the opaque 1024px
+master, shared with the iPhone AppIcon, and `google-play-icon.png` is the 512px
+store asset. All six Android launcher densities use this artwork, including the
+adaptive foreground, with the full image in the central 72dp of its 108dp layer
+and a blue overscan surround. Platform masks supply the final corners. Website
+branding is unchanged. Both local native builds pass; this does not establish
+phone installation or store approval.
+
 `apps/mobile` is a separate React/Capacitor application that bundles its own
 assets. It does not load the whole website through `server.url`. The app uses
 Bluebird's existing Supabase accounts, listing services, cached feeds, saved
