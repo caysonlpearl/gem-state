@@ -364,6 +364,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       features: {
         accountControls: true,
         accountOverview: true,
+        accountSaved: true,
         fullSearch: true,
         notificationCenter: true,
         listingDetails: true,
@@ -656,6 +657,42 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       client,
       user.id,
     );
+  if (method === "GET" && path === "account/saved") {
+    const result = await (
+      await import("./account-saved.server")
+    ).loadMobileSavedAccount(
+      client,
+      (await import("./supabase-public.server")).publicServerClient(),
+      user.id,
+    );
+    return {
+      ...result,
+      jobs: result.jobs.map(dto),
+      homes: result.homes.map(dto),
+      vehicles: result.vehicles.map(dto),
+    };
+  }
+  if (method === "DELETE" && path === "account/saved/partner") {
+    const input = (await import("./mobile-account-contract")).mobileSavedPartnerRemovalInput.parse(
+      await mobileJson(request),
+    );
+    return (await import("./account-saved.server")).removeAccountSavedPartner(
+      client,
+      user.id,
+      input.listingId,
+    );
+  }
+  if (method === "DELETE" && path === "account/saved") {
+    const input = z
+      .object({ variantIds: z.array(z.string().guid()).min(1).max(100) })
+      .strict()
+      .parse(await mobileJson(request));
+    return (await import("./account-saved.server")).removeAccountSavedVariants(
+      client,
+      user.id,
+      input.variantIds,
+    );
+  }
   if (method === "GET" && path === "saved-searches") {
     const all = await domain((await import("./account-center.functions")).getMySavedSearches);
     return { items: all.filter(mobileSavedSearchAllowed) };
@@ -793,17 +830,20 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       domain(getMySavedPartnerHomes),
       domain(getMySavedPartnerJobs),
     ]);
+    // Older app versions use this flat card contract. Keep its existing
+    // 100-detail-read ceiling as the shared watchlist reader becomes complete;
+    // current apps use account/saved without per-item detail requests.
+    const cardCandidates = watched.filter((w: any) => w.listingId);
     const native = await Promise.all(
-      watched
-        .filter((w: any) => w.listingId)
-        .map((w: any) =>
-          listing(w.listingId).catch((error) => {
-            if (error instanceof MobileApiError && error.status === 404) return null;
-            throw error;
-          }),
-        ),
+      cardCandidates.slice(0, 100).map((w: any) =>
+        listing(w.listingId).catch((error) => {
+          if (error instanceof MobileApiError && error.status === 404) return null;
+          throw error;
+        }),
+      ),
     );
     return {
+      ...(cardCandidates.length > 100 ? { incomplete: true, selection: true } : {}),
       items: [...native, ...vehicles, ...homes, ...jobs]
         .filter(Boolean)
         .filter(mobileListingAllowed)

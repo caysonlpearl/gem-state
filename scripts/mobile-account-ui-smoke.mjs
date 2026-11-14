@@ -137,6 +137,12 @@ try {
     }
     let accountControls = false,
       overviewReady = false,
+      savedReady = false,
+      savedOutage = false,
+      savedRemovalFailure = true,
+      deferRemoval = false,
+      removalStarted = false,
+      releaseRemoval,
       overviewOutage = false,
       activityOutage = false,
       preferenceReads = 0,
@@ -144,6 +150,47 @@ try {
       profileFailure = true,
       contactFailure = true,
       alertFailure = true;
+    const watched = (n, name, active = true, category = "Furniture") => ({
+      variantId: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
+      listingId: active ? `10000000-0000-4000-8000-${String(n).padStart(12, "0")}` : null,
+      productSlug: "fixture-" + n,
+      productName: name,
+      categoryName: category,
+      variantLabel: "One variation",
+      createdAt: "2026-11-12T10:00:00Z",
+      lowestAskCents: active ? n * 1000 : null,
+      highestBidCents: null,
+      activeAskCount: active ? 1 : 0,
+      activeBidCount: 0,
+      sightingCount: 0,
+    });
+    const savedItems = new Map([
+      [
+        a,
+        [
+          watched(1, "Saved desk"),
+          watched(2, "Sold chair", false),
+          watched(3, "Blue coupe", true, "Vehicles"),
+        ],
+      ],
+      [b, [watched(4, "Second private save")]],
+    ]);
+    const savedDeletes = [];
+    const removedPartners = new Set();
+    const partnerCard = (id, title, category) => ({
+      id,
+      productId: "",
+      title,
+      categorySlug: category,
+      categoryName: category,
+      priceCents: 30000,
+      currency: "USD",
+      city: "Boise",
+      state: "ID",
+      imageUrl: null,
+      createdAt: "2026-11-12T10:00:00Z",
+      canSave: true,
+    });
     const uploads = [],
       writes = [],
       authCalls = [],
@@ -177,8 +224,15 @@ try {
         await page.evaluate(() => sessionStorage.setItem("fixture.loggedout", "true"));
         return route.fulfill({ status: 200, headers, body: "{}" });
       }
-      if (path === "/auth/v1/user")
-        return route.fulfill({ status: 200, headers, body: JSON.stringify(session(a).user) });
+      if (path === "/auth/v1/user") {
+        const actor = JSON.parse(
+          Buffer.from(
+            req.headers().authorization.split(" ")[1].split(".")[1],
+            "base64url",
+          ).toString(),
+        ).sub;
+        return route.fulfill({ status: 200, headers, body: JSON.stringify(session(actor).user) });
+      }
       throw Error("Unexpected Supabase fixture " + path);
     });
     await page.route("https://fixture.bluebird.invalid/api/mobile/v1/**", async (route) => {
@@ -186,7 +240,7 @@ try {
       if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
       const path = new URL(req.url()).pathname.split("/v1/")[1],
         method = req.method(),
-        body = method === "GET" || method === "DELETE" ? null : req.postDataJSON();
+        body = req.postData() ? req.postDataJSON() : null;
       const authorization = req.headers().authorization,
         actor = authorization
           ? JSON.parse(
@@ -209,6 +263,7 @@ try {
           features: {
             accountControls,
             accountOverview: overviewReady,
+            accountSaved: savedReady,
             notificationCenter: overviewReady,
             push: false,
             advertising: false,
@@ -228,6 +283,36 @@ try {
           pendingListings: 1,
           completedSalesCount: 4,
         };
+      } else if (path === "account/saved" && method === "GET") {
+        if (savedOutage) return fail(503, "Fixture saved listings unavailable.");
+        data = {
+          ownerId: actor,
+          watched: savedItems.get(actor) || [],
+          jobs: [partnerCard("adzuna-12", "Saved job", "jobs")],
+          homes: [partnerCard("mashvisor-12", "Saved home", "other-real-estate")],
+          vehicles: [partnerCard("marketcheck-dealer-fixture", "Saved partner car", "cars-trucks")],
+        };
+        for (const key of ["jobs", "homes", "vehicles"])
+          data[key] = data[key].filter((c) => !removedPartners.has(actor + ":" + c.id));
+      } else if (path === "account/saved/partner" && method === "DELETE") {
+        removedPartners.add(actor + ":" + body.listingId);
+        data = { removed: true };
+      } else if (path === "account/saved" && method === "DELETE") {
+        savedDeletes.push({ actor, ids: body.variantIds });
+        savedItems.set(
+          actor,
+          (savedItems.get(actor) || []).filter((item) => !body.variantIds.includes(item.variantId)),
+        );
+        if (deferRemoval) {
+          deferRemoval = false;
+          removalStarted = true;
+          await new Promise((resolve) => (releaseRemoval = resolve));
+        }
+        if (savedRemovalFailure) {
+          savedRemovalFailure = false;
+          return fail(503, "Fixture saved removal unconfirmed.");
+        }
+        data = { removed: true };
       } else if (path === "saved-searches") data = { items: [{ id: "fixture-search" }] };
       else if (path === "notifications") {
         if (activityOutage) return fail(503, "Fixture activity unavailable.");
@@ -511,6 +596,107 @@ try {
     });
     await page.getByRole("button", { name: "View saved listings", exact: true }).click();
     assert.equal(new URL(page.url()).hash, "#/saved");
+    await page.getByRole("heading", { name: "Saved for later", exact: true }).waitFor();
+    savedReady = true;
+    savedOutage = true;
+    await page.reload();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Fixture saved listings unavailable." })
+      .waitFor();
+    assert.equal(await page.getByText("Nothing saved yet", { exact: true }).count(), 0);
+    savedOutage = false;
+    await page.getByRole("button", { name: "Retry saved listings", exact: true }).click();
+    await page.getByRole("heading", { name: "3 saved listings", exact: true }).waitFor();
+    await page
+      .getByRole("heading", { name: "1 saved home from partner listings", exact: true })
+      .waitFor();
+    assert.equal(
+      await page.getByRole("link", { name: "Find listing", exact: true }).getAttribute("href"),
+      "#/search?q=Sold+chair",
+    );
+    await page.getByLabel("Saved listing section", { exact: true }).selectOption("Furniture");
+    await page.getByRole("heading", { name: "2 saved listings", exact: true }).waitFor();
+    await page.getByLabel("Saved listing status", { exact: true }).selectOption("unavailable");
+    await page.getByRole("heading", { name: "1 saved listing", exact: true }).waitFor();
+    await page.getByLabel("Saved listing status", { exact: true }).selectOption("all");
+    await page.getByLabel("Saved listing section", { exact: true }).selectOption("all");
+    await page.getByRole("checkbox", { name: "Select Sold chair", exact: true }).check();
+    await page.getByRole("textbox", { name: "Search saved listings", exact: true }).fill("desk");
+    await page.getByRole("heading", { name: "1 saved listing", exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: /Remove .* visible selected/ }).count(), 0);
+    await page.getByRole("textbox", { name: "Search saved listings", exact: true }).fill("");
+    await page.getByLabel("Sort saved listings", { exact: true }).selectOption("price-high");
+    await page.getByRole("button", { name: "List", exact: true }).click();
+    assert.equal(
+      await page.getByRole("button", { name: "List", exact: true }).getAttribute("aria-pressed"),
+      "true",
+    );
+    await page.screenshot({
+      path: resolve(output, `shared-saved-${viewport.width}.png`),
+      fullPage: true,
+    });
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    await page
+      .getByRole("button", { name: "Remove Sold chair from saved listings", exact: true })
+      .click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Fixture saved removal unconfirmed." })
+      .waitFor();
+    await page.getByRole("heading", { name: "2 saved listings", exact: true }).waitFor();
+    await page.getByRole("checkbox", { name: "Select all visible", exact: true }).check();
+    await page.getByRole("button", { name: "Remove 2 visible selected", exact: true }).click();
+    await page.getByText("Nothing saved yet", { exact: true }).waitFor();
+    assert.equal(savedDeletes[0].actor, a);
+    assert.equal(savedDeletes[0].ids.length, 1);
+    assert.equal(savedDeletes[1].ids.length, 2);
+    await page
+      .getByRole("button", { name: "Remove Saved partner car from saved listings", exact: true })
+      .click();
+    await page
+      .getByRole("heading", { name: "1 saved vehicle from partner listings", exact: true })
+      .waitFor({ state: "detached" });
+    assert(removedPartners.has(a + ":marketcheck-dealer-fixture"));
+    await page
+      .getByRole("heading", { name: "1 saved home from partner listings", exact: true })
+      .waitFor();
+    savedItems.set(a, [watched(5, "First delayed save")]);
+    await page.evaluate(() => window.dispatchEvent(new Event("bluebird-saved-changed")));
+    await page.getByText("First delayed save", { exact: true }).waitFor();
+    deferRemoval = true;
+    await page
+      .getByRole("button", { name: "Remove First delayed save from saved listings", exact: true })
+      .click();
+    for (let n = 0; !removalStarted && n < 100; n++) await pause(10);
+    assert.equal(removalStarted, true);
+    await page.evaluate(async (next) => {
+      sessionStorage.setItem("fixture.actor", next.user.id);
+      const { auth } = await import("/src/client.ts");
+      await auth.auth.setSession(next);
+    }, session(b));
+    await page.getByText("Second private save", { exact: true }).waitFor();
+    releaseRemoval();
+    await page
+      .getByRole("button", { name: "Remove Second private save from saved listings", exact: true })
+      .waitFor();
+    assert.equal(await page.getByText("First delayed save", { exact: true }).count(), 0);
+    assert.equal(
+      await page
+        .getByRole("alert")
+        .filter({ hasText: "Fixture saved removal unconfirmed." })
+        .count(),
+      0,
+    );
+    await page.evaluate(async (next) => {
+      sessionStorage.setItem("fixture.actor", next.user.id);
+      const { auth } = await import("/src/client.ts");
+      await auth.auth.setSession(next);
+    }, session(a));
+    await page.getByText("Nothing saved yet", { exact: true }).waitFor();
     activityOutage = true;
     await page.goto(origin + "/#/account");
     await page.reload();
@@ -567,11 +753,24 @@ try {
     await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     assert.equal(authCalls.at(-1).scope, "local");
     assert.deepEqual(revocations, [a]);
-    assert.deepEqual(activity, []);
+    assert(
+      activity.every((batch) =>
+        batch.events.every(
+          (event) =>
+            event.kind === "unsave" &&
+            !event.search &&
+            Object.keys(event.context || {}).length === 0,
+        ),
+      ),
+      "Only explicit listing removals can be shopping events; private account content is excluded.",
+    );
     results.push({
       viewport,
       sharedProfileAndSettings: true,
       sharedOverview: true,
+      sharedSavedControls: true,
+      soldSavedRemovalAndLostAcknowledgement: true,
+      savedLateAccountSwitchIsolation: true,
       overviewFailureAndActivityRetry: true,
       preferenceReadFailurePreventsOverwrite: true,
       profileAndContactFailurePreserveDrafts: true,

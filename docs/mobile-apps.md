@@ -131,7 +131,53 @@ The native footer remains on listing, posting, authentication and account screen
 
 Browser regressions cover the pinned search/footer, scrolling logo, five controls, search scope, Vehicles group, account/menu dismissal, listing contact clearance and iOS input font size at narrow/wide/landscape sizes. Fixture journeys do not touch production accounts or send email. A separate public-catalog browser check at 320/390/768 pixels verified real cached vehicle browsing, the actual detail title/contact bar, back/scroll restoration, spaced queries and the two signup choices with all writes blocked. Its preview-origin adapter uses the native public API origin; it does not prove physical WebView behavior. This source batch must be rebuilt and installed before claiming that these changes appear on the physical iPhone; wireless reachability was unavailable at the last check. Account enrollment, push delivery and real Android testing remain separate gates.
 
-Remaining parity work includes the remaining account tabs, wider-screen header search/category controls, exact related-listing rails, seller dashboard/navigation/own-listing management and category landing pages. Overview, profile and account/security now use shared website presenters. Do not describe the remaining sections as already migrated. Compare each screen at the same viewport, data and state before beta; record any difference and its reason. Necessary exceptions are permanent app catalog/payment restrictions, native permission prompts, device integrations and phone system boundaries. A proposed design simplification alone is not a reason to diverge.
+Saved-account parity, November 14: the native Saved destination now reuses the
+website's actual saved-variation controls/cards and partner-section presenters,
+inside the shared account layout. Search, category/status filters, price/date
+sorts, grid/list view, visible selection, bulk removal, unavailable-item states
+and listing/search destinations keep the website's wording and layout. Three
+existing filter controls now have accessible names. Hidden selections are
+excluded synchronously from bulk actions, including before the pruning effect.
+Website empty, populated and unavailable-item initial markup was compared with
+its prior source and matched after removing those added accessible attributes.
+
+The additive `features.accountSaved` / `GET account/saved` contract returns owned
+saved variations plus separate partner jobs/homes/vehicles. Both platforms reuse
+the same watchlist read model; the website keeps its separate eligible catalog.
+The app excludes prohibited categories/text and online merchandise before public
+aggregate reads or serialization. Reads use an eight-second deadline, no SDK
+retries, deterministic pages of 500, exact-count/owner/duplicate checks, and a
+5,000-row review ceiling per source query. Aggregate lookups use batches of 100
+variation IDs, including paged public sightings, without provider requests or
+per-item detail fetches. Missing sources, partial caps and inconsistent reads
+fail visibly rather than reporting an empty/full saved list. Shared website
+watchlist loading/errors also stop presenting missing data as “Nothing saved”.
+
+`DELETE account/saved/partner` also removes owned partner snapshots without a live inventory lookup or current terms; app-eligible source IDs select the table on the server, and prohibited/unknown references are rejected. Partner save buttons use that privacy-only path.
+
+`DELETE account/saved` removes up to 100 owned variation IDs atomically per
+request. It is a privacy-only, idempotent action: sold/removed listings remain
+removable without a live-detail lookup or expanded alert consent. Native bulk
+removal snapshots visible IDs and sends bounded sequential chunks; failure
+refreshes actual owned state before retry, and delayed outcomes cannot affect a
+new account. Only explicit unsaves with known listing references enter permitted
+shopping activity; saved-item query text and private account fields are not
+exports. The account-scoped provider shares one read with save-button state and
+cancels superseded refreshes. Older servers retain the existing flat Saved
+screen; older apps retain their flat card contract and its 100-detail ceiling,
+with an explicit selection marker if the complete watchlist exceeds that ceiling.
+
+No new migration or paid capacity is required. Synthetic SDK/dispatch tests and
+browser journeys at 320/390/1280px cover read failures, pagination, catalog scope,
+filters, hidden selections, sold-item removal, lost acknowledgement, bulk removal,
+and an account switch while a removal response is delayed. Public read-only
+production probes confirmed the existing aggregate projections and exact-count
+support; no real member save was changed. Physical authenticated journeys,
+production performance and installation of a rebuilt native app remain release
+gates. Source/CI completion does not establish phone installation or live API
+publication.
+
+Remaining parity work includes the remaining account tabs, wider-screen header search/category controls, exact related-listing rails, seller dashboard/navigation/own-listing management and category landing pages. Overview, saved items, profile and account/security now use shared website presenters. Do not describe the remaining sections as already migrated. Compare each screen at the same viewport, data and state before beta; record any difference and its reason. Necessary exceptions are permanent app catalog/payment restrictions, native permission prompts, device integrations and phone system boundaries. A proposed design simplification alone is not a reason to diverge.
 
 The earlier text-only wordmark and separate listing-card/photo designs are replaced.
 The remaining account presenters and seller management must
