@@ -1,0 +1,743 @@
+{
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "capturedAt": "2026-11-15T10:40:44.876398+00:00",
+  "metadataOnly": true,
+  "enumTypes": {
+    "app_role": ["user", "shopper", "moderator", "admin"],
+    "park_kind": ["park", "district"],
+    "match_status": ["active", "released", "completed", "cancelled"],
+    "order_origin": [
+      "buy_now",
+      "sell_now",
+      "sourcing_quote",
+      "admin_validation",
+      "sourcing_ask",
+      "sourcing_shopper"
+    ],
+    "order_status": [
+      "inquiry",
+      "awaiting_payment",
+      "paid",
+      "sourcing",
+      "ready_to_ship",
+      "shipped",
+      "delivered",
+      "completed",
+      "cancelled",
+      "refunded",
+      "disputed",
+      "awaiting_authorization",
+      "authorized",
+      "shopper_assigned",
+      "purchase_confirmed",
+      "unavailable",
+      "payment_captured"
+    ],
+    "release_type": [
+      "open_edition",
+      "limited_edition",
+      "seasonal",
+      "event_exclusive",
+      "annual_passholder",
+      "unknown",
+      "limited_release"
+    ],
+    "member_intent": ["buying", "selling", "shopping_in_park", "browsing"],
+    "payout_status": ["pending", "processing", "completed", "failed", "reversed"],
+    "dispute_status": ["open", "under_review", "resolved_buyer", "resolved_seller", "withdrawn"],
+    "item_condition": [
+      "new_with_tags",
+      "new_without_tags",
+      "used_excellent",
+      "used_good",
+      "not_applicable"
+    ],
+    "listing_status": ["active", "matched", "cancelled", "expired"],
+    "product_status": ["draft", "pending_review", "published", "rejected", "archived"],
+    "shipment_status": [
+      "pending",
+      "label_created",
+      "shipped",
+      "in_transit",
+      "delivered",
+      "exception"
+    ],
+    "suggestion_status": ["submitted", "in_review", "approved", "rejected", "merged_duplicate"],
+    "listing_event_type": [
+      "created",
+      "price_changed",
+      "cancelled",
+      "expired",
+      "matched",
+      "released",
+      "evidence_added"
+    ],
+    "product_image_kind": ["canonical", "seller_evidence"],
+    "order_evidence_kind": ["purchase_receipt", "item_photo", "delivery_proof", "dispute_evidence"],
+    "payment_record_kind": ["authorization", "capture", "payment", "refund"],
+    "listing_offer_status": [
+      "pending",
+      "countered",
+      "accepted",
+      "declined",
+      "withdrawn",
+      "expired"
+    ],
+    "location_granularity": ["store", "district", "park"],
+    "shopper_quote_status": ["submitted", "accepted", "declined", "expired", "withdrawn"],
+    "payment_record_status": ["succeeded", "pending", "failed", "voided"],
+    "price_evidence_source": [
+      "member_report",
+      "approved_shopper",
+      "receipt_verified",
+      "admin_verified"
+    ],
+    "sighting_availability": ["in_stock", "limited", "sold_out"],
+    "sourcing_request_status": ["open", "quote_accepted", "cancelled", "expired"],
+    "shopper_application_status": ["submitted", "in_review", "approved", "rejected"],
+    "sourcing_assignment_status": [
+      "assigned",
+      "purchase_confirmed",
+      "unavailable",
+      "completed",
+      "cancelled"
+    ]
+  },
+  "rows": [
+    {
+      "source": "product_suggestion_media",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "suggestion_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "storage_path",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "caption",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "position",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX product_suggestion_media_pkey ON public.product_suggestion_media USING btree (id)",
+          "CREATE INDEX idx_product_suggestion_media_parent ON public.product_suggestion_media USING btree (suggestion_id, \"position\")"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "moderators delete suggestion media",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "d",
+            "permissive": true
+          },
+          {
+            "name": "moderators read all suggestion media",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "users delete own suggestion media",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(EXISTS ( SELECT 1\n   FROM product_suggestions s\n  WHERE ((s.id = product_suggestion_media.suggestion_id) AND (s.submitted_by = auth.uid()))))",
+            "command": "d",
+            "permissive": true
+          },
+          {
+            "name": "users manage own suggestion media",
+            "check": "(EXISTS ( SELECT 1\n   FROM product_suggestions s\n  WHERE ((s.id = product_suggestion_media.suggestion_id) AND (s.submitted_by = auth.uid()))))",
+            "roles": ["authenticated"],
+            "using": null,
+            "command": "a",
+            "permissive": true
+          },
+          {
+            "name": "users read own suggestion media",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(EXISTS ( SELECT 1\n   FROM product_suggestions s\n  WHERE ((s.id = product_suggestion_media.suggestion_id) AND (s.submitted_by = auth.uid()))))",
+            "command": "r",
+            "permissive": true
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "product_suggestion_media_pkey",
+            "table": "product_suggestion_media",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "product_suggestion_media_suggestion_id_fkey",
+            "table": "product_suggestion_media",
+            "definition": "FOREIGN KEY (suggestion_id) REFERENCES product_suggestions(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    },
+    {
+      "source": "product_suggestions",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "submitted_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "name",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "brand_text",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "collection_text",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "category_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "resort_codes",
+            "type": "text[]",
+            "default": "'{}'::text[]",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "release_notes",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "proposed_variations",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "status",
+            "type": "suggestion_status",
+            "default": "'submitted'::suggestion_status",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "reviewer_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "reviewer_note",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "merged_product_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "created_product_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "reviewed_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX product_suggestions_pkey ON public.product_suggestions USING btree (id)",
+          "CREATE INDEX idx_product_suggestions_status ON public.product_suggestions USING btree (status, created_at DESC)",
+          "CREATE INDEX idx_product_suggestions_submitter ON public.product_suggestions USING btree (submitted_by, created_at DESC)"
+        ],
+        "policies": [
+          {
+            "name": "admins delete suggestions",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "has_role(auth.uid(), 'admin'::app_role)",
+            "command": "d",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "moderators read all suggestions",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "moderators update suggestions",
+            "check": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "w",
+            "permissive": true
+          },
+          {
+            "name": "users create own suggestions",
+            "check": "((submitted_by = auth.uid()) AND (status = 'submitted'::suggestion_status) AND (reviewer_id IS NULL) AND (merged_product_id IS NULL) AND (created_product_id IS NULL))",
+            "roles": ["authenticated"],
+            "using": null,
+            "command": "a",
+            "permissive": true
+          },
+          {
+            "name": "users read own suggestions",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(submitted_by = auth.uid())",
+            "command": "r",
+            "permissive": true
+          }
+        ],
+        "triggers": [
+          {
+            "name": "product_suggestion_convert_held_listing",
+            "bodyMd5": "6fae92aeae63bea6d9ba09c528eb6867",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.convert_approved_missing_listing()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE\n  req public.seller_listing_requests;\n  variant uuid;\n  new_ask uuid;\n  path text;\n  idx integer := 0;\nBEGIN\n  IF NEW.status IN ('rejected', 'merged_duplicate') AND OLD.status <> NEW.status THEN\n    UPDATE public.seller_listing_requests\n       SET status = 'rejected', updated_at = now()\n     WHERE suggestion_id = NEW.id AND status = 'pending';\n    RETURN NEW;\n  END IF;\n  IF NEW.status <> 'approved' OR NEW.created_product_id IS NULL\n     OR OLD.status = 'approved' THEN\n    RETURN NEW;\n  END IF;\n\n  SELECT * INTO req FROM public.seller_listing_requests\n   WHERE suggestion_id = NEW.id AND status = 'pending' FOR UPDATE;\n  IF req.id IS NULL THEN RETURN NEW; END IF;\n\n  SELECT id INTO variant FROM public.product_variants\n   WHERE product_id = NEW.created_product_id AND active\n   ORDER BY position, created_at LIMIT 1;\n  IF variant IS NULL THEN RAISE EXCEPTION 'The new product needs an active variation'; END IF;\n\n  INSERT INTO public.asks (\n    product_id, variant_id, seller_id, price_cents, currency, item_condition,\n    in_hand, seller_note, status, is_demo, parcel_length_in, parcel_width_in,\n    parcel_height_in, parcel_weight_lb\n  ) VALUES (\n    NEW.created_product_id, variant, req.seller_id, req.price_cents, req.currency,\n    req.item_condition, true, req.seller_note, 'active', false,\n    req.parcel_length_in, req.parcel_width_in, req.parcel_height_in, req.parcel_weight_lb\n  ) RETURNING id INTO new_ask;\n\n  idx := 0;\n  FOREACH path IN ARRAY req.evidence_paths LOOP\n    INSERT INTO public.ask_media (ask_id, storage_path, position)\n    VALUES (new_ask, path, idx);\n    idx := idx + 1;\n  END LOOP;\n  idx := 0;\n  FOREACH path IN ARRAY req.public_media_paths LOOP\n    INSERT INTO public.listing_media (ask_id, storage_path, position, rights_attested_at)\n    VALUES (new_ask, path, idx, now());\n    idx := idx + 1;\n  END LOOP;\n\n  UPDATE public.seller_listing_requests\n     SET status = 'converted', converted_ask_id = new_ask, updated_at = now()\n   WHERE id = req.id;\n  INSERT INTO public.ask_events (ask_id, actor_id, event_type, to_status, price_cents, note)\n  VALUES (new_ask, NEW.reviewer_id, 'created', 'active', req.price_cents,\n    'Created from an approved missing-product request; awaiting exact-item review');\n  PERFORM public.notify_member(req.seller_id, 'missing_product_approved',\n    'Your requested product was added',\n    'Your exact-item listing is now waiting for ParkVault photo and condition approval.', NULL);\n  RETURN NEW;\nEND;\n$function$\n",
+            "definition": "CREATE TRIGGER product_suggestion_convert_held_listing AFTER UPDATE OF status, created_product_id ON product_suggestions FOR EACH ROW EXECUTE FUNCTION convert_approved_missing_listing()"
+          },
+          {
+            "name": "trg_product_suggestions_touch",
+            "bodyMd5": "9baf00d43cdeb2cd0e55c1de045be21b",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.touch_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nBEGIN NEW.updated_at = now(); RETURN NEW; END; $function$\n",
+            "definition": "CREATE TRIGGER trg_product_suggestions_touch BEFORE UPDATE ON product_suggestions FOR EACH ROW EXECUTE FUNCTION touch_updated_at()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "product_suggestion_media_suggestion_id_fkey",
+            "table": "product_suggestion_media",
+            "definition": "FOREIGN KEY (suggestion_id) REFERENCES product_suggestions(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "merged_requires_target",
+            "table": "product_suggestions",
+            "definition": "CHECK (status <> 'merged_duplicate'::suggestion_status OR merged_product_id IS NOT NULL)"
+          },
+          {
+            "name": "product_suggestions_category_id_fkey",
+            "table": "product_suggestions",
+            "definition": "FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "product_suggestions_created_product_id_fkey",
+            "table": "product_suggestions",
+            "definition": "FOREIGN KEY (created_product_id) REFERENCES products(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "product_suggestions_merged_product_id_fkey",
+            "table": "product_suggestions",
+            "definition": "FOREIGN KEY (merged_product_id) REFERENCES products(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "product_suggestions_name_check",
+            "table": "product_suggestions",
+            "definition": "CHECK (length(btrim(name)) >= 2 AND length(btrim(name)) <= 160)"
+          },
+          {
+            "name": "product_suggestions_pkey",
+            "table": "product_suggestions",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "product_suggestions_reviewer_id_fkey",
+            "table": "product_suggestions",
+            "definition": "FOREIGN KEY (reviewer_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "product_suggestions_submitted_by_fkey",
+            "table": "product_suggestions",
+            "definition": "FOREIGN KEY (submitted_by) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "reviewed_requires_reviewer",
+            "table": "product_suggestions",
+            "definition": "CHECK ((status = ANY (ARRAY['submitted'::suggestion_status, 'in_review'::suggestion_status])) OR reviewer_id IS NOT NULL)"
+          },
+          {
+            "name": "seller_listing_requests_suggestion_id_fkey",
+            "table": "seller_listing_requests",
+            "definition": "FOREIGN KEY (suggestion_id) REFERENCES product_suggestions(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    },
+    {
+      "source": "seller_listing_requests",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "suggestion_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "seller_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "price_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "currency",
+            "type": "character(3)",
+            "default": "'USD'::bpchar",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "item_condition",
+            "type": "item_condition",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "seller_note",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "parcel_length_in",
+            "type": "numeric",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "parcel_width_in",
+            "type": "numeric",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "parcel_height_in",
+            "type": "numeric",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "parcel_weight_lb",
+            "type": "numeric",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "evidence_paths",
+            "type": "text[]",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "public_media_paths",
+            "type": "text[]",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "default": "'pending'::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "converted_ask_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX seller_listing_requests_pkey ON public.seller_listing_requests USING btree (id)",
+          "CREATE UNIQUE INDEX seller_listing_requests_suggestion_id_key ON public.seller_listing_requests USING btree (suggestion_id)",
+          "CREATE INDEX seller_listing_requests_seller_idx ON public.seller_listing_requests USING btree (seller_id, created_at DESC)"
+        ],
+        "policies": [
+          {
+            "name": "Admins review held listing requests",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "has_role(auth.uid(), 'admin'::app_role)",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Sellers read their held listing requests",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(seller_id = auth.uid())",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "seller_listing_requests_converted_ask_id_fkey",
+            "table": "seller_listing_requests",
+            "definition": "FOREIGN KEY (converted_ask_id) REFERENCES asks(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "seller_listing_requests_evidence_paths_check",
+            "table": "seller_listing_requests",
+            "definition": "CHECK (cardinality(evidence_paths) >= 1 AND cardinality(evidence_paths) <= 8)"
+          },
+          {
+            "name": "seller_listing_requests_parcel_height_in_check",
+            "table": "seller_listing_requests",
+            "definition": "CHECK (parcel_height_in IS NULL OR parcel_height_in > 0::numeric)"
+          },
+          {
+            "name": "seller_listing_requests_parcel_length_in_check",
+            "table": "seller_listing_requests",
+            "definition": "CHECK (parcel_length_in IS NULL OR parcel_length_in > 0::numeric)"
+          },
+          {
+            "name": "seller_listing_requests_parcel_weight_lb_check",
+            "table": "seller_listing_requests",
+            "definition": "CHECK (parcel_weight_lb IS NULL OR parcel_weight_lb > 0::numeric)"
+          },
+          {
+            "name": "seller_listing_requests_parcel_width_in_check",
+            "table": "seller_listing_requests",
+            "definition": "CHECK (parcel_width_in IS NULL OR parcel_width_in > 0::numeric)"
+          },
+          {
+            "name": "seller_listing_requests_pkey",
+            "table": "seller_listing_requests",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "seller_listing_requests_price_cents_check",
+            "table": "seller_listing_requests",
+            "definition": "CHECK (price_cents >= 100 AND price_cents <= 5000000)"
+          },
+          {
+            "name": "seller_listing_requests_public_media_paths_check",
+            "table": "seller_listing_requests",
+            "definition": "CHECK (cardinality(public_media_paths) >= 1 AND cardinality(public_media_paths) <= 8)"
+          },
+          {
+            "name": "seller_listing_requests_seller_id_fkey",
+            "table": "seller_listing_requests",
+            "definition": "FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "seller_listing_requests_seller_note_check",
+            "table": "seller_listing_requests",
+            "definition": "CHECK (seller_note IS NULL OR length(seller_note) <= 500)"
+          },
+          {
+            "name": "seller_listing_requests_status_check",
+            "table": "seller_listing_requests",
+            "definition": "CHECK (status = ANY (ARRAY['pending'::text, 'converted'::text, 'rejected'::text]))"
+          },
+          {
+            "name": "seller_listing_requests_suggestion_id_fkey",
+            "table": "seller_listing_requests",
+            "definition": "FOREIGN KEY (suggestion_id) REFERENCES product_suggestions(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "seller_listing_requests_suggestion_id_key",
+            "table": "seller_listing_requests",
+            "definition": "UNIQUE (suggestion_id)"
+          }
+        ]
+      }
+    }
+  ],
+  "functions": [
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public"],
+      "bodyMd5": "ec0aa2c1ec03bb700946f6e2faf698c8",
+      "signature": "admin_create_product(text,text,uuid,text[],text[],text,text,text,release_type,date,integer,text,product_status,uuid)",
+      "definition": "CREATE OR REPLACE FUNCTION public.admin_create_product(_name text, _slug text, _category_id uuid, _resort_codes text[], _variations text[] DEFAULT NULL::text[], _brand_text text DEFAULT NULL::text, _collection_text text DEFAULT NULL::text, _description text DEFAULT NULL::text, _release_type release_type DEFAULT 'unknown'::release_type, _release_date date DEFAULT NULL::date, _retail_price_cents integer DEFAULT NULL::integer, _retail_price_source text DEFAULT NULL::text, _status product_status DEFAULT 'draft'::product_status, _suggestion_id uuid DEFAULT NULL::uuid)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\ndeclare\n  _caller uuid := auth.uid();\n  _clean_name text := btrim(coalesce(_name, ''));\n  _clean_slug text := lower(regexp_replace(btrim(coalesce(nullif(_slug, ''), _name)), '[^a-zA-Z0-9]+', '-', 'g'));\n  _brand_id uuid;\n  _collection_id uuid;\n  _product_id uuid;\n  _codes text[];\n  _labels text[];\n  _label text;\n  _i integer := 0;\nbegin\n  if _caller is null or not public.has_role(_caller, 'admin') then\n    raise exception 'Administrator access required.' using errcode = '42501';\n  end if;\n\n  _clean_slug := trim(both '-' from _clean_slug);\n  if char_length(_clean_name) < 3 or char_length(_clean_name) > 160 then\n    raise exception 'Give the product a name between 3 and 160 characters.';\n  end if;\n  if char_length(_clean_slug) < 3 then\n    raise exception 'The product needs a usable URL slug.';\n  end if;\n  if exists (select 1 from public.products where slug = _clean_slug) then\n    raise exception 'A catalog page already uses the slug %.', _clean_slug;\n  end if;\n  if _category_id is null or not exists (select 1 from public.categories where id = _category_id) then\n    raise exception 'Choose a catalog category.';\n  end if;\n\n  select coalesce(array_agg(distinct upper(c)), array[]::text[])\n  into _codes\n  from unnest(coalesce(_resort_codes, array[]::text[])) as c\n  where upper(c) in (select code from public.resorts where active);\n  if array_length(_codes, 1) is null then\n    raise exception 'Choose at least one resort where this product is sold.';\n  end if;\n\n  if nullif(btrim(coalesce(_brand_text, '')), '') is not null then\n    insert into public.brands (slug, name)\n    values (trim(both '-' from lower(regexp_replace(btrim(_brand_text), '[^a-zA-Z0-9]+', '-', 'g'))), btrim(_brand_text))\n    on conflict (slug) do update set name = excluded.name\n    returning id into _brand_id;\n  end if;\n\n  if nullif(btrim(coalesce(_collection_text, '')), '') is not null then\n    insert into public.collections (slug, name)\n    values (trim(both '-' from lower(regexp_replace(btrim(_collection_text), '[^a-zA-Z0-9]+', '-', 'g'))), btrim(_collection_text))\n    on conflict (slug) do update set name = excluded.name\n    returning id into _collection_id;\n  end if;\n\n  insert into public.products (\n    slug, name, brand_id, collection_id, category_id, description,\n    release_date, release_type, retail_price_cents, retail_price_source,\n    retail_price_observed_at, status, is_demo, created_by\n  )\n  values (\n    _clean_slug, _clean_name, _brand_id, _collection_id, _category_id,\n    nullif(btrim(coalesce(_description, '')), ''),\n    _release_date, coalesce(_release_type, 'unknown'),\n    _retail_price_cents,\n    nullif(btrim(coalesce(_retail_price_source, '')), ''),\n    case when _retail_price_cents is not null then now() else null end,\n    coalesce(_status, 'draft'), false, _caller\n  )\n  returning id into _product_id;\n\n  insert into public.product_resorts (product_id, resort_id)\n  select _product_id, r.id from public.resorts r where r.code = any(_codes)\n  on conflict do nothing;\n\n  select coalesce(array_agg(btrim(v)), array[]::text[])\n  into _labels\n  from unnest(coalesce(_variations, array[]::text[])) as v\n  where btrim(coalesce(v, '')) <> '';\n\n  if array_length(_labels, 1) is null then\n    _labels := array['Standard'];\n  end if;\n\n  foreach _label in array _labels loop\n    insert into public.product_variants (product_id, sku_label, variation_key, position, active)\n    values (\n      _product_id, _label,\n      trim(both '-' from lower(regexp_replace(_label, '[^a-zA-Z0-9]+', '-', 'g'))),\n      _i, true\n    );\n    _i := _i + 1;\n  end loop;\n\n  if _suggestion_id is not null then\n    update public.product_suggestions\n    set status = 'approved',\n        reviewer_id = _caller,\n        created_product_id = _product_id,\n        reviewed_at = now(),\n        updated_at = now()\n    where id = _suggestion_id;\n  end if;\n\n  insert into public.admin_audit_log (actor_id, action, entity, entity_id, after, note)\n  values (\n    _caller, 'product_created', 'products', _product_id,\n    jsonb_build_object('slug', _clean_slug, 'status', coalesce(_status, 'draft'), 'variations', _labels, 'resorts', _codes),\n    case when _suggestion_id is not null then 'Created from member request' else null end\n  );\n\n  return _product_id;\nend;\nEND;$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public"],
+      "bodyMd5": "475d148c612ec3c57eba4517e4c752a5",
+      "signature": "admin_review_product_suggestion(uuid,suggestion_status,text,uuid)",
+      "definition": "CREATE OR REPLACE FUNCTION public.admin_review_product_suggestion(_suggestion_id uuid, _status suggestion_status, _note text DEFAULT NULL::text, _merged_product_id uuid DEFAULT NULL::uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\ndeclare\n  _caller uuid := auth.uid();\nbegin\n  if _caller is null or not public.has_role(_caller, 'admin') then\n    raise exception 'Administrator access required.' using errcode = '42501';\n  end if;\n  if _status not in ('in_review', 'rejected', 'merged_duplicate') then\n    raise exception 'Approve a request by creating its catalog page instead.';\n  end if;\n\n  update public.product_suggestions\n  set status = _status,\n      reviewer_id = _caller,\n      reviewer_note = nullif(btrim(coalesce(_note, '')), ''),\n      merged_product_id = _merged_product_id,\n      reviewed_at = now(),\n      updated_at = now()\n  where id = _suggestion_id;\n\n  if not found then\n    raise exception 'That request no longer exists.';\n  end if;\n\n  insert into public.admin_audit_log (actor_id, action, entity, entity_id, after, note)\n  values (_caller, 'suggestion_reviewed', 'product_suggestions', _suggestion_id,\n          jsonb_build_object('status', _status), nullif(btrim(coalesce(_note, '')), ''));\nend;\nEND;$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public"],
+      "bodyMd5": "034b4972bcc46b12c4f2e7bf074955f0",
+      "signature": "submit_product_suggestion(text,text,text,uuid,text[],text,text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.submit_product_suggestion(_name text, _brand_text text DEFAULT NULL::text, _collection_text text DEFAULT NULL::text, _category_id uuid DEFAULT NULL::uuid, _resort_codes text[] DEFAULT ARRAY[]::text[], _release_notes text DEFAULT NULL::text, _proposed_variations text DEFAULT NULL::text)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\ndeclare\n  _caller uuid := auth.uid();\n  _id uuid;\n  _clean_name text := btrim(coalesce(_name, ''));\n  _codes text[];\nbegin\n  if _caller is null then\n    raise exception 'Sign in to suggest a product.' using errcode = '42501';\n  end if;\n  perform public.enforce_rate_limit('submit_product_suggestion', 5, interval '1 day');\n\n  if char_length(_clean_name) < 3 or char_length(_clean_name) > 160 then\n    raise exception 'Give the product a name between 3 and 160 characters.';\n  end if;\n\n  select coalesce(array_agg(distinct upper(c)), array[]::text[])\n  into _codes\n  from unnest(coalesce(_resort_codes, array[]::text[])) as c\n  where upper(c) in (select code from public.resorts where active);\n\n  if array_length(_codes, 1) is null then\n    raise exception 'Choose at least one resort where this product is sold.';\n  end if;\n\n  insert into public.product_suggestions (\n    submitted_by, name, brand_text, collection_text, category_id, resort_codes,\n    release_notes, proposed_variations, status\n  )\n  values (\n    _caller, _clean_name,\n    nullif(btrim(coalesce(_brand_text, '')), ''),\n    nullif(btrim(coalesce(_collection_text, '')), ''),\n    _category_id, _codes,\n    nullif(btrim(coalesce(_release_notes, '')), ''),\n    nullif(btrim(coalesce(_proposed_variations, '')), ''),\n    'submitted'\n  )\n  returning id into _id;\n\n  return _id;\nend;\nEND;$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public"],
+      "bodyMd5": "7f0ade826bc04fd9e344e7ee0612921f",
+      "signature": "admin_save_variant(uuid,text,uuid,text,text,text,integer,boolean)",
+      "definition": "CREATE OR REPLACE FUNCTION public.admin_save_variant(_product_id uuid, _label text, _variant_id uuid DEFAULT NULL::uuid, _size text DEFAULT NULL::text, _color text DEFAULT NULL::text, _edition text DEFAULT NULL::text, _position integer DEFAULT NULL::integer, _active boolean DEFAULT true)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\ndeclare\n  _caller uuid := auth.uid();\n  _clean_label text := nullif(btrim(coalesce(_label, '')), '');\n  _key text;\n  _before jsonb;\n  _id uuid := _variant_id;\nbegin\n  if _caller is null or not public.has_role(_caller, 'admin') then\n    raise exception 'Administrator access required.' using errcode = '42501';\n  end if;\n  if _clean_label is null or char_length(_clean_label) > 120 then\n    raise exception 'Give the variation a label of up to 120 characters.';\n  end if;\n  if not exists (select 1 from public.products where id = _product_id) then\n    raise exception 'That catalog page no longer exists.';\n  end if;\n\n  _key := trim(both '-' from lower(regexp_replace(_clean_label, '[^a-zA-Z0-9]+', '-', 'g')));\n\n  if _id is null then\n    insert into public.product_variants (product_id, sku_label, variation_key, size, color, edition, position, active)\n    values (\n      _product_id, _clean_label, _key,\n      nullif(btrim(coalesce(_size, '')), ''),\n      nullif(btrim(coalesce(_color, '')), ''),\n      nullif(btrim(coalesce(_edition, '')), ''),\n      coalesce(_position, (select coalesce(max(position), -1) + 1 from public.product_variants where product_id = _product_id)),\n      coalesce(_active, true)\n    )\n    returning id into _id;\n\n    insert into public.admin_audit_log (actor_id, action, entity, entity_id, after)\n    values (_caller, 'variant_created', 'product_variants', _id,\n            jsonb_build_object('product_id', _product_id, 'label', _clean_label));\n    return _id;\n  end if;\n\n  select to_jsonb(v) into _before\n  from public.product_variants v\n  where v.id = _id and v.product_id = _product_id\n  for update;\n  if _before is null then\n    raise exception 'That variation no longer exists.';\n  end if;\n\n  update public.product_variants\n  set sku_label = _clean_label,\n      variation_key = _key,\n      size = nullif(btrim(coalesce(_size, '')), ''),\n      color = nullif(btrim(coalesce(_color, '')), ''),\n      edition = nullif(btrim(coalesce(_edition, '')), ''),\n      position = coalesce(_position, position),\n      active = coalesce(_active, active),\n      updated_at = now()\n  where id = _id;\n\n  insert into public.admin_audit_log (actor_id, action, entity, entity_id, before, after)\n  values (_caller, 'variant_updated', 'product_variants', _id, _before,\n          jsonb_build_object('label', _clean_label, 'active', coalesce(_active, true), 'position', _position));\n\n  return _id;\nend;\nEND;$function$\n",
+      "securityDefiner": true
+    }
+  ],
+  "additionalFunctionCapturedAt": "2026-11-15T10:53:58.335654+00:00"
+}
