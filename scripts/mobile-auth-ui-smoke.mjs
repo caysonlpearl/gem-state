@@ -185,13 +185,14 @@ try {
     assert(await pinned.getByRole("link", { name: "Saved listings", exact: true }).isVisible());
     await page.screenshot({ path: resolve(output, `floating-scrolled-${viewport.width}.png`) });
     await primary.getByRole("link", { name: "Search", exact: true }).click();
-    await page.waitForURL("**/#/search");
+    await page.waitForURL(/#\/search\?state=ID$/);
     await page.getByRole("heading", { name: "All classifieds", exact: true }).waitFor();
     await topSearch.fill("desk lamp");
     await topSearch.press("Enter");
     await page.waitForFunction(
       () => new URLSearchParams(location.hash.split("?")[1]).get("q") === "desk lamp",
     );
+    assert.equal(new URLSearchParams(new URL(page.url()).hash.split("?")[1]).get("state"), "ID");
     await page.evaluate(() => {
       location.hash = "/search?q=desk&sort=price_low&priceMin=100&futureScope=keep";
     });
