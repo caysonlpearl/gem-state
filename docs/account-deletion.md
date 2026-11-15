@@ -1122,3 +1122,68 @@ cleanup, remaining analytics, explicit financial/moderation/consent/audit
 retention and identity/revocation composition remain required. This component
 closes the application-cascade dependency; it does not close the overall store
 deletion requirement.
+
+### Owned listing and recommendation-cache cleanup (source only, November 15)
+
+`20261115040000_account_deletion_listing_records.sql` and
+`account-deletion-listings.server.ts` add the next leased records component.
+Compose conversation retirement, authored inquiries and job applications before
+removing listing roots. Each pass changes at most 100 physical domain rows,
+including actual media-counter callbacks, thumbnail links, cached cards, private
+cache ownership and vectors. Exact current-generation durable media discovery
+is mandatory before a source media reference disappears. It is not proof or
+authorization of provider-byte erasure; that phase must precede records removal.
+
+For unencumbered owned listings, cleanup pauses the listing, removes its media
+references, details, optional metrics, saved-search matches and event rows, and
+finally removes the listing root. Surviving buyers' inquiries and conversations
+are unlinked while their original contributions remain. A deleting member's
+notes on another member's listing lose the actor reference and note, preserving
+the listing's nonpersonal state facts. Approver references, moderation reports
+of any status, orders, offers, matches, upgrades, dealer/import associations and
+checkout quotes defer to explicit retention handling; this component cannot
+silently delete those records or declare the overall records phase complete.
+
+Checkout quote address/rate snapshots are payment dependencies, including
+variant-only quotes: the existing late payment callback reads them without an
+expiry filter. Ordinary listing deletion now sets a quote's listing reference
+to null instead of cascading the quote away. Buyer identity deletion remains
+restricted until the financial composition handles it. No quote payload is
+copied into a deletion ledger.
+
+Native cached cards retain only their exact listing id and owning account in
+a private ownership table. That link survives ordinary listing removal, so a
+later account deletion can still remove stale recommendation cards and vectors.
+No additional title, message, visitor id or device information is copied. Clients
+cannot read or write this ownership table; the service role can read it but
+cannot write it directly. A bounded disabled-worker preparation RPC attributes
+preexisting cards from live listing parents or prunes orphan cards and vectors.
+Worker activation is rejected until native cache provenance is complete. This
+does not fetch, modify or erase external/provider inventory or provider bytes.
+
+New listing, media, quote and event writes serialize against member deletion
+requests; optional metrics and derived native cache writes skip unavailable
+members. A stale inventory/vector refresh cannot restore their native card.
+Auth foreign keys restrict shortcut deletion while owned listings, actor notes,
+quote buyers or cache ownership remain. Runtime contracts pin schema, incoming
+relationships, indexes, policies, hooks and helper bodies. Schema drift or an
+expired lease rolls back the pass. Independent verification requires the
+matching verification lease, absent Auth identity and no remaining relevant
+references, without repair writes.
+
+Tests reconstruct captured listing/cache metadata with synthetic identities and
+supporting business/financial payloads. Vector payloads are opaque arrays: these
+checks establish deletion behavior, not model quality, vector search or ANN
+performance. Tests count before/after physical rows, exercise the actual
+Supabase client without automatic lost-acknowledgement retries, preserve other
+members and external cards, cover ordinary removal followed by account deletion,
+test bounded legacy preparation and privileges, and reject drift and shortcuts.
+A required real PostgreSQL gate observes separate-connection cache/request lock
+ordering and rollback when a lease expires while waiting on a cache parent.
+
+**Installation hold:** this remains stacked on the source-only application,
+inquiry, conversation and profile components. No production migration, account
+erasure, cache preparation or worker activation is performed by this batch.
+Remaining analytics, explicit financial/moderation/consent/audit retention,
+provider erasure authority, Apple/manual revocation, final identity handling and
+full end-to-end rehearsal remain necessary before enabling account deletion.

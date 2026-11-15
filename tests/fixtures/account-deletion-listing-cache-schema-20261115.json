@@ -1,0 +1,287 @@
+{
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "capturedAt": "2026-11-15T08:29:46.771534+00:00",
+  "metadataOnly": true,
+  "rows": [
+    {
+      "source": "shopping_embeddings",
+      "metadata": {
+        "columns": [
+          {
+            "name": "listing_id",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "content_hash",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "model_version",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "embedding",
+            "type": "vector(768)",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX shopping_embeddings_pkey ON public.shopping_embeddings USING btree (listing_id)",
+          "CREATE INDEX shopping_vectors_cosine ON public.shopping_embeddings USING hnsw (embedding vector_cosine_ops)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*"
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "shopping_embeddings_listing_id_fkey",
+            "table": "shopping_embeddings",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES shopping_inventory(listing_id) ON DELETE CASCADE"
+          },
+          {
+            "name": "shopping_embeddings_pkey",
+            "table": "shopping_embeddings",
+            "definition": "PRIMARY KEY (listing_id)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "shopping_inventory",
+      "metadata": {
+        "columns": [
+          {
+            "name": "listing_id",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "card",
+            "type": "jsonb",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "category",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "price_cents",
+            "type": "bigint",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "previous_price_cents",
+            "type": "bigint",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "price_version",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true
+          },
+          {
+            "name": "price_changed_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "content_hash",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "first_seen_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "last_seen_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "valid_until",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": true
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX shopping_inventory_pkey ON public.shopping_inventory USING btree (listing_id)",
+          "CREATE INDEX shopping_inventory_valid ON public.shopping_inventory USING btree (valid_until)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*"
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "shopping_inventory_pkey",
+            "table": "shopping_inventory",
+            "definition": "PRIMARY KEY (listing_id)"
+          },
+          {
+            "name": "shopping_inventory_price_cents_check",
+            "table": "shopping_inventory",
+            "definition": "CHECK (price_cents >= 0)"
+          },
+          {
+            "name": "shopping_embeddings_listing_id_fkey",
+            "table": "shopping_embeddings",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES shopping_inventory(listing_id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    },
+    {
+      "source": "checkout_shipping_quotes",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true
+          },
+          {
+            "name": "buyer_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "ask_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "address",
+            "type": "jsonb",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "rates",
+            "type": "jsonb",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "provider",
+            "type": "text",
+            "default": "'shippo'::text",
+            "notNull": true
+          },
+          {
+            "name": "provider_shipment_id",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "expires_at",
+            "type": "timestamp with time zone",
+            "default": "(now() + '00:20:00'::interval)",
+            "notNull": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "variant_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "option_ref",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX checkout_shipping_quotes_pkey ON public.checkout_shipping_quotes USING btree (id)",
+          "CREATE INDEX checkout_shipping_quotes_buyer_idx ON public.checkout_shipping_quotes USING btree (buyer_id, expires_at DESC)"
+        ],
+        "policies": [
+          {
+            "name": "Buyers read their checkout shipping quotes",
+            "check": null,
+            "using": "(buyer_id = auth.uid())",
+            "command": "r"
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*"
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "checkout_shipping_quotes_ask_id_fkey",
+            "table": "checkout_shipping_quotes",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "checkout_shipping_quotes_buyer_id_fkey",
+            "table": "checkout_shipping_quotes",
+            "definition": "FOREIGN KEY (buyer_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "checkout_shipping_quotes_pkey",
+            "table": "checkout_shipping_quotes",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "checkout_shipping_quotes_variant_id_fkey",
+            "table": "checkout_shipping_quotes",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    }
+  ],
+  "quotesCapturedAt": "2026-11-15T07:21:46.001208+00:00"
+}
