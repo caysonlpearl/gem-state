@@ -12,7 +12,7 @@ Signup has required versioned Terms acceptance and one optional shopping-email/w
 6. Optional advertising remains paused until actual Meta/Google credentials are configured and validated. `META_PIXEL_ID`, `META_CONVERSIONS_TOKEN`, `GOOGLE_MEASUREMENT_ID`, and `GOOGLE_MEASUREMENT_SECRET` are server configuration. Only the consent-gated Meta Pixel loads in the browser; Google uses the allowlisted server adapter. Do not add automatic URL/search/form capture. Meta shares event IDs across browser/server; Google events use one server path and are not retried after an ambiguous handoff. Verified purchases use transaction IDs.
 7. Register the signed Resend webhook `/api/shopping-email-events` and set `RESEND_SHOPPING_WEBHOOK_SECRET` before treating provider complaints/bounces as complete. Clicks and approximate opens work independently. Existing operational email remains separate.
 
-Each switch is independent, including embedding compute and weekly ranking updates. Pausing does not delete saved listings. The web-host and repository secrets must never be committed or returned in reports.
+Each switch is independent, including embedding compute and weekly ranking evaluation. Pausing does not delete saved listings. The web-host and repository secrets must never be committed or returned in reports.
 
 ## Ranking and reminders
 
@@ -144,3 +144,49 @@ not member histories. Source evidence is under
 projection against PostgreSQL JSON fields, bounded transport/error handling,
 category/home-intent coverage, older views/favorites, missing vectors, expired
 inventory, native exclusions and privacy changes during a request.
+
+## Reviewed engagement challengers (source batch, November 15)
+
+The shared ranker now derives a bounded engagement feature from the existing
+foreground viewing-time and photo events. It requires a preceding view in the
+same session/listing, caps active time at 300 seconds and distinct noninitial
+photos at eight per session, uses the strongest session, and applies the existing
+14-day decay inside the 30-day window. It does not change the 20/12/10/3/2/1
+interest weights or reminder eligibility. Engagement's baseline ranking weight is
+zero. This adds no sensor access, external-app data, SDK or consent scope.
+
+Exposure version `:category-seeds-v1:engagement-v1` records five bounded ranking
+features plus fixed category/search intent and a random response-batch ID. A
+common divisor preserves the actual score differences for offline evaluation.
+Training pairs come from the same shopper/session/response, and training/test
+sets stay separated by shopper. Older apps remain usable; their missing features
+are excluded from the new learner rather than interpreted as zero engagement.
+Only exposures for the current model are eligible. Previously stored weekly
+rows are retained; an existing evaluation is not silently replaced midweek.
+
+Weekly evaluation now stores a candidate with `promoted=false`, even when the
+existing evidence thresholds pass. An active authenticated administrator reviews
+the before/after weights and offline accuracy in `/admin/shopping`, explicitly
+confirms, then applies the stored candidate. The database validates the evidence,
+current baseline and session, serializes competing reviewers, preserves unrelated
+controls/catalog status, and returns the same receipt for an immediate retry.
+It records a review timestamp/model version, without adding reviewer identity.
+This is not an online conversion-lift claim; the stable comparison group remains.
+
+Apply `20261115150000_shopping_reviewed_ranking.sql` only after inspecting the
+current GemList schema, private table permissions and zero-gap account boundary
+coverage. The migration is additive and transactional. The admin report hides the
+apply control when it is absent; any other readiness failure is an error. Do not
+treat this source migration or disposable-database tests as a production install.
+No trained candidate was applied in this batch. Before rollout, verify the live
+migration and report; to undo a reviewed ranking change, pause recommendations
+and restore the evaluation's baseline weights/version through the existing
+restricted operations path, then verify before resuming. Do not alter the
+shopping-delivery or advertising switches as part of ranking rollout.
+
+Validation: engagement/worker regression tests, actual member/service admin
+adapters, PostgreSQL migration/authorization and concurrent-review tests, and the
+actual review component at 320px and 1280px across eligible, insufficient, stale,
+paused, unavailable, applied and pending states. Browser screenshots use synthetic
+evaluation evidence, never private shopper activity. Required CI also runs the
+PostgreSQL transaction and review-screen checks.

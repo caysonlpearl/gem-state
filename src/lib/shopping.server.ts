@@ -3,6 +3,7 @@ import { assertAccountSession, accountDeletionPending } from "./account-deletion
 import {
   interests,
   rankShopping,
+  shoppingRankingVersion,
   shoppingEvent,
   SHOPPING_MODEL,
   SHOPPING_POLICY_VERSION,
@@ -158,7 +159,7 @@ export async function shoppingRecommendations(
   const historyAfter = permission.history_after;
   if (typeof historyAfter !== "string" || !Number.isFinite(Date.parse(historyAfter)))
     throw Error("Privacy preferences unavailable.");
-  const model = `${controls.model_version}:category-seeds-v1`;
+  const model = shoppingRankingVersion(controls.model_version);
   const [allActivity, inventory, experiment] = await Promise.all([
     shoppingActivity(db, subject),
     db

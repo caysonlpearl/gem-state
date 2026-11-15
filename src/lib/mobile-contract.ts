@@ -60,7 +60,7 @@ export type MobileListing = {
     | "externalPet"
     | "directory"
   >;
-  shoppingFeatures?: Record<string, number>;
+  shoppingFeatures?: Record<string, number | string>;
   available?: boolean;
   canSave?: boolean;
   canMessage?: boolean;

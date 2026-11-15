@@ -13,6 +13,9 @@ const contextKeys = new Set([
   "rank_budget",
   "rank_location",
   "rank_freshness",
+  "rank_engagement",
+  "rank_intent",
+  "rank_batch",
 ]);
 /** Native activity has a smaller contract than the website; no fingerprint,
  * hardware, IP, advertising identifiers, messages, or arbitrary metadata. */

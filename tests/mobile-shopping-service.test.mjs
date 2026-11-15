@@ -297,7 +297,7 @@ test("Recently viewed resolves an older newly revisited listing independently of
   assert.equal(result.recent[0].id, revisited.id);
   assert.equal(
     result.model,
-    "rules-v1:category-seeds-v1",
+    "rules-v1:category-seeds-v1:engagement-v1",
     "Missing vectors do not block useful history; exposure identifies the new selection strategy",
   );
   assert.equal(
