@@ -13,6 +13,7 @@ import * as savedSearchWrites from "../src/lib/mobile-saved-search.server.ts";
 import * as savedSearchContracts from "../src/lib/mobile-saved-search-contract.ts";
 import * as mobileSearch from "../src/lib/mobile-search.ts";
 import * as accountContracts from "../src/lib/mobile-account-contract.ts";
+import * as shoppingConsent from "../src/lib/mobile-shopping-consent.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -36,6 +37,7 @@ function harness({
   posting = false,
   savedSearches = false,
   terms = true,
+  mobileTerms = terms,
   catalogError = false,
   nativeConversation = false,
   missingContext = false,
@@ -108,6 +110,9 @@ function harness({
                     ? {
                         terms_version: terms ? contract.MOBILE_POLICY_VERSION : null,
                         shopping_alerts: false,
+                        mobile_terms_version: mobileTerms ? contract.MOBILE_POLICY_VERSION : null,
+                        mobile_terms_accepted_at: mobileTerms ? "2026-11-14T00:00:00Z" : null,
+                        mobile_shopping_alerts: false,
                       }
                     : null,
         }),
@@ -208,6 +213,7 @@ function harness({
     "./mobile-message-context.server": messageContext,
     "./mobile-write": mobileWrite,
     "./mobile-account-contract": accountContracts,
+    "./mobile-shopping-consent": shoppingConsent,
     "./supabase-public.server": { publicServerClient: () => db },
     "./account-saved.server": {
       loadMobileSavedAccount: async (_client, _public, ownerId) => {
@@ -616,6 +622,31 @@ test("mobile consent and device registration derive the caller, ignoring forged 
   });
   assert.equal(r.status, 200);
   assert.equal(h.writes[1].args._user, h.user);
+});
+test("website-only acceptance requires the existing app choices before private marketplace writes", async () => {
+  const h = harness({ terms: true, mobileTerms: false });
+  const state = await h.request("account");
+  assert.equal(state.status, 200);
+  assert.deepEqual((await state.json()).data.consent, {
+    terms_version: null,
+    shopping_alerts: false,
+  });
+  const denied = await h.request("devices", "PUT", {
+    platform: "android",
+    token: "a-valid-device-token",
+  });
+  assert.equal(denied.status, 409);
+  assert.equal((await denied.json()).error.code, "terms_required");
+  assert.deepEqual(h.writes, []);
+  const accepted = await h.request("consent", "PUT", {
+    acceptTerms: true,
+    shoppingAlerts: false,
+    version: contract.MOBILE_POLICY_VERSION,
+    userId: "victim",
+  });
+  assert.equal(accepted.status, 200);
+  assert.equal(h.writes[0].args._user, h.user);
+  assert.equal(h.writes[0].args._shopping_alerts, false);
 });
 test("pending deletion prevents permission reactivation and further marketplace writes", async () => {
   const h = harness({ deleted: true });

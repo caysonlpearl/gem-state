@@ -108,7 +108,7 @@ test("browse results have a heading before cards and empty-state text stays at h
   const browseSource=browseResultsSource;
   assert.match(
     browseSource,
-    /<section id="results" aria-labelledby="browse-results-heading"[^>]*>\s*<h2 id="browse-results-heading" className="sr-only">\s*Search results\s*<\/h2>/,
+    /<section\s+id="results"\s+aria-labelledby="browse-results-heading"[^>]*>\s*<h2 id="browse-results-heading" className="sr-only">\s*Search results\s*<\/h2>/,
   );
   assert.match(
     browseSource,

@@ -335,6 +335,7 @@ try {
     assert.equal(calls[2].path, "/auth/v1/signup");
     assert.equal(calls[2].body.data.display_name, "Fixture shopper");
     assert.equal(calls[2].body.data.shopping_terms_version, "2026-11-12");
+    assert.equal(calls[2].body.data.shopping_signup_source, "mobile");
     assert.equal(calls[2].body.data.shopping_alerts, false);
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),

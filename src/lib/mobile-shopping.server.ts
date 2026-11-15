@@ -2,6 +2,7 @@
 import { MobileApiError, mobileJson } from "./mobile-api";
 import { MOBILE_POLICY_VERSION, mobileListingAllowed } from "./mobile-contract";
 import { mobileGuestSubject, mobileShoppingEvent } from "./mobile-shopping";
+import { mobileShoppingConsent } from "./mobile-shopping-consent";
 import {
   shoppingPermission,
   shoppingControls,
@@ -32,17 +33,42 @@ export async function handleMobileShopping(
     if (deletion.data)
       throw new MobileApiError(409, "deletion_pending", "Your account deletion is pending.");
   }
+  async function acceptedTerms() {
+    if (!user) return true;
+    const result = await db
+      .from("shopping_accounts")
+      .select("terms_version,mobile_terms_version,mobile_terms_accepted_at")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (result.error)
+      throw new MobileApiError(
+        503,
+        "consent_unavailable",
+        "Account preferences are temporarily unavailable.",
+      );
+    return mobileShoppingConsent(result.data).terms_version === MOBILE_POLICY_VERSION;
+  }
+  async function requireAcceptance() {
+    if (!(await acceptedTerms()))
+      throw new MobileApiError(
+        409,
+        "terms_required",
+        "Please accept the current Terms of Service first.",
+      );
+  }
   if (request.method === "GET" && path === "shopping") {
     const permission = await shoppingPermission(db, subject),
       controls = await shoppingControls(db);
     return {
-      personalization: permission?.personalization === true,
+      personalization: permission?.personalization === true && (await acceptedTerms()),
       trackingAvailable: controls.tracking === true,
       recommendationsAvailable: controls.recommendations === true,
       version: MOBILE_POLICY_VERSION,
     };
   }
   if (request.method === "GET" && path === "recommendations") {
+    if (!(await acceptedTerms()))
+      return { recent: [], continuing: [], recommended: [], model: "rules-v1" };
     return shoppingRecommendations(db, subject, { eligible: mobileListingAllowed });
   }
   if (request.method === "GET" && path === "similar") {
@@ -78,6 +104,7 @@ export async function handleMobileShopping(
   if (request.method === "PUT" && path === "shopping/privacy") {
     if (typeof body.personalization !== "boolean")
       throw new MobileApiError(400, "invalid_choice", "Choose whether to personalize shopping.");
+    if (body.personalization) await requireAcceptance();
     const result = await db.rpc("mobile_set_personalization", {
       _subject: subject,
       _user: user?.id ?? null,
@@ -95,6 +122,7 @@ export async function handleMobileShopping(
     return { cleared: true };
   }
   if (request.method === "POST" && path === "activity") {
+    await requireAcceptance();
     if (!Array.isArray(body.events) || body.events.length > 50)
       throw new MobileApiError(400, "invalid_events", "Send a smaller activity batch.");
     const events = body.events.map(mobileShoppingEvent).filter(Boolean);

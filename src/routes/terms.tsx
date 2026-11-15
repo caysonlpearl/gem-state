@@ -48,11 +48,18 @@ function Terms() {
       </p>
       <h2>Shopping communications</h2>
       <p>
-        Shopping emails and website notifications are optional. If you opt in, Bluebird selects
-        relevant listing updates, price drops, recommendations, and genuine offers based on your
-        activity. Frequency varies and multiple relevant updates may arrive in a day. You may turn
-        shopping updates off in your account or use an email unsubscribe link. Account, security,
-        transaction, and requested conversation messages are handled separately.
+        Shopping emails and Bluebird website/app notifications are optional. If you opt in, Bluebird
+        selects relevant listing updates, price drops, recommendations, and genuine offers based on
+        your activity. Frequency varies and multiple relevant updates may arrive in a day. You may
+        turn shopping updates off in your account or use an email unsubscribe link. Account,
+        security, transaction, and requested conversation messages are handled separately.
+      </p>
+      <p>
+        Signing in through Google or Apple does not replace these choices. Existing website members
+        explicitly choose whether to enable shopping alerts in the phone app. Phone notification and
+        location permissions are requested separately when you use those features. Advertising
+        permission is separate from accepting these terms or shopping alerts; declining it does not
+        prevent separately allowed first-party recommendations.
       </p>
       <p>
         The <a href="/policies">marketplace policies and disclosures</a>, including buyer, seller,

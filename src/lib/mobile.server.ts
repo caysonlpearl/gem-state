@@ -273,7 +273,9 @@ async function consent(userId: string) {
     await database()
   )
     .from("shopping_accounts")
-    .select("terms_version,shopping_alerts")
+    .select(
+      "terms_version,shopping_alerts,mobile_terms_version,mobile_terms_accepted_at,mobile_shopping_alerts",
+    )
     .eq("user_id", userId)
     .maybeSingle();
   if (error)
@@ -282,7 +284,7 @@ async function consent(userId: string) {
       "consent_unavailable",
       "Account preferences are temporarily unavailable.",
     );
-  return data ?? { terms_version: null, shopping_alerts: false };
+  return (await import("./mobile-shopping-consent")).mobileShoppingConsent(data);
 }
 async function requireTerms(userId: string) {
   if ((await consent(userId)).terms_version !== MOBILE_POLICY_VERSION)

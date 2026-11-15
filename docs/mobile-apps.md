@@ -1099,3 +1099,54 @@ metadata, idempotence and rollback on unknown callers/definition/access drift.
 No real listing is modified to demonstrate this permission issue or its repair.
 The larger native Listings rollout and real-device seller journeys remain
 separate release work.
+
+## Native density and explicit app consent — November 14, 2026
+
+The native results view now uses three columns on phones, four on tablets and
+five on large screens. Its shared card presenter has an opt-in `browse` density:
+shorter 3:2 images, price/title and one city/age line, without a preview action.
+The website keeps its default presentation. The native classifieds heading drops
+the duplicate eyebrow and uses a smaller subtitle. Filters and sort share a row,
+including the active-filter count at 320 pixels. Native vehicle details hide the
+extra header price, reduce the seller-price panel and use two columns for four
+key facts. Information sections stretch across the centered content width.
+
+Home refresh measures the actual top safe inset when a gesture or refresh command
+starts; both the released spinner and complete pull arrow clear that inset. The
+full page moves while navigation stays fixed. Pagination keeps the existing
+observer, adds a visible busy wheel and a bounded upward pull, and shares a
+single-flight guard. Errors retain cards and offer Retry; exhaustion does not
+leave an empty loader. Reduced motion suppresses settling animation.
+
+The two signup choices remain required Terms acceptance and optional unchecked
+shopping communications. Native email signup now identifies its source; social
+and existing-account onboarding use the same choices. Additive migration
+`20261114190000_mobile_shopping_consent.sql` records native version/time and alert
+choice separately from historical website acknowledgment. It does not backfill
+an app opt-in, activate deliveries or authorize advertising. The API projects
+unacknowledged website accounts as `terms_version: null`, preserving installed
+clients' existing Terms gate. Signed-in app activity and enabling personalization
+require native acknowledgment on the server; disabling personalization and
+clearing history remain available. Contextual similar listings and public
+browsing remain usable. Push rechecks explicit app shopping consent, while
+requested conversation messages retain their separate controls.
+
+The migration serializes app choices per member, audits both choices with source
+and timestamps, suppresses pending/processing promotional delivery on withdrawal,
+and preserves explicitly requested legacy alerts on first onboarding. Website
+withdrawal also stops app shopping; a later website opt-in cannot override an app
+opt-out. Installed source and history must agree before publishing the new
+backend. `scripts/mobile-consent-installation.mjs` prepares that atomic wrapper;
+its metadata says `applied: false` until independent production verification.
+
+Validation uses captured production function definitions with synthetic accounts,
+private grants, existing signup/message triggers and a conflicting-history
+rollback rehearsal. Browser fixtures cover 320/440/768 pixels, top insets 0/59,
+full arrow/spinner visibility, fixed navigation, compact facts, full-width tabs,
+three phone columns, both toolbar variants without overlap, automatic loading,
+failed-page retry, duplicate suppression, bottom elasticity and reduced motion.
+Shared auth fixtures cover five screen sizes with exactly two choices and the
+native signup source. These are source/build/browser checks; production schema,
+backend publication, device installation and physical journeys need separate
+recorded evidence. Existing deletion, real push, Apple login and store beta gates
+remain open.

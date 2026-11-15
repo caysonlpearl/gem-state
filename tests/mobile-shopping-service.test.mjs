@@ -9,6 +9,7 @@ import * as contract from "../src/lib/shopping-contract.ts";
 import * as mobileContract from "../src/lib/mobile-contract.ts";
 import * as protocol from "../src/lib/mobile-api.ts";
 import * as nativeEvents from "../src/lib/mobile-shopping.ts";
+import * as nativeConsent from "../src/lib/mobile-shopping-consent.ts";
 const compile = (file) =>
   ts.transpileModule(readFileSync(new URL("../src/lib/" + file, import.meta.url), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -30,6 +31,7 @@ const handle = load(compile("mobile-shopping.server.ts"), {
   "./mobile-api": protocol,
   "./mobile-contract": mobileContract,
   "./mobile-shopping": nativeEvents,
+  "./mobile-shopping-consent": nativeConsent,
   "./shopping.server": shared,
 }).handleMobileShopping;
 function fixture() {
@@ -78,6 +80,7 @@ function fixture() {
     shopping_favorites: [],
     shopping_experiments: [],
     mobile_account_deletions: [],
+    shopping_accounts: [],
   };
   const db = {
     rpc: async (name, args) => {
@@ -230,4 +233,60 @@ test("native similarity filters restricted seeds and candidates without a provid
   );
   assert.deepEqual(denied.cards, []);
   assert.equal(f.rpc.length, before);
+});
+
+test("signed-in app learning needs explicit native terms while withdrawal and history clearing remain available", async () => {
+  const f = fixture(),
+    user = { id: randomUUID() },
+    subject = `u:${user.id}`;
+  f.tables.shopping_privacy.push({ subject, personalization: true, history_after: "1970-01-01" });
+  f.tables.shopping_accounts.push({
+    user_id: user.id,
+    terms_version: mobileContract.MOBILE_POLICY_VERSION,
+    shopping_alerts: true,
+  });
+  const request = (path, method = "GET", body) =>
+    new Request(`https://onbluebird.com/api/mobile/v1/${path}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+  assert.equal((await handle(request("shopping"), "shopping", f.db, user)).personalization, false);
+  assert.deepEqual(
+    (await handle(request("recommendations"), "recommendations", f.db, user)).recommended,
+    [],
+  );
+  for (const [path, method, body] of [
+    ["activity", "POST", { events: [] }],
+    ["shopping/privacy", "PUT", { personalization: true }],
+  ])
+    await assert.rejects(
+      () => handle(request(path, method, body), path, f.db, user),
+      (e) => e.status === 409 && e.code === "terms_required",
+    );
+  assert.equal(f.rpc.length, 0, "Terms rejection cannot write activity or privacy");
+  await handle(
+    request("shopping/privacy", "PUT", { personalization: false }),
+    "shopping/privacy",
+    f.db,
+    user,
+  );
+  await handle(request("shopping/clear", "POST", {}), "shopping/clear", f.db, user);
+  assert.deepEqual(
+    f.rpc.map((r) => r.name),
+    ["mobile_set_personalization", "mobile_clear_shopping_history"],
+  );
+  assert(f.rpc.every((r) => r.args._subject === subject && r.args._user === user.id));
+  Object.assign(f.tables.shopping_accounts[0], {
+    mobile_terms_version: mobileContract.MOBILE_POLICY_VERSION,
+    mobile_terms_accepted_at: new Date().toISOString(),
+  });
+  assert.equal((await handle(request("shopping"), "shopping", f.db, user)).personalization, true);
+  await handle(
+    request("shopping/privacy", "PUT", { personalization: true }),
+    "shopping/privacy",
+    f.db,
+    user,
+  );
+  assert.equal(f.rpc.at(-1).args._allowed, true);
 });

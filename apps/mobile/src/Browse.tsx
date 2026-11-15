@@ -246,14 +246,17 @@ export function NativeBrowse({
     position: number,
     view: "grid" | "list" = "grid",
   ) => (
-    <ListingTile
-      view={view}
-      card={cardsById.get(listing.id)!}
-      position={position}
-      placement="browse"
-      learning={learning && active}
-      onOpen={(id) => onNavigate(`/listings/${id}`)}
-    />
+    <div data-native-browse-tile={view === "grid" ? "" : undefined}>
+      <ListingTile
+        density="browse"
+        view={view}
+        card={cardsById.get(listing.id)!}
+        position={position}
+        placement="browse"
+        learning={learning && active}
+        onOpen={(id) => onNavigate(`/listings/${id}`)}
+      />
+    </div>
   );
   const total = result?.total ?? 0;
   const resultView = {
@@ -344,6 +347,7 @@ export function NativeBrowse({
       className="native-browse-page mx-auto max-w-[1400px] px-3 py-3 sm:px-6"
     >
       <BrowseResultsHeading
+        compact
         showSearch={false}
         search={search}
         motors={motors}
@@ -432,6 +436,7 @@ export function NativeBrowse({
         />
       ) : (
         <BrowseResultsView
+          compact
           search={search}
           motors={false}
           homes={homes}
@@ -497,13 +502,17 @@ export function NativeBrowse({
           renderListing={renderListing}
         />
       )}
-      {busy && (
+      {busy && !result?.nextPage && (
         <p role="status" className="mt-4 text-sm">
           Loading listings…
         </p>
       )}
       {result?.nextPage && (
-        <NativeAutoLoad enabled={active && !busy && !moreError && !error} onLoad={more} />
+        <NativeAutoLoad
+          enabled={active && !busy && !moreError && !error}
+          loading={busy}
+          onLoad={more}
+        />
       )}
       {moreError && (
         <div role="alert" className="mt-4 text-sm text-destructive">
