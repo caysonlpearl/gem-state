@@ -1,0 +1,116 @@
+{
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "capturedAt": "2026-11-15T13:40:24.979944+00:00",
+  "metadataOnly": true,
+  "analytics": {
+    "source": "analytics_events",
+    "metadata": {
+      "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "default": "gen_random_uuid()",
+          "notNull": true,
+          "generated": ""
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "default": null,
+          "notNull": false,
+          "generated": ""
+        },
+        {
+          "name": "session_id",
+          "type": "text",
+          "default": null,
+          "notNull": false,
+          "generated": ""
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "default": null,
+          "notNull": true,
+          "generated": ""
+        },
+        {
+          "name": "props",
+          "type": "jsonb",
+          "default": "'{}'::jsonb",
+          "notNull": true,
+          "generated": ""
+        },
+        {
+          "name": "is_demo",
+          "type": "boolean",
+          "default": "false",
+          "notNull": true,
+          "generated": ""
+        },
+        {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "default": "now()",
+          "notNull": true,
+          "generated": ""
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX analytics_events_pkey ON public.analytics_events USING btree (id)",
+        "CREATE INDEX analytics_events_name_occurred_idx ON public.analytics_events USING btree (name, occurred_at DESC)",
+        "CREATE INDEX analytics_business_period_idx ON public.analytics_events USING btree (name, occurred_at, id) WHERE (is_demo = false)"
+      ],
+      "policies": [
+        {
+          "name": "Admins read analytics",
+          "check": null,
+          "roles": ["authenticated"],
+          "using": "has_role(auth.uid(), 'admin'::app_role)",
+          "command": "r",
+          "permissive": true
+        },
+        {
+          "name": "Anyone can record an event",
+          "check": "((user_id IS NULL) OR (user_id = auth.uid()))",
+          "roles": ["anon", "authenticated"],
+          "using": null,
+          "command": "a",
+          "permissive": true
+        },
+        {
+          "name": "bluebird_account_session_boundary",
+          "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+          "roles": ["authenticated"],
+          "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+          "command": "*",
+          "permissive": false
+        }
+      ],
+      "triggers": null,
+      "constraints": [
+        {
+          "name": "analytics_events_pkey",
+          "table": "analytics_events",
+          "definition": "PRIMARY KEY (id)"
+        },
+        {
+          "name": "analytics_events_user_id_fkey",
+          "table": "analytics_events",
+          "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+        }
+      ],
+      "rowSecurity": true,
+      "forceRowSecurity": false
+    }
+  },
+  "retention": {
+    "acl": "{postgres=X/postgres,service_role=X/postgres}",
+    "config": ["search_path=public, pg_temp"],
+    "bodyMd5": "43b1989e90cd7acbc2b0f714c457d746",
+    "signature": "retain_shopping_data()",
+    "definition": "CREATE OR REPLACE FUNCTION public.retain_shopping_data()\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n delete from shopping_email_receipts where created_at < now()-interval '180 days';\n delete from shopping_events where occurred_at < now()-interval '90 days';\n -- Keep business totals while retiring old linked browsing identifiers in bounded batches.\n with expired as(select id from analytics_events where created_at<now()-interval '90 days' and\n   name in ('listing_viewed','search_performed','search_completed','page_view','filter_applied','seller_contacted','business_action','inquiry_completed')\n   and (user_id is not null or session_id is not null or props ? 'traffic_visit') order by created_at limit 1000 for update skip locked)\n update analytics_events a set user_id=null,session_id=null,props=props-'traffic_visit' from expired e where a.id=e.id;\n delete from shopping_consents where user_id is null and recorded_at < now()-interval '90 days';\n delete from shopping_favorites f where f.subject like 'g:%' and f.saved_at < now()-interval '90 days';\n delete from shopping_inventory where valid_until < now()-interval '30 days';\n delete from shopping_privacy where subject like 'g:%' and updated_at < now()-interval '90 days';\n delete from shopping_queue where status in ('sent','suppressed','failed') and created_at < now()-interval '180 days';\n delete from shopping_deliveries where status in ('sent','suppressed','failed') and created_at < now()-interval '180 days';\n delete from shopping_ad_outbox where created_at < now()-interval '30 days';\nend $function$\n",
+    "securityDefiner": true
+  }
+}
