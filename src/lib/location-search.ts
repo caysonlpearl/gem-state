@@ -1,4 +1,4 @@
-import { marketplaceCities, idahoRegions, usStates } from "../config/classifieds";
+import { marketplaceCities, idahoRegions, usStates } from "../config/classifieds.ts";
 type ParsedLocationSearch = {
   city?: string;
   region?: string;
