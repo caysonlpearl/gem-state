@@ -171,9 +171,9 @@ export function ShoppingRows({
     return () => controller.abort();
   }, [learning, revision, similarId]);
   const byId = new Map(fallbackCards.map((card) => [card.id, card]));
-  const fallback = mixMobileSaleFeed(fallbackCards.map(listingPresentation))
-    .slice(0, 8)
-    .map((card) => byId.get(card.id)!);
+  const fallback = mixMobileSaleFeed(fallbackCards.map(listingPresentation), [], 8).map((card) =>
+    byId.get(card.id)!,
+  );
   const rows = loaded?.scope === scope && (learning || similarId) ? loaded.rows : null;
   if (similarId && !rows) return null;
   const current = rows ?? { recent: [], continuing: [], recommended: [], model: "category-mix-v1" };

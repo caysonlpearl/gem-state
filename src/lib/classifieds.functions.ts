@@ -9,7 +9,7 @@ import {
 import { mobileWriteId } from "./mobile-write";
 import { homeRecommendationRows } from "./home-shopping.ts";
 import { discoverySellerToken } from "./discovery-ranking.ts";
-import { mixMobileSaleFeed, mobileSaleScope } from "./mobile-sale-feed.ts";
+import { mixMobileSaleFeed, mobileSaleScope, mobileSaleItem } from "./mobile-sale-feed.ts";
 import { mixPetSpecies } from "./pet-mix.ts";
 import { getPhotoStorageModule } from "./photo-storage-access";
 import { selectLandingCoverage } from "./landing-coverage";
@@ -2192,9 +2192,15 @@ async function runBrowseClassifieds(
       data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
         ? Math.max(pageSize, mockSource.length)
         : pageSize;
+    const matchingCandidates = [...featuredListings, ...standardListings].filter(
+      (card) => !saleFeed || mobileSaleItem(card),
+    );
+    const candidates = saleFeed
+      ? [...new Map(matchingCandidates.map((card) => [card.id, card])).values()]
+      : matchingCandidates;
     const orderedListings = options.mobileDiscovery
-      ? mixMobileSaleFeed([...featuredListings, ...standardListings], options.preferredIds)
-      : [...featuredListings, ...standardListings];
+      ? mixMobileSaleFeed(candidates, options.preferredIds, from + resultLimit)
+      : candidates;
     const nativePage = mergeBeforePaging
       ? orderedListings.slice(from, from + resultLimit)
       : orderedListings.slice(0, resultLimit);
@@ -2254,7 +2260,9 @@ async function runBrowseClassifieds(
       // The directory remains independently database-paged after that window.
       total:
         (mergeBeforePaging
-          ? orderedListings.length
+          ? options.mobileDiscovery
+            ? candidates.length
+            : orderedListings.length
           : (count ?? listings.length) + mockListings.length) + directory.total,
       page,
       pageSize: pageSize,

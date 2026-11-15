@@ -39,6 +39,8 @@ test("a vehicle-heavy feed alternates categories and sellers, excludes work and 
     "dealer-30",
   );
   assert.deepEqual(mixMobileSaleFeed(input), result);
+  assert.deepEqual(mixMobileSaleFeed(input, [], 24), result.slice(0, 24));
+  assert.deepEqual(mixMobileSaleFeed(input, [], 48).slice(24), result.slice(24, 48));
   const first = result.slice(0, 24),
     second = mixMobileSaleFeed(input).slice(24, 48);
   assert(!first.some((c) => second.some((n) => n.id === c.id)));

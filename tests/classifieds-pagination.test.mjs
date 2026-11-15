@@ -1,4 +1,4 @@
-import { mobileSaleScope, mixMobileSaleFeed } from "../src/lib/mobile-sale-feed.ts";
+import { mobileSaleScope, mixMobileSaleFeed, mobileSaleItem } from "../src/lib/mobile-sale-feed.ts";
 import { canIncludeDirectory } from "../src/lib/service-directory-contract.ts";
 import { parseBrowseSearch } from "../src/lib/browse-search.ts";
 import { normalizeClassifiedBrowseInput } from "../src/lib/classified-browse-contract.ts";
@@ -257,6 +257,7 @@ function harness({
             handler({ data: validate(data) }),
       }),
     }),
+    mobileSaleItem,
     mobileSaleScope,
     mixMobileSaleFeed,
     isOutOfRangePage,

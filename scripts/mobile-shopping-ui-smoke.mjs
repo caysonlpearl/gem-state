@@ -143,7 +143,10 @@ try {
       if (await menu.isVisible()) await menu.click();
       await page.getByRole("button", { name: "Privacy choices", exact: true }).click();
     };
-    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("pageerror", (error) => {
+      errors.push(error.message);
+      console.error("Shopping UI error", page.url(), error.stack);
+    });
     await page.route(api + "**", async (route) => {
       const request = route.request(),
         url = new URL(request.url()),

@@ -123,13 +123,15 @@ export function mobileCachedSearch(
   const matching = landingCards(cards, filters).filter(
     (card) => !mobileSaleScope(filters) || mobileSaleItem(card),
   );
-  const matches =
-    mobileSaleScope(filters) && !filters.sort ? mixMobileSaleFeed(matching) : matching;
   const page = filters.page ?? 1,
     pageSize = 24;
+  const matches =
+    mobileSaleScope(filters) && !filters.sort
+      ? mixMobileSaleFeed(matching, [], page * pageSize)
+      : matching;
   return {
     listings: matches.slice((page - 1) * pageSize, page * pageSize),
-    total: matches.length,
+    total: matching.length,
     page,
     pageSize,
     incomplete: true,

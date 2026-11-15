@@ -22,6 +22,7 @@ export function mobileSaleScope(filters: { category?: string; group?: string }) 
 export function mixMobileSaleFeed<T extends ListingCardSummary>(
   cards: readonly T[],
   preferredIds: readonly string[] = [],
+  limit = cards.length,
 ): T[] {
   const preference = new Map(preferredIds.map((id, i) => [id, i]));
   const indices = new Map(cards.map((card, i) => [card.id, i]));
@@ -43,7 +44,7 @@ export function mixMobileSaleFeed<T extends ListingCardSummary>(
   const categoryCounts = new Map<string, number>(),
     sellerCounts = new Map<string, number>();
   const result: T[] = [];
-  while (groups.size) {
+  while (groups.size && result.length < limit) {
     const candidates = [...groups.entries()].map(([category, sellers]) => {
       const choices = [...sellers.entries()].map(([seller, queue]) => ({
         seller,
