@@ -1,0 +1,141 @@
+{
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "capturedAt": "2026-11-15T09:50:50.527557+00:00",
+  "metadataOnly": true,
+  "function": {
+    "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "config": ["search_path=public, pg_temp"],
+    "bodyMd5": "86b106b2cda1b6db8febb17271999ff5",
+    "signature": "notify_member(uuid,text,text,text,uuid)",
+    "definition": "CREATE OR REPLACE FUNCTION public.notify_member(_user_id uuid, _kind text, _title text, _body text, _order_id uuid DEFAULT NULL::uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nBEGIN\n  IF _user_id IS NULL THEN RETURN; END IF;\n  PERFORM set_config('parkvault.trusted_operation','on', true);\n  INSERT INTO public.notifications (user_id, kind, title, body, order_id)\n  VALUES (_user_id, _kind, _title, _body, _order_id);\nEND;\nEND;$function$\n",
+    "securityDefiner": true
+  },
+  "notifications": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "default": "gen_random_uuid()",
+        "notNull": true
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "kind",
+        "type": "text",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "title",
+        "type": "text",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "body",
+        "type": "text",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "order_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "read_at",
+        "type": "timestamp with time zone",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      },
+      {
+        "name": "entity_type",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "entity_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "destination_url",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX notifications_pkey ON public.notifications USING btree (id)",
+      "CREATE INDEX notifications_user_unread ON public.notifications USING btree (user_id, created_at DESC)"
+    ],
+    "policies": [
+      {
+        "name": "Members read their own notifications",
+        "check": null,
+        "using": "(user_id = auth.uid())",
+        "command": "r"
+      },
+      {
+        "name": "bluebird_account_session_boundary",
+        "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+        "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+        "command": "*"
+      }
+    ],
+    "triggers": [
+      {
+        "name": "guard_notifications",
+        "bodyMd5": "9d3052e8c37745fa6812af16f70478e0",
+        "enabled": "O",
+        "function": "CREATE OR REPLACE FUNCTION public.guard_pilot_writes()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  IF NOT public.is_trusted_operation() THEN\n    RAISE EXCEPTION 'This record is maintained by ParkVault pilot operations and cannot be changed directly'\n      USING errcode = '42501';\n  END IF;\n  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;\n  RETURN NEW;\nEND $function$\n",
+        "definition": "CREATE TRIGGER guard_notifications BEFORE INSERT OR DELETE ON notifications FOR EACH ROW EXECUTE FUNCTION guard_pilot_writes()"
+      },
+      {
+        "name": "guard_shopping_notification",
+        "bodyMd5": "11f6306576e97d712e39bff91afd0618",
+        "enabled": "O",
+        "function": "CREATE OR REPLACE FUNCTION public.guard_shopping_notification()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare allowed boolean; suppressed timestamptz; explicitly_requested boolean;\nbegin\n if new.kind<>'shopping_alert' then return new; end if;\n select shopping_alerts,suppressed_at into allowed,suppressed from shopping_accounts where user_id=new.user_id for share;\n select q.requested and exists(select 1 from saved_searches s where s.user_id=new.user_id and not s.paused and (suppressed is null or s.created_at>suppressed) and s.id::text in(select jsonb_array_elements_text(q.payload->'search_ids'))) into explicitly_requested from shopping_queue q where q.id=new.entity_id and q.user_id=new.user_id;\n if (allowed is false and not coalesce(explicitly_requested,false)) or not exists(select 1 from shopping_controls where notifications) then return null; end if;\n return new;\nend $function$\n",
+        "definition": "CREATE TRIGGER guard_shopping_notification BEFORE INSERT ON notifications FOR EACH ROW EXECUTE FUNCTION guard_shopping_notification()"
+      },
+      {
+        "name": "mobile_notification_created",
+        "bodyMd5": "07b8db18ffb1ae5fd0d0b20e37bb3455",
+        "enabled": "O",
+        "function": "CREATE OR REPLACE FUNCTION public.mobile_enqueue_notification()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n if new.kind not in ('message','shopping_alert') then return new; end if;\n insert into public.mobile_push_outbox(notification_id,device_id,user_id)\n select new.id,d.id,new.user_id from public.mobile_push_devices d where d.user_id=new.user_id\n on conflict(notification_id,device_id) do nothing;\n return new;\nend $function$\n",
+        "definition": "CREATE TRIGGER mobile_notification_created AFTER INSERT ON notifications FOR EACH ROW EXECUTE FUNCTION mobile_enqueue_notification()"
+      }
+    ],
+    "constraints": [
+      {
+        "name": "notifications_order_id_fkey",
+        "table": "notifications",
+        "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "notifications_pkey",
+        "table": "notifications",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "name": "mobile_push_outbox_notification_id_fkey",
+        "table": "mobile_push_outbox",
+        "definition": "FOREIGN KEY (notification_id) REFERENCES notifications(id) ON DELETE CASCADE"
+      }
+    ]
+  }
+}
