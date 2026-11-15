@@ -876,3 +876,65 @@ lease/phase/pause checks and unchanged financial rows. The server tests also use
 the installed Supabase client with a controlled fetch transport for failures,
 single requests, cancellation and diagnostic suppression. No real account data
 is read or deleted by these tests. The full deletion processor remains inactive.
+
+## Owned personal-profile erasure — November 14, 2026
+
+`20261114200000_account_deletion_profiles.sql` and
+`createAccountDeletionProfileErasure` implement one bounded component of the
+records phase. They remove owned rows from `profiles`, `shopper_coverage`,
+`seller_profiles` and `shopper_service_profiles`, at most 100 physical rows from
+one source per call. `seller_storefronts` is a view joined to these profiles;
+there is no separate storefront row to delete. An independent verification
+operation requires Auth absence and checks all four sources without repairing
+them. A completion guard also checks residual profile rows using the job's
+original member identity, including seller profiles without an Auth foreign key.
+
+This component deliberately defers accounts with buyer/seller orders, a seller
+or service Stripe account reference, or a sourcing assignment. Those records and
+all profiles stay intact until financial retention and provider cleanup have
+explicit handling. This is a prerequisite check, not a complete financial-data
+inventory or retention policy. Before an avatar reference can disappear from a
+profile, its exact normalized reference must exist in the current durable media
+inventory generation. That ledger survives profile removal; its presence is not
+evidence that the provider object has been erased.
+
+Profile writers share the deletion request's account lock and require a live
+identity with no pending deletion. Ownership changes and recreation after a
+request are refused. Existing seller/service payment-status flags may still
+settle without changing any personal fields or introducing a Stripe account.
+A new order or changed buyer/seller also passes the pending-account check;
+settlement of an existing order with unchanged participants remains writable.
+The erasure transaction locks the Auth and service-profile parents so concurrent
+financial references cannot slip between the prerequisite check and deletion.
+
+Installation requires an inactive worker, the unchanged private-record contract
+and complete account-access coverage. Existing profile hooks and incoming foreign
+keys must match the reviewed capture. A private contract then pins the relevant
+columns, constraints, hooks, functions and relation layout. Drift refuses further
+cleanup. The migration adds its reviewed completion hook to the existing private
+contract only after that contract's preflight succeeds. Each call also requires
+the matching live job/lease and records or post-Auth identity phase. Rechecking
+the lease and contracts before returning rolls back provisional deletes on
+failure. Guest/member RPC execution and service-role contract modification are
+denied. The server adapter freezes scope, disables SDK retries, enforces a
+fifteen-second transport deadline and exposes only source, count and component
+pass status. It cannot advance the whole records phase.
+
+The metadata-only fixture `account-deletion-profiles-schema-20261114.json` was
+captured from the owning production database. Tests recreate the actual profile
+columns, checks, indexes, existing hook bodies and storefront-view definition.
+Financial/supporting records are synthetic; this is not a rehearsal of the full
+production payment domain. Tests cover bounded cleanup, other-account isolation,
+preserved avatar inventory, all four financial deferrals, late writes, missing
+Auth, independent verification, forged/expired leases, pauses, schema drift,
+permissions, cancellation and lost acknowledgements using the actual Supabase
+client. An explicit PostgreSQL gate uses separate connections for order/request
+ordering, concurrent purge calls and lease expiry while waiting on a lock.
+
+**Source-only; not installed or activated.** No real account was erased. Before
+installation, review the complete owning-database order/payment write paths and
+query/index cost, install the reviewed prerequisite migrations in order, and
+rehearse the full media/retention/identity flow. Authored listings, conversations,
+remaining analytics, provider media, financial/consent/audit retention and
+Apple/manual revocation still need their complete handling. The deletion worker
+remains disabled; this component does not close the store's deletion gate.
