@@ -1,6 +1,15 @@
 import { isMotorsCategory } from "../../../src/lib/classifieds-display.ts";
 import { parseBrowseSearch, type Search } from "../../../src/lib/browse-search.ts";
 import { mobileCategoryAllowed } from "../../../src/lib/mobile-contract.ts";
+import { parseLocationSearch } from "../../../src/lib/location-search.ts";
+
+/** New browse journeys use the area chosen on Home, including an explicit blank area. */
+export function browseFromSearchArea(
+  area: string,
+  scope: Partial<Search> | Record<string, unknown> = {},
+) {
+  return browseDestination({ ...parseLocationSearch(area), ...scope });
+}
 
 export function browseLocation(hash: string) {
   const [path, query = ""] = hash.replace(/^#/, "").split("?");

@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, BookmarkSimple, MagnifyingGlass } from "@phosphor-icons/react";
 import { BrandMark } from "../../../src/components/layout/BrandMark";
 import { NativeHomeLocation, NativeHomeShortcuts } from "./HomeNavigation";
-import { parseLocationSearch } from "../../../src/lib/location-search";
 import { backWithinApp } from "./native-navigation";
-import { browseDestination, browseLocation } from "./browse-state";
+import { browseDestination, browseFromSearchArea, browseLocation } from "./browse-state";
+import { useSearchArea } from "./SearchArea";
 
 /** Brand scrolls with the page; search and Saved remain within reach. */
 export function NativeHeader({
@@ -15,7 +15,7 @@ export function NativeHeader({
   onNavigate: (path: string) => void;
 }) {
   const [query, setQuery] = useState(() => browseLocation(window.location.hash).search.q ?? "");
-  const [area, setArea] = useState("Idaho");
+  const { area, setArea } = useSearchArea();
   const [scrolled, setScrolled] = useState(() => window.scrollY > 8);
   useEffect(() => {
     const sync = () => setScrolled(window.scrollY > 8);
@@ -77,9 +77,8 @@ export function NativeHeader({
                 onApply={(value) => {
                   setArea(value);
                   onNavigate(
-                    browseDestination({
+                    browseFromSearchArea(value, {
                       q: query.trim() || undefined,
-                      ...parseLocationSearch(value),
                     }),
                   );
                 }}
@@ -126,13 +125,9 @@ export function NativeHeader({
               event.preventDefault();
               const current = browseLocation(window.location.hash);
               onNavigate(
-                browseDestination(
-                  {
-                    ...(current.path === "/" ? parseLocationSearch(area) : {}),
-                    q: query.trim() || undefined,
-                  },
-                  current.path === "/search" ? current.params : undefined,
-                ),
+                current.path === "/search"
+                  ? browseDestination({ q: query.trim() || undefined }, current.params)
+                  : browseFromSearchArea(area, { q: query.trim() || undefined }),
               );
               document.getElementById("native-header-search")?.blur();
             }}
@@ -178,8 +173,7 @@ export function NativeHeader({
           <NativeHomeShortcuts
             onBrowse={(scope) =>
               onNavigate(
-                browseDestination({
-                  ...parseLocationSearch(area),
+                browseFromSearchArea(area, {
                   q: query.trim() || undefined,
                   ...scope,
                 }),

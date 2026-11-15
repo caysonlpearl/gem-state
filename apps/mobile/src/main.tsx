@@ -20,7 +20,8 @@ import { requestNearbyLocation } from "./location";
 import { NativeBrowse } from "./Browse";
 import { SavedSearchActions } from "./SavedSearchActions";
 import { NativeSaveSearchDialog, type SaveSearchRequest } from "./SavedSearches";
-import { browseApiQuery, browseDestination, browseLocation } from "./browse-state";
+import { browseApiQuery, browseFromSearchArea, browseLocation } from "./browse-state";
+import { SearchAreaProvider, useSearchArea } from "./SearchArea";
 import { Toaster } from "../../../src/components/ui/sonner";
 import { toast } from "sonner";
 import { completeAccountSignOut } from "../../../src/lib/account-session";
@@ -942,9 +943,10 @@ function Application() {
   );
 }
 function NativeTabLink({ to, section, children, className }: MobileTabLinkProps) {
+  const { area } = useSearchArea();
   const destination =
     to === "/browse"
-      ? "/search"
+      ? browseFromSearchArea(area)
       : to === "/create-listing"
         ? "/post"
         : section === "saved"
@@ -986,6 +988,7 @@ function Feed({
   learning?: boolean;
   startupHome?: StartupHome | null;
 }) {
+  const { area } = useSearchArea();
   const scroll = useRef(0);
   useEffect(() => {
     if (!active) return;
@@ -1184,7 +1187,7 @@ function Feed({
           refreshSequence={refreshSequence}
           learning={learning && active}
           onOpen={(id) => go(`/listings/${id}`)}
-          onBrowse={(scope) => go(browseDestination(scope))}
+          onBrowse={(scope) => go(browseFromSearchArea(area, scope))}
         />
       ) : (
         <div className="listing-grid">
@@ -1408,4 +1411,8 @@ function Listing({
 }
 // Presentation only: native safe-area/keyboard behavior differs between platforms.
 document.documentElement.dataset.nativePlatform = Capacitor.getPlatform();
-createRoot(document.getElementById("root")!).render(<Application />);
+createRoot(document.getElementById("root")!).render(
+  <SearchAreaProvider>
+    <Application />
+  </SearchAreaProvider>,
+);

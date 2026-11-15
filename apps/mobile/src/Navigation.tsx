@@ -18,7 +18,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "../../../src/components
 import { mobilePrimaryCategories } from "../../../src/config/mobile-navigation";
 import { mobileCategoryAllowed } from "../../../src/lib/mobile-contract";
 import { useNativeNotifications } from "./Notifications";
-import { browseDestination } from "./browse-state";
+import { browseFromSearchArea } from "./browse-state";
+import { useSearchArea } from "./SearchArea";
 import { apiOrigin } from "./client";
 
 export function NativeNavigation({
@@ -165,6 +166,7 @@ export function NativeNavigation({
 }
 
 function NativeMenuLink({ to, search, onClick, className, children }: MarketplaceMenuLinkProps) {
+  const { area } = useSearchArea();
   if (to === "/policies")
     return (
       <a
@@ -182,7 +184,7 @@ function NativeMenuLink({ to, search, onClick, className, children }: Marketplac
       ? "/post"
       : to === "/notifications"
         ? "/account/notifications"
-        : browseDestination(search ?? {});
+        : browseFromSearchArea(area, search ?? {});
   return (
     <a href={`#${destination}`} className={className} onClick={onClick}>
       {children}

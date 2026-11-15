@@ -267,12 +267,81 @@ try {
       .click();
     await page.waitForURL(/homeTab=rent/);
     assert.match(page.url(), /homeMode=results/);
+    assert.match(page.url(), /state=ID/, "Home row links keep the default search area");
     await page
       .getByRole("region", { name: "Marketplace homepage", exact: true })
       .waitFor({ state: "hidden" });
     await page.evaluate(() => window.dispatchEvent(new Event("bluebird-home-refresh")));
     await pause(80);
     assert.equal(reads, 5, "The gesture must be detached away from Home");
+
+    const searchState = () => new URLSearchParams(new URL(page.url()).hash.split("?")[1]);
+    const goHome = async () => {
+      await page.getByRole("link", { name: "Home", exact: true }).click();
+      await page.getByRole("button", { name: "Change search area", exact: true }).waitFor();
+    };
+    const chooseArea = async (area) => {
+      await goHome();
+      await page.getByRole("button", { name: "Change search area", exact: true }).click();
+      const field = page.getByRole("combobox", { name: "City or ZIP code", exact: true });
+      await field.fill(area);
+      await field.press("Enter");
+      await page.waitForURL(/#\/search(?:\?|$)/);
+    };
+    await goHome();
+    await page.getByRole("link", { name: "Search", exact: true }).click();
+    await page.waitForURL(/state=ID/);
+    assert.equal(searchState().get("state"), "ID");
+    await page.getByLabel("Sort", { exact: true }).selectOption("price_low");
+    await page.waitForURL(/sort=price_low/);
+    const filteredHash = new URL(page.url()).hash;
+    await page.getByRole("link", { name: "Search", exact: true }).click();
+    assert.equal(new URL(page.url()).hash, filteredHash, "Retapping Search retains its filters");
+
+    await chooseArea("Salt Lake City, UT");
+    await page.waitForURL(/state=UT/);
+    assert.equal(searchState().get("city"), "Salt Lake City");
+    await goHome();
+    assert.equal(
+      await page.locator("#native-home-search-area").textContent(),
+      "Salt Lake City, UT",
+    );
+    await page.getByRole("link", { name: "Search", exact: true }).click();
+    await page.waitForURL(/state=UT/);
+    assert.equal(searchState().get("city"), "Salt Lake City");
+    await page.getByRole("link", { name: "Saved listings", exact: true }).click();
+    await page.waitForURL(/#\/saved$/);
+    await page.getByRole("searchbox", { name: "Search for anything", exact: true }).fill("bike");
+    await page.getByRole("button", { name: "Submit search", exact: true }).click();
+    await page.waitForURL(/q=bike/);
+    assert.equal(searchState().get("state"), "UT");
+    assert.equal(searchState().get("city"), "Salt Lake City");
+
+    await page.getByRole("button", { name: "Open categories", exact: true }).click();
+    await page
+      .getByRole("list", { name: "Main categories", exact: true })
+      .getByRole("link", { name: /^Vehicles/ })
+      .click();
+    await page.waitForURL(/group=motors/);
+    assert.equal(searchState().get("state"), "UT");
+    assert.equal(searchState().get("city"), "Salt Lake City");
+    await goHome();
+    await page
+      .getByRole("region", { name: "Homes for rent", exact: true })
+      .getByRole("button", { name: "See all", exact: true })
+      .click();
+    await page.waitForURL(/homeTab=rent/);
+    assert.equal(searchState().get("state"), "UT");
+    assert.equal(searchState().get("city"), "Salt Lake City");
+    await chooseArea("");
+    assert.equal(searchState().has("state"), false);
+    assert.equal(searchState().has("city"), false);
+    await goHome();
+    assert.equal(await page.locator("#native-home-search-area").textContent(), "All locations");
+    await page.getByRole("link", { name: "Search", exact: true }).click();
+    await page.waitForURL(/#\/search$/);
+    assert.equal(searchState().has("state"), false, "Cleared area must not silently become Idaho");
+
     for (const call of calls.filter((c) => c.path === "home"))
       for (const key of ["authorization", "cookie", "x-bluebird-install", "referer"])
         assert.equal(call.headers[key], undefined, key);
@@ -290,6 +359,9 @@ try {
       singleFlight: true,
       retryPreservesFeed: true,
       navigationCleanup: true,
+      sharedSearchArea: true,
+      explicitAllLocations: true,
+      searchRetapPreservesFilters: true,
     });
     await page.close();
   }

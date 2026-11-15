@@ -1194,3 +1194,22 @@ query and other non-vehicle conditions remain intact; the shopper can choose a
 sort again from the menu. The shared website shortcut keeps its existing sort
 behavior. Three-size browser checks verify column counts, feed selection,
 filter preservation, navigation and automatic paging.
+
+## Shared native browse search area — November 15, 2026
+
+The bottom Search tab, category menu, Home shortcuts, Home row “See all” links,
+and header searches started outside the results page now use the same search
+area selected on Home. The initial area is Idaho. Clearing the picker explicitly
+selects All locations rather than silently restoring Idaho. The preference stays
+in memory only; this does not add device-location access, storage or tracking.
+
+Retapping Search on the results page preserves its current URL, filters and
+sort. Search submission on that page keeps the full existing search scope.
+Saved searches and shared listing/search links retain their own explicit scope.
+The regional cached Home discovery feed remains separate from browse filtering;
+this batch does not change its inventory reads or request listing-provider data.
+
+The bundled Home journey verifies default Idaho, a city in Utah, category-menu
+and row navigation, searches from Saved, explicit All locations and preservation
+of an active price sort at 320, 390 and 1280 pixels. Existing refresh, retry,
+startup-logo and request-privacy checks run in the same journey.
