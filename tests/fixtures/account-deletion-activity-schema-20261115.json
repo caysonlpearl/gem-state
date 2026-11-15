@@ -1,0 +1,209 @@
+{
+  "rows": [
+    {
+      "source": "analytics_events",
+      "metadata": {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "user_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "session_id",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "name",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "props",
+            "type": "jsonb",
+            "default": "'{}'::jsonb",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "is_demo",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "occurred_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX analytics_events_pkey ON public.analytics_events USING btree (id)",
+          "CREATE INDEX analytics_events_name_occurred_idx ON public.analytics_events USING btree (name, occurred_at DESC)",
+          "CREATE INDEX analytics_business_period_idx ON public.analytics_events USING btree (name, occurred_at, id) WHERE (is_demo = false)"
+        ],
+        "policies": [
+          {
+            "name": "Admins read analytics",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "has_role(auth.uid(), 'admin'::app_role)",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Anyone can record an event",
+            "check": "((user_id IS NULL) OR (user_id = auth.uid()))",
+            "roles": ["anon", "authenticated"],
+            "using": null,
+            "command": "a",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "analytics_events_pkey",
+            "table": "analytics_events",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "analytics_events_user_id_fkey",
+            "table": "analytics_events",
+            "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+          }
+        ],
+        "rowSecurity": true,
+        "forceRowSecurity": false
+      }
+    },
+    {
+      "source": "rate_limit_events",
+      "metadata": {
+        "acl": "{postgres=arwdDxtm/postgres,anon=arwdDxtm/postgres,authenticated=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "user_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "action",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX rate_limit_events_pkey ON public.rate_limit_events USING btree (id)",
+          "CREATE INDEX rate_limit_events_idx ON public.rate_limit_events USING btree (user_id, action, created_at DESC)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "rate_limit_events_pkey",
+            "table": "rate_limit_events",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "rate_limit_events_user_id_fkey",
+            "table": "rate_limit_events",
+            "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          }
+        ],
+        "rowSecurity": true,
+        "forceRowSecurity": false
+      }
+    }
+  ],
+  "functions": [
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "8f64ebd23b61496c5fa7a248dd285281",
+      "signature": "enforce_rate_limit(text,integer,interval)",
+      "definition": "CREATE OR REPLACE FUNCTION public.enforce_rate_limit(_action text, _max integer, _window interval)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE uid uuid := auth.uid(); used integer;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  SELECT count(*) INTO used FROM public.rate_limit_events\n   WHERE user_id = uid AND action = _action AND created_at > now() - _window;\n  IF used >= _max THEN\n    RAISE EXCEPTION 'You have reached the limit for this action. Please try again later.';\n  END IF;\n  INSERT INTO public.rate_limit_events (user_id, action) VALUES (uid, _action);\nEND;\nEND;$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "ba5d28e6a70ca1ca942dd126393bb6a7",
+      "signature": "clear_shopping_history(text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.clear_shopping_history(subject_key text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n delete from shopping_events where subject=subject_key;\n if subject_key like 'u:%' then\n  update analytics_events set user_id=null,session_id=null,props=props-'traffic_visit' where user_id=substring(subject_key from 3)::uuid\n  and name in ('listing_viewed','search_performed','search_completed','page_view','filter_applied','seller_contacted','business_action','inquiry_completed');\n end if;\n delete from shopping_favorites where subject=subject_key;\n update shopping_privacy set history_after=now() where subject=subject_key;\n if subject_key like 'u:%' then\n  update shopping_accounts set history_after=now() where user_id=substring(subject_key from 3)::uuid;\n  update shopping_queue set status='suppressed' where user_id=substring(subject_key from 3)::uuid and status in ('pending','processing');\n end if;\nend $function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "3cf1485e089e06a894cbe5d4b32c2d0f",
+      "signature": "retain_shopping_data()",
+      "definition": "CREATE OR REPLACE FUNCTION public.retain_shopping_data()\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n delete from shopping_email_receipts where created_at < now()-interval '180 days';\n delete from shopping_events where occurred_at < now()-interval '90 days';\n -- Keep business totals while retiring old linked browsing identifiers in bounded batches.\n with expired as(select id from analytics_events where occurred_at<now()-interval '90 days' and\n   name in ('listing_viewed','search_performed','search_completed','page_view','filter_applied','seller_contacted','business_action','inquiry_completed')\n   and (user_id is not null or session_id is not null or props ? 'traffic_visit') order by occurred_at,id limit 1000 for update skip locked)\n update analytics_events a set user_id=null,session_id=null,props=props-'traffic_visit' from expired e where a.id=e.id;\n delete from shopping_consents where user_id is null and recorded_at < now()-interval '90 days';\n delete from shopping_favorites f where f.subject like 'g:%' and f.saved_at < now()-interval '90 days';\n delete from shopping_inventory where valid_until < now()-interval '30 days';\n delete from shopping_privacy where subject like 'g:%' and updated_at < now()-interval '90 days';\n delete from shopping_queue where status in ('sent','suppressed','failed') and created_at < now()-interval '180 days';\n delete from shopping_deliveries where status in ('sent','suppressed','failed') and created_at < now()-interval '180 days';\n delete from shopping_ad_outbox where created_at < now()-interval '30 days';\nend $function$\n",
+      "securityDefiner": true
+    }
+  ],
+  "capturedAt": "2026-11-15T14:10:22.141462+00:00",
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "metadataOnly": true,
+  "serverVersion": "17.6",
+  "workerEnabled": false,
+  "accessCoverage": {
+    "unguarded_tables": 0,
+    "unguarded_functions": 0,
+    "helper_privilege_gaps": 0
+  },
+  "inquiryMigrationInstalled": false
+}
