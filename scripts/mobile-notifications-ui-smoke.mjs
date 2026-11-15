@@ -187,8 +187,10 @@ try {
           data = { recent: [], continuing: [], recommended: [], model: "fixture" };
         else if (path === "home") data = { motors: [], recent: [] };
         else if (path === "search" && method === "GET") {
-          assert.deepEqual(Object.fromEntries(new URL(req.url()).searchParams), {
-            category: "jobs",
+          const params = Object.fromEntries(new URL(req.url()).searchParams);
+          assert(["jobs", "pets"].includes(params.category));
+          assert.deepEqual(params, {
+            category: params.category,
             state: "ID",
             page: "1",
           });

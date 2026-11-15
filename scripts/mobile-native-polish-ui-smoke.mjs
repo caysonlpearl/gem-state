@@ -141,7 +141,7 @@ try {
         data = { status: "unavailable", reason: "service_unavailable" };
       else if (path === "search") {
         const page = Number(url.searchParams.get("page") || 1);
-        if (url.searchParams.get("category") === "jobs")
+        if (["jobs", "pets"].includes(url.searchParams.get("category")))
           data = { items: [], total: 0, page: 1, pageSize: 24, nextPage: null, incomplete: false };
         else {
           searches.push({ page, query: url.search });
