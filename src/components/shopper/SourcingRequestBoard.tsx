@@ -14,7 +14,44 @@ import {
   submitShopperQuote,
   withdrawShopperQuote,
   type BoardRequest,
+  type SourcingQuote,
 } from "@/lib/sourcing.functions";
+
+export function ShopperQuoteRow({
+  quote,
+  pending,
+  onWithdraw,
+}: {
+  quote: SourcingQuote & { productName: string; variantLabel: string };
+  pending: boolean;
+  onWithdraw: (id: string) => void;
+}) {
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
+      <span className="min-w-0 flex-1">
+        <span className="break-words text-[12.5px] font-medium">{quote.productName}</span>
+        <span className="block text-[11.5px] text-muted-foreground">
+          {quote.variantLabel && <>{quote.variantLabel} · </>}
+          {formatUsd(quote.merchCostCents + quote.shopperCompCents)} ·{" "}
+          {quote.requestId
+            ? (quoteStatusLabels[quote.status] ?? quote.status)
+            : "Request unavailable"}{" "}
+          · <RelativeTime iso={quote.createdAt} />
+        </span>
+      </span>
+      {quote.status === "submitted" && quote.requestId && (
+        <button
+          type="button"
+          onClick={() => onWithdraw(quote.id)}
+          disabled={pending}
+          className="h-8 shrink-0 rounded-md border border-input px-2.5 text-[12px] font-medium hover:bg-secondary disabled:opacity-50"
+        >
+          Withdraw
+        </button>
+      )}
+    </li>
+  );
+}
 
 function toCents(value: string) {
   const cents = Math.round(Number(value.replace(/[^0-9.]/g, "")) * 100);
@@ -295,30 +332,12 @@ export function SourcingRequestBoard() {
           {myQuotes.length > 0 && (
             <ul className="space-y-2">
               {myQuotes.map((quote) => (
-                <li
+                <ShopperQuoteRow
                   key={quote.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
-                >
-                  <span>
-                    <span className="text-[12.5px] font-medium">{quote.productName}</span>
-                    <span className="block text-[11.5px] text-muted-foreground">
-                      {quote.variantLabel} ·{" "}
-                      {formatUsd(quote.merchCostCents + quote.shopperCompCents)} ·{" "}
-                      {quoteStatusLabels[quote.status] ?? quote.status} ·{" "}
-                      <RelativeTime iso={quote.createdAt} />
-                    </span>
-                  </span>
-                  {quote.status === "submitted" && (
-                    <button
-                      type="button"
-                      onClick={() => withdrawMutation.mutate(quote.id)}
-                      disabled={withdrawMutation.isPending}
-                      className="h-8 shrink-0 rounded-md border border-input px-2.5 text-[12px] font-medium hover:bg-secondary disabled:opacity-50"
-                    >
-                      Withdraw
-                    </button>
-                  )}
-                </li>
+                  quote={quote}
+                  pending={withdrawMutation.isPending}
+                  onWithdraw={(id) => withdrawMutation.mutate(id)}
+                />
               ))}
             </ul>
           )}

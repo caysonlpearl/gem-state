@@ -1,0 +1,832 @@
+{
+  "rows": [
+    {
+      "source": "request_media",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "request_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "storage_path",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "caption",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "position",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX request_media_pkey ON public.request_media USING btree (id)",
+          "CREATE INDEX request_media_request_idx ON public.request_media USING btree (request_id, \"position\")"
+        ],
+        "policies": [
+          {
+            "name": "Approved shoppers read media on open requests",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'shopper'::app_role) AND (EXISTS ( SELECT 1\n   FROM sourcing_requests r\n  WHERE ((r.id = request_media.request_id) AND (r.status = 'open'::sourcing_request_status) AND (NOT r.is_demo) AND (r.expires_at > now())))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Buyers read their own request media",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(EXISTS ( SELECT 1\n   FROM sourcing_requests r\n  WHERE ((r.id = request_media.request_id) AND (r.buyer_id = auth.uid()))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Moderators read request media",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "request_media_caption_check",
+            "table": "request_media",
+            "definition": "CHECK (caption IS NULL OR length(caption) <= 200)"
+          },
+          {
+            "name": "request_media_pkey",
+            "table": "request_media",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "request_media_request_id_fkey",
+            "table": "request_media",
+            "definition": "FOREIGN KEY (request_id) REFERENCES sourcing_requests(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    },
+    {
+      "source": "shopper_quotes",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "request_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "shopper_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "merch_cost_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "shopper_comp_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "shipping_estimate_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "buyer_fee_estimate_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "delivered_estimate_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "currency",
+            "type": "character(3)",
+            "default": "'USD'::bpchar",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "availability_note",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "fulfillment_window_days",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "expires_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "status",
+            "type": "shopper_quote_status",
+            "default": "'submitted'::shopper_quote_status",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "matched_order_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "is_demo",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX shopper_quotes_pkey ON public.shopper_quotes USING btree (id)",
+          "CREATE UNIQUE INDEX shopper_quotes_one_live ON public.shopper_quotes USING btree (request_id, shopper_id) WHERE (status = ANY (ARRAY['submitted'::shopper_quote_status, 'accepted'::shopper_quote_status]))",
+          "CREATE INDEX shopper_quotes_request_idx ON public.shopper_quotes USING btree (request_id, delivered_estimate_cents)"
+        ],
+        "policies": [
+          {
+            "name": "Moderators read shopper quotes",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Shoppers read their own quotes",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(shopper_id = auth.uid())",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": [
+          {
+            "name": "guard_shopper_quote_acceptance_flag",
+            "bodyMd5": "60c151c6f570f897142b47e6b8e36503",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.guard_shopper_quotes_enabled()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nbegin\n  if not public.pilot_feature_enabled('shopper_quotes') then\n    raise exception 'Shopper quotes on custom requests are not part of the validation pilot.'\n      using errcode = '42501';\n  end if;\n  return new;\nend\n$function$\n",
+            "definition": "CREATE TRIGGER guard_shopper_quote_acceptance_flag BEFORE UPDATE ON shopper_quotes FOR EACH ROW WHEN (new.status = 'accepted'::shopper_quote_status AND old.status IS DISTINCT FROM 'accepted'::shopper_quote_status) EXECUTE FUNCTION guard_shopper_quotes_enabled()"
+          },
+          {
+            "name": "guard_shopper_quotes_flag",
+            "bodyMd5": "60c151c6f570f897142b47e6b8e36503",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.guard_shopper_quotes_enabled()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nbegin\n  if not public.pilot_feature_enabled('shopper_quotes') then\n    raise exception 'Shopper quotes on custom requests are not part of the validation pilot.'\n      using errcode = '42501';\n  end if;\n  return new;\nend\n$function$\n",
+            "definition": "CREATE TRIGGER guard_shopper_quotes_flag BEFORE INSERT ON shopper_quotes FOR EACH ROW EXECUTE FUNCTION guard_shopper_quotes_enabled()"
+          },
+          {
+            "name": "shopper_quotes_touch",
+            "bodyMd5": "9b1889f56258bf9d6554213c05019c76",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$\n",
+            "definition": "CREATE TRIGGER shopper_quotes_touch BEFORE UPDATE ON shopper_quotes FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "shopper_quotes_availability_note_check",
+            "table": "shopper_quotes",
+            "definition": "CHECK (availability_note IS NULL OR length(availability_note) <= 500)"
+          },
+          {
+            "name": "shopper_quotes_buyer_fee_estimate_cents_check",
+            "table": "shopper_quotes",
+            "definition": "CHECK (buyer_fee_estimate_cents >= 0)"
+          },
+          {
+            "name": "shopper_quotes_delivered_estimate_cents_check",
+            "table": "shopper_quotes",
+            "definition": "CHECK (delivered_estimate_cents >= 0)"
+          },
+          {
+            "name": "shopper_quotes_delivered_total",
+            "table": "shopper_quotes",
+            "definition": "CHECK (delivered_estimate_cents = (merch_cost_cents + shopper_comp_cents + buyer_fee_estimate_cents + shipping_estimate_cents))"
+          },
+          {
+            "name": "shopper_quotes_fulfillment_window_days_check",
+            "table": "shopper_quotes",
+            "definition": "CHECK (fulfillment_window_days >= 1 AND fulfillment_window_days <= 60)"
+          },
+          {
+            "name": "shopper_quotes_matched_order_id_fkey",
+            "table": "shopper_quotes",
+            "definition": "FOREIGN KEY (matched_order_id) REFERENCES orders(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "shopper_quotes_merch_cost_cents_check",
+            "table": "shopper_quotes",
+            "definition": "CHECK (merch_cost_cents >= 100 AND merch_cost_cents <= 5000000)"
+          },
+          {
+            "name": "shopper_quotes_pkey",
+            "table": "shopper_quotes",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "shopper_quotes_request_id_fkey",
+            "table": "shopper_quotes",
+            "definition": "FOREIGN KEY (request_id) REFERENCES sourcing_requests(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "shopper_quotes_shipping_estimate_cents_check",
+            "table": "shopper_quotes",
+            "definition": "CHECK (shipping_estimate_cents >= 0 AND shipping_estimate_cents <= 100000)"
+          },
+          {
+            "name": "shopper_quotes_shopper_comp_cents_check",
+            "table": "shopper_quotes",
+            "definition": "CHECK (shopper_comp_cents >= 0 AND shopper_comp_cents <= 500000)"
+          },
+          {
+            "name": "shopper_quotes_shopper_id_fkey",
+            "table": "shopper_quotes",
+            "definition": "FOREIGN KEY (shopper_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sourcing_events_quote_id_fkey",
+            "table": "sourcing_events",
+            "definition": "FOREIGN KEY (quote_id) REFERENCES shopper_quotes(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "sourcing_requests_accepted_quote_fk",
+            "table": "sourcing_requests",
+            "definition": "FOREIGN KEY (accepted_quote_id) REFERENCES shopper_quotes(id) ON DELETE SET NULL"
+          }
+        ]
+      }
+    },
+    {
+      "source": "sourcing_events",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "request_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "quote_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "actor_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "event_type",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "note",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX sourcing_events_pkey ON public.sourcing_events USING btree (id)",
+          "CREATE INDEX sourcing_events_request_idx ON public.sourcing_events USING btree (request_id, created_at)"
+        ],
+        "policies": [
+          {
+            "name": "Moderators read sourcing history",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Request participants read sourcing history",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(EXISTS ( SELECT 1\n   FROM sourcing_requests r\n  WHERE ((r.id = sourcing_events.request_id) AND ((r.buyer_id = auth.uid()) OR (EXISTS ( SELECT 1\n           FROM shopper_quotes q\n          WHERE ((q.request_id = r.id) AND (q.shopper_id = auth.uid()))))))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "sourcing_events_actor_id_fkey",
+            "table": "sourcing_events",
+            "definition": "FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "sourcing_events_pkey",
+            "table": "sourcing_events",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "sourcing_events_quote_id_fkey",
+            "table": "sourcing_events",
+            "definition": "FOREIGN KEY (quote_id) REFERENCES shopper_quotes(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "sourcing_events_request_id_fkey",
+            "table": "sourcing_events",
+            "definition": "FOREIGN KEY (request_id) REFERENCES sourcing_requests(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    },
+    {
+      "source": "sourcing_requests",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "buyer_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "product_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "variant_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "target_location_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "max_budget_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "currency",
+            "type": "character(3)",
+            "default": "'USD'::bpchar",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "buyer_note",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "needed_by",
+            "type": "date",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "status",
+            "type": "sourcing_request_status",
+            "default": "'open'::sourcing_request_status",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "accepted_quote_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "matched_order_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "quote_count",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "media_count",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "is_demo",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "expires_at",
+            "type": "timestamp with time zone",
+            "default": "(now() + '21 days'::interval)",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX sourcing_requests_pkey ON public.sourcing_requests USING btree (id)",
+          "CREATE INDEX sourcing_requests_board_idx ON public.sourcing_requests USING btree (status, expires_at DESC)",
+          "CREATE INDEX sourcing_requests_buyer_idx ON public.sourcing_requests USING btree (buyer_id, created_at DESC)"
+        ],
+        "policies": [
+          {
+            "name": "Buyers read their own sourcing requests",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(buyer_id = auth.uid())",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Moderators read sourcing requests",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": [
+          {
+            "name": "guard_sourcing_requests_flag",
+            "bodyMd5": "2927a003f45542556b2cad8594407969",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.guard_custom_sourcing_requests_enabled()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nbegin\n  if not public.pilot_feature_enabled('custom_sourcing_requests') then\n    raise exception 'Custom sourcing requests are not part of the validation pilot.'\n      using errcode = '42501';\n  end if;\n  return new;\nend\n$function$\n",
+            "definition": "CREATE TRIGGER guard_sourcing_requests_flag BEFORE INSERT ON sourcing_requests FOR EACH ROW EXECUTE FUNCTION guard_custom_sourcing_requests_enabled()"
+          },
+          {
+            "name": "sourcing_requests_touch",
+            "bodyMd5": "9b1889f56258bf9d6554213c05019c76",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$\n",
+            "definition": "CREATE TRIGGER sourcing_requests_touch BEFORE UPDATE ON sourcing_requests FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "request_media_request_id_fkey",
+            "table": "request_media",
+            "definition": "FOREIGN KEY (request_id) REFERENCES sourcing_requests(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "shopper_quotes_request_id_fkey",
+            "table": "shopper_quotes",
+            "definition": "FOREIGN KEY (request_id) REFERENCES sourcing_requests(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sourcing_events_request_id_fkey",
+            "table": "sourcing_events",
+            "definition": "FOREIGN KEY (request_id) REFERENCES sourcing_requests(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sourcing_requests_accepted_quote_fk",
+            "table": "sourcing_requests",
+            "definition": "FOREIGN KEY (accepted_quote_id) REFERENCES shopper_quotes(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "sourcing_requests_buyer_id_fkey",
+            "table": "sourcing_requests",
+            "definition": "FOREIGN KEY (buyer_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sourcing_requests_buyer_note_check",
+            "table": "sourcing_requests",
+            "definition": "CHECK (buyer_note IS NULL OR length(buyer_note) <= 500)"
+          },
+          {
+            "name": "sourcing_requests_matched_order_id_fkey",
+            "table": "sourcing_requests",
+            "definition": "FOREIGN KEY (matched_order_id) REFERENCES orders(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "sourcing_requests_max_budget_cents_check",
+            "table": "sourcing_requests",
+            "definition": "CHECK (max_budget_cents IS NULL OR max_budget_cents >= 100 AND max_budget_cents <= 5000000)"
+          },
+          {
+            "name": "sourcing_requests_pkey",
+            "table": "sourcing_requests",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "sourcing_requests_product_id_fkey",
+            "table": "sourcing_requests",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sourcing_requests_target_location_id_fkey",
+            "table": "sourcing_requests",
+            "definition": "FOREIGN KEY (target_location_id) REFERENCES locations(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "sourcing_requests_variant_id_fkey",
+            "table": "sourcing_requests",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    }
+  ],
+  "enumTypes": {
+    "shopper_quote_status": ["submitted", "accepted", "declined", "expired", "withdrawn"],
+    "sourcing_request_status": ["open", "quote_accepted", "cancelled", "expired"]
+  },
+  "functions": [
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "b0e4af5c805b8ff43946f54ac412d550",
+      "signature": "accept_shopper_quote(uuid)",
+      "definition": "CREATE OR REPLACE FUNCTION public.accept_shopper_quote(_quote_id uuid)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  uid uuid := auth.uid(); q public.shopper_quotes; r public.sourcing_requests;\n  totals jsonb; snapshot jsonb; merch integer; buyer_fee integer; seller_fee integer;\n  payout integer; buyer_total integer; new_order uuid;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  PERFORM set_config('parkvault.trusted_operation','on', true);\n\n  SELECT * INTO q FROM public.shopper_quotes WHERE id = _quote_id FOR UPDATE;\n  IF q.id IS NULL THEN RAISE EXCEPTION 'Quote not found'; END IF;\n\n  SELECT * INTO r FROM public.sourcing_requests WHERE id = q.request_id FOR UPDATE;\n  IF r.buyer_id <> uid THEN RAISE EXCEPTION 'Only the requesting member may accept a quote'; END IF;\n  IF r.status <> 'open' THEN RAISE EXCEPTION 'This request is already closed to new quotes'; END IF;\n  IF r.accepted_quote_id IS NOT NULL THEN RAISE EXCEPTION 'This request already has an accepted quote'; END IF;\n  IF q.status <> 'submitted' THEN RAISE EXCEPTION 'This quote is no longer available'; END IF;\n  IF q.expires_at <= now() THEN RAISE EXCEPTION 'This quote has expired'; END IF;\n  IF q.currency <> r.currency THEN RAISE EXCEPTION 'Quote currency does not match the request'; END IF;\n  IF q.shopper_id = uid THEN RAISE EXCEPTION 'You cannot accept your own quote'; END IF;\n\n  merch := q.merch_cost_cents + q.shopper_comp_cents;\n  totals := public.compute_order_totals(merch, r.currency, NULL);\n  buyer_fee := (totals->>'buyer_fee_cents')::int;\n\n  -- Custom sourcing quotes only. During the validation pilot the platform takes\n  -- no seller fee against merchandise reimbursement or shipping reimbursement,\n  -- so the shopper is made whole on cost and paid the stated compensation in\n  -- full. Ordinary in-hand Asks and Bids keep the schedule seller fee.\n  seller_fee := 0;\n  payout := merch - seller_fee;\n  buyer_total := merch + buyer_fee + q.shipping_estimate_cents;\n\n  snapshot := totals || jsonb_build_object(\n    'quote_id', q.id,\n    'pricing_model', 'custom_sourcing_quote_pilot',\n    'merchandise_basis', 'merch_cost_cents + shopper_comp_cents',\n    'merch_cost_cents', q.merch_cost_cents,\n    'shopper_comp_cents', q.shopper_comp_cents,\n    'merchandise_cents', merch,\n    'buyer_fee_cents', buyer_fee,\n    'seller_fee_cents', seller_fee,\n    'seller_fee_waived_for_pilot', true,\n    'seller_fee_schedule_bps', (totals->>'seller_fee_bps'),\n    'shipping_cents', q.shipping_estimate_cents,\n    'shipping_is_estimate', true,\n    'shipping_reimbursement_cents', q.shipping_estimate_cents,\n    'tax_cents', 0,\n    'shipping_and_tax_calculated', false,\n    'total_cents', buyer_total,\n    'payout_cents', payout,\n    'shopper_comp_included_in_payout', true,\n    'shopper_total_payable_cents', q.merch_cost_cents + q.shopper_comp_cents + q.shipping_estimate_cents,\n    'shopper_profit_cents', q.shopper_comp_cents,\n    'platform_revenue_cents', buyer_fee,\n    'fulfillment_window_days', q.fulfillment_window_days);\n\n  INSERT INTO public.orders (\n    buyer_id, seller_id, product_id, variant_id, origin, status, currency,\n    merchandise_cents, buyer_fee_cents, seller_fee_cents, shipping_cents, tax_cents,\n    total_cents, payout_cents, fee_schedule_id, fee_snapshot, reservation_expires_at, is_demo\n  ) VALUES (\n    uid, q.shopper_id, r.product_id, r.variant_id, 'sourcing_quote', 'awaiting_payment', r.currency,\n    merch, buyer_fee, seller_fee, q.shipping_estimate_cents, 0,\n    buyer_total, payout,\n    (totals->>'fee_schedule_id')::uuid, snapshot, now() + public.reservation_window(), r.is_demo\n  ) RETURNING id INTO new_order;\n\n  UPDATE public.shopper_quotes SET status = 'accepted', matched_order_id = new_order WHERE id = q.id;\n  UPDATE public.shopper_quotes SET status = 'declined'\n   WHERE request_id = r.id AND id <> q.id AND status = 'submitted';\n  UPDATE public.sourcing_requests\n     SET status = 'quote_accepted', accepted_quote_id = q.id, matched_order_id = new_order, quote_count = 0\n   WHERE id = r.id;\n\n  INSERT INTO public.sourcing_events (request_id, quote_id, actor_id, event_type, note)\n  VALUES (r.id, q.id, uid, 'quote_accepted',\n          'The buyer accepted this quote; the request is closed to new quotes and the remaining quotes were declined.');\n\n  INSERT INTO public.order_events (order_id, actor_id, to_status, note)\n  VALUES (new_order, uid, 'awaiting_payment',\n          'Accepted sourcing quote recorded. No seller fee is taken on a custom sourcing quote during the validation pilot: the shopper is owed merchandise cost, compensation and the shipping reimbursement in full. Shipping is an estimate, nothing has been charged, and live checkout is not enabled.');\n\n  PERFORM set_config('parkvault.trusted_operation','off', true);\n  RETURN new_order;\nEND;\nEND;$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "fed2a960474c2cbf43da6418c53ceaca",
+      "signature": "cancel_sourcing_request(uuid)",
+      "definition": "CREATE OR REPLACE FUNCTION public.cancel_sourcing_request(_request_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE uid uuid := auth.uid(); r public.sourcing_requests;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  SELECT * INTO r FROM public.sourcing_requests WHERE id = _request_id AND buyer_id = uid FOR UPDATE;\n  IF r.id IS NULL THEN RAISE EXCEPTION 'Sourcing request not found'; END IF;\n  IF r.status <> 'open' THEN RAISE EXCEPTION 'Only an open sourcing request can be cancelled'; END IF;\n\n  UPDATE public.sourcing_requests SET status = 'cancelled' WHERE id = _request_id;\n  UPDATE public.shopper_quotes SET status = 'declined'\n   WHERE request_id = _request_id AND status = 'submitted';\n  INSERT INTO public.sourcing_events (request_id, actor_id, event_type, note)\n  VALUES (_request_id, uid, 'request_cancelled', 'Buyer cancelled the request; open quotes were declined.');\nEND;\nEND;$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "0af2714739638731e1dfd0034e4a9ba9",
+      "signature": "create_sourcing_request(uuid,integer,text,date,uuid,text[])",
+      "definition": "CREATE OR REPLACE FUNCTION public.create_sourcing_request(_variant_id uuid, _max_budget_cents integer DEFAULT NULL::integer, _buyer_note text DEFAULT NULL::text, _needed_by date DEFAULT NULL::date, _target_location_id uuid DEFAULT NULL::uuid, _media_paths text[] DEFAULT ARRAY[]::text[])\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE uid uuid := auth.uid(); v record; new_id uuid; p text; idx integer := 0;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  IF _max_budget_cents IS NOT NULL AND (_max_budget_cents < 100 OR _max_budget_cents > 5000000) THEN\n    RAISE EXCEPTION 'Budget out of range';\n  END IF;\n  PERFORM public.enforce_rate_limit('sourcing_request', 10, interval '1 day');\n\n  SELECT pv.id, pv.product_id, p2.status, p2.is_demo, p2.retail_price_currency INTO v\n  FROM public.product_variants pv JOIN public.products p2 ON p2.id = pv.product_id\n  WHERE pv.id = _variant_id AND pv.active;\n  IF v.id IS NULL THEN RAISE EXCEPTION 'Unknown variation'; END IF;\n  IF v.status <> 'published' THEN RAISE EXCEPTION 'Variation is not open for sourcing requests'; END IF;\n\n  INSERT INTO public.sourcing_requests (buyer_id, product_id, variant_id, target_location_id,\n                                        max_budget_cents, currency, buyer_note, needed_by, is_demo)\n  VALUES (uid, v.product_id, _variant_id, _target_location_id, _max_budget_cents,\n          v.retail_price_currency, nullif(btrim(_buyer_note),''), _needed_by, v.is_demo)\n  RETURNING id INTO new_id;\n\n  FOREACH p IN ARRAY coalesce(_media_paths, ARRAY[]::text[]) LOOP\n    IF split_part(p, '/', 1) <> uid::text THEN\n      RAISE EXCEPTION 'Reference photo does not belong to the caller';\n    END IF;\n    INSERT INTO public.request_media (request_id, storage_path, position) VALUES (new_id, p, idx);\n    idx := idx + 1;\n  END LOOP;\n  UPDATE public.sourcing_requests SET media_count = idx WHERE id = new_id;\n\n  INSERT INTO public.sourcing_events (request_id, actor_id, event_type, note)\n  VALUES (new_id, uid, 'request_created', idx || ' private reference photo(s) attached');\n  RETURN new_id;\nEND;\nEND;$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "f97419ab339a4b78e8058941c1fae1ae",
+      "signature": "sourcing_board()",
+      "definition": "CREATE OR REPLACE FUNCTION public.sourcing_board()\n RETURNS TABLE(request_id uuid, product_slug text, product_name text, variant_id uuid, variant_size text, variant_color text, variant_edition text, max_budget_cents integer, currency character, buyer_note text, needed_by date, quote_count integer, media_count integer, expires_at timestamp with time zone, created_at timestamp with time zone, my_quote_id uuid)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$SELECT public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\n  SELECT r.id, p.slug, p.name, r.variant_id, v.size, v.color, v.edition,\n         r.max_budget_cents, r.currency, r.buyer_note, r.needed_by,\n         r.quote_count, r.media_count, r.expires_at, r.created_at,\n         (SELECT q.id FROM public.shopper_quotes q\n           WHERE q.request_id = r.id\n             AND q.shopper_id = auth.uid()\n             AND q.status IN ('submitted', 'accepted')\n           LIMIT 1)\n  FROM public.sourcing_requests r\n  JOIN public.products p ON p.id = r.product_id\n  JOIN public.product_variants v ON v.id = r.variant_id\n  WHERE auth.uid() IS NOT NULL\n    AND public.has_role(auth.uid(), 'shopper')\n    AND r.status = 'open'\n    AND NOT r.is_demo\n    AND r.expires_at > now()\n  ORDER BY r.created_at DESC\n  LIMIT 100\n$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "51dae1114f14e9e65ff69d4408a851f8",
+      "signature": "sourcing_request_media(uuid,uuid)",
+      "definition": "CREATE OR REPLACE FUNCTION public.sourcing_request_media(_request_id uuid, _caller uuid)\n RETURNS TABLE(media_id uuid, storage_path text, caption text, sort_position integer)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  r public.sourcing_requests; is_staff boolean; allowed boolean := false;\nBEGIN\n  IF _caller IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  SELECT * INTO r FROM public.sourcing_requests WHERE id = _request_id;\n  IF r.id IS NULL THEN RAISE EXCEPTION 'Sourcing request not found'; END IF;\n\n  is_staff := public.has_role(_caller,'moderator') OR public.has_role(_caller,'admin');\n\n  IF r.buyer_id = _caller THEN\n    allowed := true;\n  ELSIF is_staff THEN\n    allowed := true;\n    INSERT INTO public.admin_audit_log (actor_id, action, entity, entity_id, note)\n    VALUES (_caller, 'sourcing_request_media_accessed', 'sourcing_requests', r.id,\n            'Moderator or administrator opened the private reference photos on a sourcing request.');\n  ELSIF public.has_role(_caller,'shopper') THEN\n    IF r.status = 'open' AND r.expires_at > now() THEN\n      allowed := true;\n    ELSE\n      allowed := EXISTS (\n        SELECT 1 FROM public.shopper_quotes q\n         WHERE q.id = r.accepted_quote_id AND q.shopper_id = _caller AND q.status = 'accepted');\n    END IF;\n  END IF;\n\n  IF NOT allowed THEN RAISE EXCEPTION 'You are not permitted to view this reference media'; END IF;\n\n  RETURN QUERY\n    SELECT m.id, m.storage_path, m.caption, m.\"position\"\n      FROM public.request_media m\n     WHERE m.request_id = r.id\n     ORDER BY m.\"position\", m.created_at;\nEND;\nEND;$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "39772b62ad1981941068665a7bea4b54",
+      "signature": "submit_shopper_quote(uuid,integer,integer,integer,integer,text,integer)",
+      "definition": "CREATE OR REPLACE FUNCTION public.submit_shopper_quote(_request_id uuid, _merch_cost_cents integer, _shopper_comp_cents integer, _shipping_estimate_cents integer, _fulfillment_window_days integer, _availability_note text DEFAULT NULL::text, _valid_for_days integer DEFAULT 7)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  uid uuid := auth.uid(); r public.sourcing_requests; totals jsonb;\n  buyer_fee integer; delivered integer; new_id uuid;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  IF NOT public.has_role(uid,'shopper') THEN\n    RAISE EXCEPTION 'Only approved shoppers may quote on a sourcing request';\n  END IF;\n  IF _merch_cost_cents < 100 OR _merch_cost_cents > 5000000 THEN RAISE EXCEPTION 'Merchandise cost out of range'; END IF;\n  IF _shopper_comp_cents < 0 OR _shopper_comp_cents > 500000 THEN RAISE EXCEPTION 'Shopper compensation out of range'; END IF;\n  IF _shipping_estimate_cents < 0 OR _shipping_estimate_cents > 100000 THEN RAISE EXCEPTION 'Shipping estimate out of range'; END IF;\n  IF _fulfillment_window_days < 1 OR _fulfillment_window_days > 60 THEN RAISE EXCEPTION 'Fulfilment window must be 1 to 60 days'; END IF;\n  IF _valid_for_days < 1 OR _valid_for_days > 30 THEN RAISE EXCEPTION 'Quote validity must be 1 to 30 days'; END IF;\n  PERFORM public.enforce_rate_limit('shopper_quote', 30, interval '1 day');\n\n  SELECT * INTO r FROM public.sourcing_requests WHERE id = _request_id FOR UPDATE;\n  IF r.id IS NULL THEN RAISE EXCEPTION 'Sourcing request not found'; END IF;\n  IF r.status <> 'open' OR r.expires_at <= now() THEN\n    RAISE EXCEPTION 'This request is no longer accepting quotes';\n  END IF;\n  IF r.buyer_id = uid THEN RAISE EXCEPTION 'You cannot quote on your own sourcing request'; END IF;\n\n  -- The marketplace buyer fee is always recalculated from the effective schedule.\n  totals := public.compute_order_totals(_merch_cost_cents + _shopper_comp_cents, r.currency, NULL);\n  buyer_fee := (totals->>'buyer_fee_cents')::int;\n  delivered := _merch_cost_cents + _shopper_comp_cents + buyer_fee + _shipping_estimate_cents;\n\n  INSERT INTO public.shopper_quotes (\n    request_id, shopper_id, merch_cost_cents, shopper_comp_cents, shipping_estimate_cents,\n    buyer_fee_estimate_cents, delivered_estimate_cents, currency, availability_note,\n    fulfillment_window_days, expires_at, is_demo)\n  VALUES (_request_id, uid, _merch_cost_cents, _shopper_comp_cents, _shipping_estimate_cents,\n          buyer_fee, delivered, r.currency, nullif(btrim(_availability_note),''),\n          _fulfillment_window_days, now() + make_interval(days => _valid_for_days), r.is_demo)\n  RETURNING id INTO new_id;\n\n  UPDATE public.sourcing_requests\n     SET quote_count = (SELECT count(*) FROM public.shopper_quotes q\n                         WHERE q.request_id = _request_id AND q.status = 'submitted')\n   WHERE id = _request_id;\n\n  INSERT INTO public.sourcing_events (request_id, quote_id, actor_id, event_type, note)\n  VALUES (_request_id, new_id, uid, 'quote_submitted', 'A shopper submitted a quote.');\n  RETURN new_id;\nEND;\nEND;$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "44277304b63d219ab7fb74090ec2f535",
+      "signature": "withdraw_shopper_quote(uuid)",
+      "definition": "CREATE OR REPLACE FUNCTION public.withdraw_shopper_quote(_quote_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE uid uuid := auth.uid(); q public.shopper_quotes;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  SELECT * INTO q FROM public.shopper_quotes WHERE id = _quote_id AND shopper_id = uid FOR UPDATE;\n  IF q.id IS NULL THEN RAISE EXCEPTION 'Quote not found'; END IF;\n  IF q.status <> 'submitted' THEN RAISE EXCEPTION 'Only a submitted quote can be withdrawn'; END IF;\n\n  UPDATE public.shopper_quotes SET status = 'withdrawn' WHERE id = _quote_id;\n  UPDATE public.sourcing_requests\n     SET quote_count = (SELECT count(*) FROM public.shopper_quotes q2\n                         WHERE q2.request_id = q.request_id AND q2.status = 'submitted')\n   WHERE id = q.request_id;\n  INSERT INTO public.sourcing_events (request_id, quote_id, actor_id, event_type, note)\n  VALUES (q.request_id, _quote_id, uid, 'quote_withdrawn', 'The shopper withdrew this quote.');\nEND;\nEND;$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "ffe58727228ef7be7ffd3ba7399332bb",
+      "signature": "quotes_for_my_requests()",
+      "definition": "CREATE OR REPLACE FUNCTION public.quotes_for_my_requests()\n RETURNS TABLE(quote_id uuid, request_id uuid, merch_cost_cents integer, shopper_comp_cents integer, shipping_estimate_cents integer, buyer_fee_estimate_cents integer, delivered_estimate_cents integer, currency character, availability_note text, fulfillment_window_days integer, expires_at timestamp with time zone, status shopper_quote_status, matched_order_id uuid, created_at timestamp with time zone)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$SELECT public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\n  SELECT q.id, q.request_id, q.merch_cost_cents, q.shopper_comp_cents,\n         q.shipping_estimate_cents, q.buyer_fee_estimate_cents,\n         q.delivered_estimate_cents, q.currency, q.availability_note,\n         q.fulfillment_window_days, q.expires_at, q.status, q.matched_order_id,\n         q.created_at\n  FROM public.shopper_quotes q\n  JOIN public.sourcing_requests r ON r.id = q.request_id\n  WHERE auth.uid() IS NOT NULL\n    AND r.buyer_id = auth.uid()\n  ORDER BY q.delivered_estimate_cents ASC\n$function$\n",
+      "securityDefiner": true
+    }
+  ],
+  "capturedAt": "2026-11-15T11:44:07.525422+00:00",
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "metadataOnly": true,
+  "serverVersion": "17.6",
+  "workerEnabled": false,
+  "accessCoverage": {
+    "unguarded_tables": 0,
+    "unguarded_functions": 0,
+    "helper_privilege_gaps": 0
+  },
+  "inquiryMigrationInstalled": false,
+  "support": {
+    "functions": [
+      {
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "config": ["search_path=public, pg_temp"],
+        "bodyMd5": "96cfb7a1c04a7916f480e5ad6bb8433e",
+        "signature": "compute_order_totals(integer,character,uuid)",
+        "definition": "CREATE OR REPLACE FUNCTION public.compute_order_totals(_merchandise_cents integer, _currency character, _resort_id uuid DEFAULT NULL::uuid)\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  s public.fee_schedules;\n  buyer_fee integer;\n  seller_fee integer;\nBEGIN\n  SELECT * INTO s FROM public.effective_fee_schedule(_currency, _resort_id);\n  IF s.id IS NULL THEN RAISE EXCEPTION 'No active fee schedule for currency %', _currency; END IF;\n  IF _merchandise_cents < 100 THEN RAISE EXCEPTION 'Merchandise amount is too low'; END IF;\n\n  buyer_fee := GREATEST(\n    round(_merchandise_cents::numeric * s.buyer_fee_bps / 10000)::integer,\n    s.minimum_fee_cents\n  );\n  seller_fee := round(_merchandise_cents::numeric * s.seller_fee_bps / 10000)::integer;\n\n  RETURN jsonb_build_object(\n    'fee_schedule_id', s.id,\n    'fee_schedule_label', s.label,\n    'currency', s.currency,\n    'buyer_fee_bps', s.buyer_fee_bps,\n    'seller_fee_bps', s.seller_fee_bps,\n    'buyer_minimum_fee_cents', s.minimum_fee_cents,\n    'merchandise_cents', _merchandise_cents,\n    'buyer_fee_cents', buyer_fee,\n    'seller_fee_cents', seller_fee,\n    'shipping_cents', 0,\n    'tax_cents', 0,\n    'shipping_and_tax_calculated', false,\n    'total_cents', _merchandise_cents + buyer_fee,\n    'payout_cents', _merchandise_cents - seller_fee,\n    'snapshot_at', now()\n  );\nEND;\nEND;$function$\n",
+        "securityDefiner": true
+      },
+      {
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "config": ["search_path=public"],
+        "bodyMd5": "fa81ac29ae63d25a6ea95fcb4e47032b",
+        "signature": "pilot_feature_enabled(text)",
+        "definition": "CREATE OR REPLACE FUNCTION public.pilot_feature_enabled(_feature text)\n RETURNS boolean\n LANGUAGE sql\n STABLE\n SET search_path TO 'public'\nAS $function$\n  select case _feature\n           when 'custom_sourcing_requests' then s.custom_sourcing_requests_enabled\n           when 'shopper_quotes' then s.shopper_quotes_enabled\n           when 'live_checkout' then s.live_checkout_enabled\n           else false\n         end\n  from public.market_settings s\n  where s.id\n  limit 1\n$function$\n",
+        "securityDefiner": false
+      },
+      {
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "config": ["search_path=public, pg_temp"],
+        "bodyMd5": "ffe58727228ef7be7ffd3ba7399332bb",
+        "signature": "quotes_for_my_requests()",
+        "definition": "CREATE OR REPLACE FUNCTION public.quotes_for_my_requests()\n RETURNS TABLE(quote_id uuid, request_id uuid, merch_cost_cents integer, shopper_comp_cents integer, shipping_estimate_cents integer, buyer_fee_estimate_cents integer, delivered_estimate_cents integer, currency character, availability_note text, fulfillment_window_days integer, expires_at timestamp with time zone, status shopper_quote_status, matched_order_id uuid, created_at timestamp with time zone)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$SELECT public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\n  SELECT q.id, q.request_id, q.merch_cost_cents, q.shopper_comp_cents,\n         q.shipping_estimate_cents, q.buyer_fee_estimate_cents,\n         q.delivered_estimate_cents, q.currency, q.availability_note,\n         q.fulfillment_window_days, q.expires_at, q.status, q.matched_order_id,\n         q.created_at\n  FROM public.shopper_quotes q\n  JOIN public.sourcing_requests r ON r.id = q.request_id\n  WHERE auth.uid() IS NOT NULL\n    AND r.buyer_id = auth.uid()\n  ORDER BY q.delivered_estimate_cents ASC\n$function$\n",
+        "securityDefiner": true
+      },
+      {
+        "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+        "config": ["search_path=public, pg_temp"],
+        "bodyMd5": "11ff9bbae032523fac3c8c204deccaf3",
+        "signature": "reservation_window()",
+        "definition": "CREATE OR REPLACE FUNCTION public.reservation_window()\n RETURNS interval\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$SELECT public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\n  SELECT CASE WHEN s.live_checkout_enabled\n              THEN make_interval(mins => s.checkout_reservation_minutes)\n              ELSE make_interval(mins => s.pilot_reservation_minutes)\n         END\n  FROM public.market_settings s WHERE s.id\n$function$\n",
+        "securityDefiner": true
+      }
+    ],
+    "capturedAt": "2026-11-15T12:16:46.823053+00:00",
+    "projectRef": "udxxfuticbxwiehoepeg",
+    "metadataOnly": true
+  }
+}

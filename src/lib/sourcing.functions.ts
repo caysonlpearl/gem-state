@@ -33,7 +33,7 @@ export type ShopperStatus = {
 
 export type SourcingQuote = {
   id: string;
-  requestId: string;
+  requestId: string | null;
   /** Short opaque reference — never the shopper's identity. */
   shopperRef: string;
   merchCostCents: number;
@@ -513,8 +513,10 @@ export const getMyQuotes = createServerFn({ method: "GET" })
           status: q.status,
           matchedOrderId: q.matched_order_id,
           createdAt: q.created_at,
-          productName: request?.products?.name ?? "Unknown product",
-          variantLabel: variantLabel(request?.product_variants ?? null),
+          productName: q.request_id
+            ? (request?.products?.name ?? "Unknown product")
+            : "Previous quote",
+          variantLabel: q.request_id ? variantLabel(request?.product_variants ?? null) : "",
         };
       });
     },

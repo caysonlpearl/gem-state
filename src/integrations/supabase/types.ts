@@ -6281,7 +6281,8 @@ export type Database = {
           is_demo: boolean
           matched_order_id: string | null
           merch_cost_cents: number
-          request_id: string
+          request_id: string | null
+          unavailable_at: string | null
           shipping_estimate_cents: number
           shopper_comp_cents: number
           shopper_id: string
@@ -6300,7 +6301,8 @@ export type Database = {
           is_demo?: boolean
           matched_order_id?: string | null
           merch_cost_cents: number
-          request_id: string
+          request_id?: string | null
+          unavailable_at?: string | null
           shipping_estimate_cents: number
           shopper_comp_cents: number
           shopper_id: string
@@ -6319,7 +6321,8 @@ export type Database = {
           is_demo?: boolean
           matched_order_id?: string | null
           merch_cost_cents?: number
-          request_id?: string
+          request_id?: string | null
+          unavailable_at?: string | null
           shipping_estimate_cents?: number
           shopper_comp_cents?: number
           shopper_id?: string
@@ -6739,7 +6742,9 @@ export type Database = {
           id: string
           note: string | null
           quote_id: string | null
-          request_id: string
+          request_id: string | null
+          request_unavailable_at: string | null
+          quote_unavailable_at: string | null
         }
         Insert: {
           actor_id?: string | null
@@ -6748,7 +6753,9 @@ export type Database = {
           id?: string
           note?: string | null
           quote_id?: string | null
-          request_id: string
+          request_id?: string | null
+          request_unavailable_at?: string | null
+          quote_unavailable_at?: string | null
         }
         Update: {
           actor_id?: string | null
@@ -6757,7 +6764,9 @@ export type Database = {
           id?: string
           note?: string | null
           quote_id?: string | null
-          request_id?: string
+          request_id?: string | null
+          request_unavailable_at?: string | null
+          quote_unavailable_at?: string | null
         }
         Relationships: [
           {
