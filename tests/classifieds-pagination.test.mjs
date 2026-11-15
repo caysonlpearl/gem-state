@@ -1,4 +1,5 @@
 import { mobileSaleScope, mixMobileSaleFeed, mobileSaleItem } from "../src/lib/mobile-sale-feed.ts";
+import { matchesLandingCard } from "../src/lib/landing-card-pool.ts";
 import { canIncludeDirectory } from "../src/lib/service-directory-contract.ts";
 import { parseBrowseSearch } from "../src/lib/browse-search.ts";
 import { normalizeClassifiedBrowseInput } from "../src/lib/classified-browse-contract.ts";
@@ -258,6 +259,7 @@ function harness({
       }),
     }),
     mobileSaleItem,
+    matchesLandingCard,
     mobileSaleScope,
     mixMobileSaleFeed,
     isOutOfRangePage,
@@ -893,6 +895,20 @@ test("native mixed shopping excludes work before pagination and rotates categori
   assert.equal(h.directoryCalls.length, 0);
   const allowed = h.nativeFilters.find(([key]) => key === "products.categories.slug")[1];
   assert(!allowed.includes("jobs") && !allowed.includes("services"));
+});
+
+test("native price filters remove broad cached rescue results before the result page is sliced", async () => {
+  const now = new Date().toISOString();
+  const h = harness({
+    records: [{id:"matching-car",title:"Matching car",categorySlug:"cars-trucks",priceCents:500000,createdAt:now,state:"ID"}],
+    filters: {mobileCatalog:true,sort:"price_low",priceMin:100,priceMax:5000},
+    enabled:["rescuegroups"],
+    external:Array.from({length:30},(_,i)=>({id:`rescue-${i}`,title:"Adoptable pet",categorySlug:"pets",priceCents:0,createdAt:now,state:"ID"})),
+  });
+  const result=await h.internal({readOnlyProviders:true});
+  assert.deepEqual(Array.from(result.listings,c=>c.id),["matching-car"]);
+  assert.equal(result.total,1);
+  assert.deepEqual(h.providerReads,[]);
 });
 
 test("native catalog metadata retains eligible cached services and service outages reach the safe fallback", async () => {

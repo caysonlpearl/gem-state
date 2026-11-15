@@ -10,6 +10,7 @@ import { mobileWriteId } from "./mobile-write";
 import { homeRecommendationRows } from "./home-shopping.ts";
 import { discoverySellerToken } from "./discovery-ranking.ts";
 import { mixMobileSaleFeed, mobileSaleScope, mobileSaleItem } from "./mobile-sale-feed.ts";
+import { matchesLandingCard } from "./landing-card-pool.ts";
 import { mixPetSpecies } from "./pet-mix.ts";
 import { getPhotoStorageModule } from "./photo-storage-access";
 import { selectLandingCoverage } from "./landing-coverage";
@@ -2193,7 +2194,10 @@ async function runBrowseClassifieds(
         ? Math.max(pageSize, mockSource.length)
         : pageSize;
     const matchingCandidates = [...featuredListings, ...standardListings].filter(
-      (card) => !saleFeed || mobileSaleItem(card),
+      (card) =>
+        (!saleFeed || mobileSaleItem(card)) &&
+        (!data.mobileCatalog ||
+          matchesLandingCard(card, { priceMin: data.priceMin, priceMax: data.priceMax })),
     );
     const candidates = saleFeed
       ? [...new Map(matchingCandidates.map((card) => [card.id, card])).values()]
