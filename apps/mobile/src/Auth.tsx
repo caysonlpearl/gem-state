@@ -28,6 +28,10 @@ export function NativeAuth({
       if (location.hash.split("?")[0] !== "#/auth") return;
       const requested = new URLSearchParams(location.hash.split("?")[1]).get("mode");
       setMode(requested === "signup" || requested === "forgot" ? requested : "signin");
+      setPendingConfirm(false);
+      setEmailLinkSent(false);
+      setError("");
+      setNotice("");
     };
     window.addEventListener("hashchange", update);
     return () => window.removeEventListener("hashchange", update);
@@ -134,6 +138,8 @@ export function NativeAuth({
       mode={mode}
       setMode={(next) => {
         setMode(next);
+        setPendingConfirm(false);
+        setEmailLinkSent(false);
         setError("");
         setNotice("");
       }}
@@ -171,6 +177,21 @@ export function NativeAuth({
           });
           if (error) throw error;
           setEmailLinkSent(true);
+        })
+      }
+      handleResendConfirmation={() =>
+        void run(async () => {
+          validEmail();
+          rememberNativeAuthDestination(destination);
+          const { error } = await auth.auth.resend({
+            type: "signup",
+            email: email.trim(),
+            options: { emailRedirectTo: redirectTo },
+          });
+          if (error) throw error;
+          setNotice(
+            "If confirmation is still needed, a new link has been requested. Check your inbox or Spam.",
+          );
         })
       }
       onOAuth={(provider) =>

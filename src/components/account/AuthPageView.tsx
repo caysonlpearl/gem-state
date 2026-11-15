@@ -27,6 +27,7 @@ export type AuthPageViewProps = {
   handleForgotPassword: (event: FormEvent) => void;
   handleResetPassword: (event: FormEvent) => void;
   handleEmailLink: () => void;
+  handleResendConfirmation?: () => void;
   onOAuth: (provider: "google" | "apple") => void;
   appleSignIn?: boolean;
   termsUrl?: string;
@@ -60,6 +61,7 @@ export function AuthPageView({
   handleForgotPassword,
   handleResetPassword,
   handleEmailLink,
+  handleResendConfirmation,
   onOAuth,
   appleSignIn = false,
   termsUrl = "/terms",
@@ -119,9 +121,42 @@ export function AuthPageView({
         {pendingConfirm ? (
           <div className="mt-6 rounded-2xl bg-secondary p-5">
             <p className="text-[13.5px] font-medium">Check your email</p>
-            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-              We sent a confirmation link to {email}. You are not signed in until you open it.
+            <p className="mt-1 break-words text-[13px] leading-relaxed text-muted-foreground">
+              For a new account, look for a confirmation link at {email}, including in Spam. If you
+              already have an account or used Google before, sign in instead.
             </p>
+            <div className="mt-4 flex flex-col gap-2">
+              {handleResendConfirmation && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleResendConfirmation}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-primary px-4 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {busy ? "Requesting link…" : "Resend confirmation"}
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setMode("signin")}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-input bg-card px-4 text-[13px] font-medium transition-colors hover:bg-secondary disabled:opacity-60"
+              >
+                Back to sign in
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setEmail("");
+                  setPassword("");
+                  setMode("signup");
+                }}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full px-4 text-[13px] font-medium underline underline-offset-4 hover:bg-secondary disabled:opacity-60"
+              >
+                Use a different email
+              </button>
+            </div>
           </div>
         ) : mode === "forgot" ? (
           <form onSubmit={handleForgotPassword} className="mt-4 space-y-2.5">

@@ -1230,3 +1230,20 @@ The bundled Home journey verifies default Idaho, a city in Utah, category-menu
 and row navigation, searches from Saved, explicit All locations and preservation
 of an active price sort at 320, 390 and 1280 pixels. Existing refresh, retry,
 startup-logo and request-privacy checks run in the same journey.
+
+### Confirmation-email recovery — November 15, 2026
+
+The shared signup presenter no longer claims that an email was sent merely
+because signup returned without a session. That response can also represent an
+existing account. Its confirmation panel now offers Resend confirmation, Back to
+sign in, and Use a different email. Both platform adapters call the Auth SDK's
+signup resend operation with their current return URL. Switching auth modes
+clears the pending screen; correcting the address also clears the password.
+The required Terms and optional shopping-alert choices are unchanged.
+
+Browser checks at 320, 390, 440, 768 and landscape 844 pixels exercise a rate-limit
+failure, successful request, return-link preservation, returning to sign-in and
+changing the email. These use intercepted Auth requests and never send email.
+An accepted real resend request does not prove inbox delivery. Provider logs and
+owner receipt are still needed before reporting a delivery issue as resolved;
+this source change is not evidence of an updated installed iPhone build.
