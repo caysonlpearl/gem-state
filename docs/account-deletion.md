@@ -1289,3 +1289,43 @@ catalog record removal, provider-byte erasure or worker activation occurred.
 Public model/poster handling, shared catalog retention, remaining authored
 requests/suggestions/sightings and analytics, financial/moderation/consent/audit
 retention, identity/revocation and full end-to-end rehearsal remain required.
+
+## November 15 business-claim cleanup — source only
+
+The captured production metadata for `employer_claims`,
+`service_directory_claims` and `service_directory` now has an isolated cleanup
+component. Each leased records step changes at most 100 physical rows in one
+source: retire the deleting member's business assignment, delete that member's
+complete private claim, or remove their reviewer pointer from another member's
+claim. Other members' contact text, notes, statuses and review dates remain
+unchanged. Independently imported public businesses remain available; their
+ownership assignment is separate from their public source data.
+
+The five account foreign keys restrict shortcut identity removal. Writers cannot
+create claims, change authorship or assign a business to an account pending
+deletion. Ordinary public-business enrichment still works. Administrator review
+and business assignment use one transaction, deriving the active reviewer from
+the authenticated session; hidden or already-assigned businesses cannot leave a
+claim falsely approved. The server review handlers therefore require the matching
+migration before deployment.
+
+The component follows the activity step and runs before consent erasure. It
+reuses the existing lease/access boundaries and checks captured schema,
+relationships, policies, helper definitions and permissions before cleanup.
+Independent verification requires an absent Auth identity and no remaining owned
+claims, reviewer pointers or assignments. It does not remove identity, activate a
+worker, erase provider bytes, or choose a financial/audit retention period.
+
+Synthetic tests cover bounded physical changes, other-member preservation,
+generated phone data, pending-account writes, atomic approval, client isolation,
+schema/permission drift, forged leases and a lost service response after commit.
+A real PostgreSQL test exercises competing business approvals, in-flight writes
+versus deletion and two cleanup workers. No production member records, messages,
+provider calls or storage objects are used.
+
+**Installation hold:** this component and its prerequisite deletion stack remain
+uninstalled. Remaining financial/moderation/audit ownership, public artifacts,
+provider erasure/revocation, identity removal and the complete workflow rehearsal
+are still release blockers. Non-FK identities such as `order_payments.recorded_by`
+and `order_payouts.payee_id`/`recorded_by` need explicit handling too; an Auth-FK
+inventory alone cannot prove deletion.

@@ -143,27 +143,17 @@ export const reviewServiceClaim = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }) => {
     if (!(await isAdmin(context))) throw new Error("Administrator access required.");
-    const now = new Date().toISOString();
-    const { data: updated, error } = await (context.supabase as any)
-      .from("service_directory_claims")
-      .update({
-        status: data.approve ? "approved" : "rejected",
-        reviewed_at: now,
-        reviewed_by: context.userId,
-      })
-      .eq("id", data.claimId)
-      .eq("status", "pending")
-      .select("directory_id, user_id");
-    if (error) throw new Error(error.message);
-    const claim = updated?.[0];
-    if (!claim) throw new Error("That claim was already reviewed.");
-    if (data.approve) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await (supabaseAdmin as any)
-        .from("service_directory")
-        .update({ claimed_by: claim.user_id, claimed_at: now, updated_at: now })
-        .eq("id", claim.directory_id)
-        .is("claimed_by", null);
-    }
+    const { data: reviewed, error } = await (context.supabase as any).rpc(
+      "review_service_directory_claim",
+      {
+        _claim_id: data.claimId,
+        _approve: data.approve,
+      },
+    );
+    if (error)
+      throw new Error(
+        "Could not review this claim. The business or account may no longer be available.",
+      );
+    if (reviewed !== true) throw new Error("That claim was already reviewed.");
     return { ok: true as const };
   });

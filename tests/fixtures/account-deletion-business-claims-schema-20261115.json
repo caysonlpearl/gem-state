@@ -1,0 +1,722 @@
+{
+  "rows": [
+    {
+      "source": "employer_claims",
+      "metadata": {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=arw/postgres}",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "employer_key",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "employer_name",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "city",
+            "type": "text",
+            "default": "''::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "default": "''::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "user_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "contact",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "role",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "note",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "default": "'pending'::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "reviewed_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "reviewed_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX employer_claims_pkey ON public.employer_claims USING btree (id)",
+          "CREATE UNIQUE INDEX employer_claims_employer_key_user_id_key ON public.employer_claims USING btree (employer_key, user_id)"
+        ],
+        "policies": [
+          {
+            "name": "Admins review employer claims",
+            "check": "has_role(auth.uid(), 'admin'::app_role)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "has_role(auth.uid(), 'admin'::app_role)",
+            "command": "w",
+            "permissive": true
+          },
+          {
+            "name": "Members file their own employer claims",
+            "check": "((user_id = auth.uid()) AND (status = 'pending'::text))",
+            "roles": [
+              "authenticated"
+            ],
+            "using": null,
+            "command": "a",
+            "permissive": true
+          },
+          {
+            "name": "Members read their own employer claims",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "((user_id = auth.uid()) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "employer_claims_city_check",
+            "table": "employer_claims",
+            "definition": "CHECK (char_length(city) <= 120)"
+          },
+          {
+            "name": "employer_claims_contact_check",
+            "table": "employer_claims",
+            "definition": "CHECK (char_length(btrim(contact)) >= 3 AND char_length(btrim(contact)) <= 200)"
+          },
+          {
+            "name": "employer_claims_employer_key_check",
+            "table": "employer_claims",
+            "definition": "CHECK (char_length(employer_key) >= 3 AND char_length(employer_key) <= 200)"
+          },
+          {
+            "name": "employer_claims_employer_key_user_id_key",
+            "table": "employer_claims",
+            "definition": "UNIQUE (employer_key, user_id)"
+          },
+          {
+            "name": "employer_claims_employer_name_check",
+            "table": "employer_claims",
+            "definition": "CHECK (char_length(btrim(employer_name)) >= 2 AND char_length(btrim(employer_name)) <= 200)"
+          },
+          {
+            "name": "employer_claims_note_check",
+            "table": "employer_claims",
+            "definition": "CHECK (note IS NULL OR char_length(note) <= 1000)"
+          },
+          {
+            "name": "employer_claims_pkey",
+            "table": "employer_claims",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "employer_claims_reviewed_by_fkey",
+            "table": "employer_claims",
+            "definition": "FOREIGN KEY (reviewed_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "employer_claims_role_check",
+            "table": "employer_claims",
+            "definition": "CHECK (char_length(btrim(role)) >= 2 AND char_length(btrim(role)) <= 80)"
+          },
+          {
+            "name": "employer_claims_state_check",
+            "table": "employer_claims",
+            "definition": "CHECK (char_length(state) <= 40)"
+          },
+          {
+            "name": "employer_claims_status_check",
+            "table": "employer_claims",
+            "definition": "CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text]))"
+          },
+          {
+            "name": "employer_claims_user_id_fkey",
+            "table": "employer_claims",
+            "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          }
+        ],
+        "rowSecurity": true,
+        "forceRowSecurity": false
+      }
+    },
+    {
+      "source": "service_directory",
+      "metadata": {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "columns": [
+          {
+            "name": "id",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "name",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "trade",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "trades",
+            "type": "text[]",
+            "default": "'{}'::text[]",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "priority",
+            "type": "smallint",
+            "default": "2",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "category_labels",
+            "type": "text[]",
+            "default": "'{}'::text[]",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "address",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "city",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "default": "'ID'::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "postcode",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "latitude",
+            "type": "double precision",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "longitude",
+            "type": "double precision",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "phone",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "website",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "email",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "facebook_id",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "instagram",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "source_refreshed_at",
+            "type": "date",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "enrichment",
+            "type": "jsonb",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "enriched_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "claimed_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "claimed_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "hidden",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "imported_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "phone_digits",
+            "type": "text",
+            "default": "\"right\"(regexp_replace(COALESCE(phone, ''::text), '\\D'::text, ''::text, 'g'::text), 10)",
+            "notNull": false,
+            "generated": "s"
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX service_directory_pkey ON public.service_directory USING btree (id)",
+          "CREATE INDEX service_directory_place_idx ON public.service_directory USING btree (state, lower(city)) WHERE (NOT hidden)",
+          "CREATE INDEX service_directory_trades_idx ON public.service_directory USING gin (trades) WHERE (NOT hidden)",
+          "CREATE INDEX service_directory_geo_idx ON public.service_directory USING btree (latitude, longitude) WHERE (NOT hidden)",
+          "CREATE INDEX service_directory_phone_digits_idx ON public.service_directory USING btree (phone_digits) WHERE (NOT hidden)",
+          "CREATE INDEX service_directory_review_count_idx ON public.service_directory USING btree ((((enrichment ->> 'reviewCount'::text))::integer) DESC NULLS LAST) WHERE (NOT hidden)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "service_directory_claimed_by_fkey",
+            "table": "service_directory",
+            "definition": "FOREIGN KEY (claimed_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "service_directory_id_check",
+            "table": "service_directory",
+            "definition": "CHECK (id ~ '^fsq-[0-9a-f]{24}$'::text)"
+          },
+          {
+            "name": "service_directory_name_check",
+            "table": "service_directory",
+            "definition": "CHECK (char_length(name) >= 1 AND char_length(name) <= 200)"
+          },
+          {
+            "name": "service_directory_pkey",
+            "table": "service_directory",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "service_directory_priority_check",
+            "table": "service_directory",
+            "definition": "CHECK (priority >= 1 AND priority <= 3)"
+          },
+          {
+            "name": "service_directory_claims_directory_id_fkey",
+            "table": "service_directory_claims",
+            "definition": "FOREIGN KEY (directory_id) REFERENCES service_directory(id) ON DELETE CASCADE"
+          }
+        ],
+        "rowSecurity": true,
+        "forceRowSecurity": false
+      }
+    },
+    {
+      "source": "service_directory_claims",
+      "metadata": {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres,authenticated=arw/postgres}",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "directory_id",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "user_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "contact",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "role",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "note",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "default": "'pending'::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "reviewed_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "reviewed_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX service_directory_claims_pkey ON public.service_directory_claims USING btree (id)",
+          "CREATE UNIQUE INDEX service_directory_claims_directory_id_user_id_key ON public.service_directory_claims USING btree (directory_id, user_id)"
+        ],
+        "policies": [
+          {
+            "name": "Admins review claims",
+            "check": "has_role(auth.uid(), 'admin'::app_role)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "has_role(auth.uid(), 'admin'::app_role)",
+            "command": "w",
+            "permissive": true
+          },
+          {
+            "name": "Members file their own claims",
+            "check": "((user_id = auth.uid()) AND (status = 'pending'::text))",
+            "roles": [
+              "authenticated"
+            ],
+            "using": null,
+            "command": "a",
+            "permissive": true
+          },
+          {
+            "name": "Members read their own claims",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "((user_id = auth.uid()) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "service_directory_claims_contact_check",
+            "table": "service_directory_claims",
+            "definition": "CHECK (char_length(btrim(contact)) >= 3 AND char_length(btrim(contact)) <= 200)"
+          },
+          {
+            "name": "service_directory_claims_directory_id_fkey",
+            "table": "service_directory_claims",
+            "definition": "FOREIGN KEY (directory_id) REFERENCES service_directory(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "service_directory_claims_directory_id_user_id_key",
+            "table": "service_directory_claims",
+            "definition": "UNIQUE (directory_id, user_id)"
+          },
+          {
+            "name": "service_directory_claims_note_check",
+            "table": "service_directory_claims",
+            "definition": "CHECK (note IS NULL OR char_length(note) <= 1000)"
+          },
+          {
+            "name": "service_directory_claims_pkey",
+            "table": "service_directory_claims",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "service_directory_claims_reviewed_by_fkey",
+            "table": "service_directory_claims",
+            "definition": "FOREIGN KEY (reviewed_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "service_directory_claims_role_check",
+            "table": "service_directory_claims",
+            "definition": "CHECK (char_length(btrim(role)) >= 2 AND char_length(btrim(role)) <= 80)"
+          },
+          {
+            "name": "service_directory_claims_status_check",
+            "table": "service_directory_claims",
+            "definition": "CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text]))"
+          },
+          {
+            "name": "service_directory_claims_user_id_fkey",
+            "table": "service_directory_claims",
+            "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          }
+        ],
+        "rowSecurity": true,
+        "forceRowSecurity": false
+      }
+    }
+  ],
+  "views": {
+    "variant_sightings_public": " SELECT s.id AS sighting_id,\n    s.variant_id,\n    s.location_id,\n    l.name AS location_name,\n    l.area AS location_area,\n    l.granularity AS location_granularity,\n    p.name AS park_name,\n    r.code AS resort_code,\n    r.name AS resort_name,\n    s.seen_at,\n    s.availability,\n    s.price_cents,\n    s.currency,\n    s.note,\n    s.confirmation_count\n   FROM sightings s\n     JOIN locations l ON l.id = s.location_id\n     JOIN parks p ON p.id = l.park_id\n     JOIN resorts r ON r.id = p.resort_id\n  WHERE NOT s.hidden AND NOT s.is_demo AND s.flag_count < 3 AND s.seen_at > (now() - '90 days'::interval);"
+  },
+  "enumTypes": {
+    "shopper_quote_status": [
+      "submitted",
+      "accepted",
+      "declined",
+      "expired",
+      "withdrawn"
+    ],
+    "price_evidence_source": [
+      "member_report",
+      "approved_shopper",
+      "receipt_verified",
+      "admin_verified"
+    ],
+    "sighting_availability": [
+      "in_stock",
+      "limited",
+      "sold_out"
+    ],
+    "sourcing_request_status": [
+      "open",
+      "quote_accepted",
+      "cancelled",
+      "expired"
+    ],
+    "sourcing_assignment_status": [
+      "assigned",
+      "purchase_confirmed",
+      "unavailable",
+      "completed",
+      "cancelled"
+    ]
+  },
+  "functions": [
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "bodyMd5": "f21deb6c882a402de53ca30c499b89f7",
+      "signature": "register_shopping_signup()",
+      "definition": "CREATE OR REPLACE FUNCTION public.register_shopping_signup()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE channel text:=CASE WHEN new.raw_user_meta_data->>'shopping_signup_source'='mobile' THEN 'mobile' ELSE 'web' END;\n opted boolean:=coalesce(new.raw_user_meta_data->>'shopping_alerts'='true',false);\nBEGIN\n IF new.raw_user_meta_data->>'shopping_terms_version'='2026-11-12' THEN\n  INSERT INTO public.shopping_accounts(user_id,terms_version,terms_accepted_at,shopping_alerts,alerts_version,alerts_updated_at,\n   mobile_terms_version,mobile_terms_accepted_at,mobile_shopping_alerts,mobile_alerts_updated_at)\n  VALUES(new.id,'2026-11-12',now(),opted,'2026-11-12',now(),\n   CASE WHEN channel='mobile' THEN '2026-11-12' END,CASE WHEN channel='mobile' THEN now() END,\n   channel='mobile' AND opted,CASE WHEN channel='mobile' THEN now() END);\n  INSERT INTO public.shopping_consents(user_id,subject,purpose,allowed,version,source) VALUES\n   (new.id,'u:'||new.id::text,'terms',true,'2026-11-12',channel),\n   (new.id,'u:'||new.id::text,'shopping_alerts',opted,'2026-11-12',channel);\n END IF;\n RETURN new;\nEND $function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "bodyMd5": "5ed87a8f8789810b83ce3ca8a46c4c1d",
+      "signature": "set_shopping_privacy(text,uuid,boolean,boolean,text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.set_shopping_privacy(subject_key text, member_id uuid, personalize boolean, advertise boolean, policy text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n insert into shopping_privacy(subject,personalization,advertising) values(subject_key,personalize,advertise)\n on conflict(subject) do update set personalization=excluded.personalization,advertising=excluded.advertising,updated_at=now();\n insert into shopping_consents(subject,user_id,purpose,allowed,version) values\n (subject_key,member_id,'personalization',personalize,policy),(subject_key,member_id,'advertising',advertise,policy);\n if not personalize then perform clear_shopping_history(subject_key); end if;\n if not advertise then update shopping_ad_outbox set status='suppressed' where subject=subject_key and status='pending'; end if;\nend $function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "bodyMd5": "450d439ca8ab44790060a9c991c5c274",
+      "signature": "set_shopping_account(uuid,boolean,boolean,text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.set_shopping_account(member_id uuid, accept_terms boolean, alerts boolean, policy text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n insert into shopping_accounts(user_id) values(member_id) on conflict do nothing;\n if accept_terms then\n  update shopping_accounts set terms_version=policy,terms_accepted_at=now(),updated_at=now() where user_id=member_id;\n  insert into shopping_consents(user_id,subject,purpose,allowed,version) values(member_id,'u:'||member_id::text,'terms',true,policy);\n end if;\n if alerts is not null then\n  update shopping_accounts set shopping_alerts=alerts,alerts_version=policy,alerts_updated_at=now(),updated_at=now() where user_id=member_id;\n  insert into shopping_consents(user_id,subject,purpose,allowed,version) values(member_id,'u:'||member_id::text,'shopping_alerts',alerts,policy);\n  if alerts then update shopping_accounts set suppressed_at=null where user_id=member_id;\n  elsif not accept_terms then update shopping_accounts set suppressed_at=now() where user_id=member_id; end if;\n  if not alerts then update shopping_queue set status='suppressed' where user_id=member_id and status in ('pending','processing') and (not accept_terms or not requested); end if;\n end if;\nend $function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=public, pg_temp"
+      ],
+      "bodyMd5": "58a351e2987f6fad9e8bb5b000d84c16",
+      "signature": "mobile_accept_terms(uuid,text,boolean)",
+      "definition": "CREATE OR REPLACE FUNCTION public.mobile_accept_terms(_user uuid, _version text, _shopping_alerts boolean)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE onboarding boolean;\nBEGIN\n IF _version IS DISTINCT FROM '2026-11-12' OR _shopping_alerts IS NULL THEN RAISE EXCEPTION 'Current terms and an explicit alert choice are required'; END IF;\n PERFORM pg_advisory_xact_lock(hashtextextended('bluebird:mobile-consent:'||_user::text,0));\n SELECT NOT EXISTS(SELECT 1 FROM public.shopping_accounts WHERE user_id=_user AND mobile_terms_version=_version AND mobile_terms_accepted_at IS NOT NULL) INTO onboarding;\n INSERT INTO public.shopping_accounts(user_id,terms_version,terms_accepted_at,shopping_alerts,alerts_version,alerts_updated_at,\n  mobile_terms_version,mobile_terms_accepted_at,mobile_shopping_alerts,mobile_alerts_updated_at)\n VALUES(_user,_version,now(),_shopping_alerts,_version,now(),_version,now(),_shopping_alerts,now())\n ON CONFLICT(user_id) DO UPDATE SET\n  terms_version=excluded.terms_version,\n  terms_accepted_at=CASE WHEN shopping_accounts.terms_version IS DISTINCT FROM excluded.terms_version THEN now() ELSE coalesce(shopping_accounts.terms_accepted_at,now()) END,\n  shopping_alerts=excluded.shopping_alerts,alerts_version=excluded.alerts_version,alerts_updated_at=now(),updated_at=now(),\n  mobile_terms_version=excluded.mobile_terms_version,\n  mobile_terms_accepted_at=CASE WHEN shopping_accounts.mobile_terms_version IS DISTINCT FROM excluded.mobile_terms_version THEN now() ELSE coalesce(shopping_accounts.mobile_terms_accepted_at,now()) END,\n  mobile_shopping_alerts=excluded.mobile_shopping_alerts,mobile_alerts_updated_at=now();\n IF _shopping_alerts THEN UPDATE public.shopping_accounts SET suppressed_at=NULL WHERE user_id=_user;\n ELSIF NOT onboarding THEN UPDATE public.shopping_accounts SET suppressed_at=now() WHERE user_id=_user; END IF;\n INSERT INTO public.shopping_consents(user_id,subject,purpose,allowed,version,source) VALUES\n  (_user,'u:'||_user::text,'terms',true,_version,'mobile'),(_user,'u:'||_user::text,'shopping_alerts',_shopping_alerts,_version,'mobile');\n IF NOT _shopping_alerts THEN\n  UPDATE public.shopping_queue SET status='suppressed',lease_until=NULL WHERE user_id=_user AND status IN('pending','processing') AND (NOT onboarding OR NOT requested);\n  UPDATE public.mobile_push_outbox p SET status='suppressed',lease_until=NULL FROM public.notifications n\n   WHERE p.notification_id=n.id AND p.user_id=_user AND n.kind<>'message' AND p.status IN('pending','processing');\n END IF;\nEND $function$\n",
+      "securityDefiner": true
+    }
+  ],
+  "capturedAt": "2026-11-15T15:42:27.935486+00:00",
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "metadataOnly": true,
+  "serverVersion": "17.6",
+  "workerEnabled": false,
+  "accessCoverage": {
+    "unguarded_tables": 0,
+    "unguarded_functions": 0,
+    "helper_privilege_gaps": 0
+  },
+  "inquiryMigrationInstalled": false
+}

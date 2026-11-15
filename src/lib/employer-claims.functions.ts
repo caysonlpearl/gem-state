@@ -117,18 +117,14 @@ export const reviewEmployerClaim = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }) => {
     if (!(await isAdmin(context))) throw new Error("Administrator access required.");
-    const now = new Date().toISOString();
-    const { data: updated, error } = await (context.supabase as any)
-      .from("employer_claims")
-      .update({
-        status: data.approve ? "approved" : "rejected",
-        reviewed_at: now,
-        reviewed_by: context.userId,
-      })
-      .eq("id", data.claimId)
-      .eq("status", "pending")
-      .select("id");
-    if (error) throw new Error(error.message);
-    if (!updated?.length) throw new Error("That claim was already reviewed.");
+    const { data: reviewed, error } = await (context.supabase as any).rpc("review_employer_claim", {
+      _claim_id: data.claimId,
+      _approve: data.approve,
+    });
+    if (error)
+      throw new Error(
+        "Could not review this claim. The business or account may no longer be available.",
+      );
+    if (reviewed !== true) throw new Error("That claim was already reviewed.");
     return { ok: true as const };
   });
