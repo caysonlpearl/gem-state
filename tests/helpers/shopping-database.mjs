@@ -6,7 +6,7 @@ export async function shoppingDatabaseFixture() {
   await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;create schema extensions;
  create table auth.users(id uuid primary key,raw_user_meta_data jsonb default '{}');
  create table products(id uuid primary key,status text);
- create table analytics_events(id uuid,name text,user_id uuid,session_id text,props jsonb,created_at timestamptz);
+ create table analytics_events(id uuid primary key default gen_random_uuid(),name text not null,user_id uuid references auth.users(id)on delete set null,session_id text,props jsonb not null default '{}',is_demo boolean not null default false,occurred_at timestamptz not null default now());
  create table notifications(id uuid,user_id uuid,kind text,entity_id uuid);
  create table saved_searches(id uuid,user_id uuid,paused boolean,created_at timestamptz);
  create table asks(id uuid primary key,variant_id uuid,product_id uuid,status text,is_demo boolean,approved_at timestamptz,expires_at timestamptz);

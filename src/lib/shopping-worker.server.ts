@@ -418,7 +418,8 @@ export async function processShoppingWorker() {
   if (lease.error) throw Error("Shopping sweep unavailable.");
   if (!lease.data) return { skipped: true };
   const inventory = await syncShoppingInventory(db);
-  await db.rpc("retain_shopping_data");
+  const retention = await db.rpc("retain_shopping_data");
+  if (retention.error) throw Error("Shopping retention unavailable.");
   await evaluateWeeklyRanking(db);
   const advertising = await (
     await import("./shopping-advertising.server")
