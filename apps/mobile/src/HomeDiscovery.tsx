@@ -14,6 +14,7 @@ import { ListingTile } from "./ShopperExperience";
 import { useEffect, useState } from "react";
 import { api } from "./client";
 import { refreshedHomeSelection } from "./home-refresh-selection";
+import { varietyOfPets } from "../../../src/lib/pet-showcase";
 import {
   mobileListingAllowed,
   type MobileBrowse,
@@ -35,6 +36,38 @@ export function HomeDiscovery({
 }) {
   const [cachedJobs, setCachedJobs] = useState<MobileListing[]>([]);
   const [jobsUnavailable, setJobsUnavailable] = useState(false);
+  const [cachedPets, setCachedPets] = useState<MobileListing[]>([]);
+  const [petsLoading, setPetsLoading] = useState(false);
+  const [petsUnavailable, setPetsUnavailable] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    if (home.recent.some((card) => card.categorySlug === "pets" && card.display?.pet)) {
+      setPetsLoading(false);
+      setPetsUnavailable(false);
+      setCachedPets([]);
+      return;
+    }
+    setPetsLoading(true);
+    setPetsUnavailable(false);
+    // The Home snapshot can omit pets while the shared category search still
+    // has eligible inventory. Reuse its cache-only Idaho/border rescue rules.
+    api<MobileBrowse>("search?category=pets&state=ID&page=1", "GET", undefined, controller.signal)
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        if (!Array.isArray(result.items)) throw Error("Pets unavailable");
+        setCachedPets(
+          result.items.filter((card) => card.categorySlug === "pets" && mobileListingAllowed(card)),
+        );
+        setPetsUnavailable(result.incomplete === true);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setPetsUnavailable(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPetsLoading(false);
+      });
+    return () => controller.abort();
+  }, [home]);
   useEffect(() => {
     const controller = new AbortController();
     setCachedJobs([]);
@@ -69,7 +102,9 @@ export function HomeDiscovery({
   const rows = allocateHomepageRows(adapted, {
     motors: adapted.motors.filter((c) => c.categorySlug === "cars-trucks"),
   });
-  const originals = new Map([...home.motors, ...recent].map((card) => [card.id, card]));
+  const originals = new Map(
+    [...home.motors, ...recent, ...cachedPets].map((card) => [card.id, card]),
+  );
   const sections: {
     title: string;
     eyebrow: string;
@@ -107,7 +142,9 @@ export function HomeDiscovery({
       title: "Pets & adoption",
       eyebrow: "Bluebird pets",
       category: "pets",
-      cards: rows.petListings,
+      cards: rows.petListings.length
+        ? rows.petListings
+        : varietyOfPets(cachedPets.map(listingPresentation), 4),
     },
     ...[
       { title: "Trucks & SUVs", category: "cars-trucks", cards: rows.truckListings },
@@ -234,7 +271,13 @@ export function HomeDiscovery({
                 ? jobsUnavailable
                   ? "Jobs are temporarily unavailable. Pull to refresh or try See all."
                   : "No jobs are available right now. Pull to refresh or try See all."
-                : "Nothing here yet. New listings show up as soon as local sellers post them."}
+                : section.category === "pets"
+                  ? petsLoading
+                    ? "Loading pets…"
+                    : petsUnavailable
+                      ? "Pets are temporarily unavailable. Pull to refresh or try See all."
+                      : "No pets are available right now. Try See all."
+                  : "Nothing here yet. New listings show up as soon as local sellers post them."}
             </p>
           )}
         </MarketplaceListingSection>

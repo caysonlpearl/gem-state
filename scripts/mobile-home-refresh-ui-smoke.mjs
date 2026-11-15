@@ -53,7 +53,29 @@ const recent = [
   ...Array.from({ length: 8 }, (_, n) =>
     card(n, "services", { service: { subcategory: "Home cleaning" } }),
   ),
-  ...Array.from({ length: 4 }, (_, n) => card(n, "pets", { pet: { species: "Dog" } })),
+];
+// Reproduce production: no pets in Home, but category search has Idaho-border
+// rescue inventory. These public fixtures never create actual listings.
+const pets = [
+  {
+    ...card(1, "pets", { pet: { species: "Cat", placementType: "adoption" } }),
+    id: "rescuegroups-10001",
+    title: "Adoptable cat",
+    city: "Logan",
+    state: "UT",
+  },
+  {
+    ...card(2, "pets", { pet: { species: "Dog", placementType: "adoption" } }),
+    id: "rescuegroups-10002",
+    title: "Adoptable dog",
+    city: "Missoula",
+    state: "MT",
+  },
+  {
+    ...card(3, "pets", { pet: { species: "Dog", placementType: "adoption" } }),
+    title: "Local dog",
+    state: "ID",
+  },
 ];
 const jobs = Array.from({ length: 8 }, (_, n) =>
   card(n, "jobs", {
@@ -89,6 +111,9 @@ try {
       release,
       aborted = 0;
     const calls = [];
+    let petMode = "ok",
+      petGate,
+      releasePets;
     await page.route("https://onbluebird.com/**", async (route) => {
       const req = route.request();
       const headers = {
@@ -130,9 +155,18 @@ try {
         };
       } else if (path === "shopping")
         data = { personalization: false, trackingAvailable: true, recommendationsAvailable: true };
-      else if (path === "search")
-        data = { items: jobs, total: jobs.length, page: 1, nextPage: null, incomplete: false };
-      else if (path === "recommendations") data = { cards: [], model: "fallback" };
+      else if (path === "search") {
+        const petSearch = new URL(req.url()).searchParams.get("category") === "pets";
+        if (petSearch && petGate) await petGate;
+        if (petSearch && petMode === "failed")
+          return route.fulfill({
+            status: 503,
+            headers,
+            body: JSON.stringify({ error: { message: "Pets unavailable" } }),
+          });
+        const items = petSearch ? (petMode === "empty" ? [] : pets) : jobs;
+        data = { items, total: items.length, page: 1, nextPage: null, incomplete: false };
+      } else if (path === "recommendations") data = { cards: [], model: "fallback" };
       else if (path === "saved") data = { items: [] };
       else throw Error(`Unexpected Home request: ${path}`);
       await route.fulfill({ status: 200, headers, body: JSON.stringify({ data }) }).catch(() => {
@@ -155,6 +189,15 @@ try {
       .getByRole("heading", { level: 3 })
       .first()
       .waitFor();
+    const petSection = page.getByRole("region", { name: "Pets & adoption", exact: true });
+    await petSection.getByRole("heading", { name: "Adoptable cat", exact: true }).waitFor();
+    await petSection.getByRole("heading", { name: "Adoptable dog", exact: true }).waitFor();
+    assert.equal(await petSection.getByText(/Nothing here yet|No pets are available/).count(), 0);
+    if (width === 390 && process.env.BLUEBIRD_SKIP_HOME_SCREENSHOTS !== "true") {
+      await petSection.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: resolve(output, "pets-cache-fallback-390.png") });
+      await page.evaluate(() => window.scrollTo(0, 0));
+    }
     const headings = await page.locator(".mobile-home h2").allTextContents();
     assert.deepEqual(headings.slice(0, 5), [
       "For you",
@@ -342,6 +385,36 @@ try {
     await page.waitForURL(/#\/search$/);
     assert.equal(searchState().has("state"), false, "Cleared area must not silently become Idaho");
 
+    if (width === 390) {
+      await goHome();
+      petMode = "failed";
+      await page.reload();
+      const petsRow = page.getByRole("region", { name: "Pets & adoption", exact: true });
+      await petsRow
+        .getByText("Pets are temporarily unavailable. Pull to refresh or try See all.", {
+          exact: true,
+        })
+        .waitFor();
+      petMode = "empty";
+      petGate = new Promise((resolve) => {
+        releasePets = resolve;
+      });
+      await page.evaluate(() => window.dispatchEvent(new Event("bluebird-home-refresh")));
+      await petsRow.getByText("Loading pets…", { exact: true }).waitFor();
+      releasePets();
+      petGate = undefined;
+      await petsRow
+        .getByText("No pets are available right now. Try See all.", { exact: true })
+        .waitFor();
+      petMode = "ok";
+      await page.evaluate(() => window.dispatchEvent(new Event("bluebird-home-refresh")));
+      await petsRow.getByRole("heading", { name: "Adoptable cat", exact: true }).waitFor();
+      await petsRow.getByRole("heading", { name: "Adoptable dog", exact: true }).waitFor();
+      await petsRow.getByRole("button", { name: "See all", exact: true }).click();
+      await page.waitForURL(/category=pets/);
+      assert.equal(searchState().get("category"), "pets");
+      await page.getByRole("heading", { name: "Adoptable cat", exact: true }).first().waitFor();
+    }
     for (const call of calls.filter((c) => c.path === "home"))
       for (const key of ["authorization", "cookie", "x-bluebird-install", "referer"])
         assert.equal(call.headers[key], undefined, key);
@@ -354,6 +427,8 @@ try {
       sections: headings.length,
       logoHandoff: true,
       jobs: true,
+      petsFromCategoryCache: true,
+      petsFailureAndEmptyRecovery: width === 390,
       pull: true,
       ignoredGestures: true,
       singleFlight: true,
