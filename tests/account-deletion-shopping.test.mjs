@@ -383,15 +383,17 @@ test("shopping erasure rejects malformed RPC receipts and provider failures with
     { source: "shopping_events", deleted: 1, pass_done: true, private: "not-a-receipt" },
   ]) {
     const component = createAccountDeletionShoppingErasure({
-      rpc: () => ({ abortSignal: async () => ({ data, error: null }) }),
+      rpc: () => ({ abortSignal: () => ({ retry: async () => ({ data, error: null }) }) }),
     });
     await assert.rejects(component.step(job, signal()), unavailable);
   }
   const component = createAccountDeletionShoppingErasure({
     rpc: () => ({
-      abortSignal: async () => {
-        throw Error("private@example.invalid database response");
-      },
+      abortSignal: () => ({
+        retry: async () => {
+          throw Error("private@example.invalid database response");
+        },
+      }),
     }),
   });
   await assert.rejects(component.step(job, signal()), unavailable);
