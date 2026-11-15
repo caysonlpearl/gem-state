@@ -1,0 +1,107 @@
+{
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "capturedAt": "2026-11-15T04:15:30.396Z",
+  "metadataOnly": true,
+  "schema": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "default": "gen_random_uuid()",
+        "notNull": true
+      },
+      {
+        "name": "listing_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "seller_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "buyer_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "buyer_name",
+        "type": "text",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "buyer_email",
+        "type": "text",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "message",
+        "type": "text",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "default": "'new'::text",
+        "notNull": true
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      }
+    ],
+    "indexes": [
+      "CREATE INDEX listing_inquiries_listing_created_idx ON public.listing_inquiries USING btree (listing_id, created_at DESC)",
+      "CREATE UNIQUE INDEX listing_inquiries_pkey ON public.listing_inquiries USING btree (id)",
+      "CREATE INDEX listing_inquiries_seller_created_idx ON public.listing_inquiries USING btree (seller_id, created_at DESC)"
+    ],
+    "triggers": [
+      {
+        "name": "shopping_accepted_inquiry",
+        "enabled": "O",
+        "definition": "CREATE TRIGGER shopping_accepted_inquiry AFTER INSERT ON listing_inquiries FOR EACH ROW EXECUTE FUNCTION record_shopping_outcome()"
+      }
+    ],
+    "constraints": [
+      {
+        "name": "conversation_messages_source_inquiry_id_fkey",
+        "table": "conversation_messages",
+        "definition": "FOREIGN KEY (source_inquiry_id) REFERENCES listing_inquiries(id)"
+      },
+      {
+        "name": "listing_inquiries_buyer_id_fkey",
+        "table": "listing_inquiries",
+        "definition": "FOREIGN KEY (buyer_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "listing_inquiries_listing_id_fkey",
+        "table": "listing_inquiries",
+        "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "listing_inquiries_pkey",
+        "table": "listing_inquiries",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "name": "listing_inquiries_seller_id_fkey",
+        "table": "listing_inquiries",
+        "definition": "FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "listing_inquiries_status_check",
+        "table": "listing_inquiries",
+        "definition": "CHECK (status = ANY (ARRAY['new'::text, 'read'::text, 'closed'::text]))"
+      }
+    ]
+  }
+}

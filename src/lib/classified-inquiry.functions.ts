@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type ListingInquiry = {
   id: string;
-  listingId: string;
+  listingId: string | null;
   listingTitle: string;
   buyerName: string;
   buyerEmail: string;
@@ -76,7 +76,7 @@ export const getSellerListingInquiries = createServerFn({ method: "GET" })
     const legacy = (rows ?? []).map((row: any) => ({
       id: row.id,
       listingId: row.listing_id,
-      listingTitle: row.asks?.products?.name ?? "Your listing",
+      listingTitle: row.asks?.products?.name ?? "Listing no longer available",
       buyerName: row.buyer_name,
       buyerEmail: row.buyer_email,
       message: row.message,

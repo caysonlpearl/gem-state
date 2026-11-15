@@ -25,7 +25,7 @@ jobs:
           python -m pip install playwright
           python -m playwright install --with-deps chromium
       - name: Verify deletion and listing transactions with isolated PostgreSQL connections
-        run: BLUEBIRD_DELETION_PG=1 node --experimental-strip-types --test tests/account-deletion-concurrency.test.mjs tests/account-deletion-profiles-concurrency.test.mjs tests/account-deletion-conversations-concurrency.test.mjs tests/mobile-listing-management-concurrency.test.mjs tests/mobile-listing-production-concurrency.test.mjs
+        run: BLUEBIRD_DELETION_PG=1 node --experimental-strip-types --test tests/account-deletion-concurrency.test.mjs tests/account-deletion-profiles-concurrency.test.mjs tests/account-deletion-conversations-concurrency.test.mjs tests/account-deletion-inquiries-concurrency.test.mjs tests/mobile-listing-management-concurrency.test.mjs tests/mobile-listing-production-concurrency.test.mjs
       - run: npm run test:payments
       - run: npx tsc --noEmit
       - run: npm run build

@@ -650,13 +650,17 @@ function SellingPage() {
               <li key={inquiry.id} className="py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <Link
-                      to="/listings/$listingId"
-                      params={{ listingId: inquiry.listingId }}
-                      className="text-[13px] font-semibold hover:underline"
-                    >
-                      {inquiry.listingTitle}
-                    </Link>
+                    {inquiry.listingId ? (
+                      <Link
+                        to="/listings/$listingId"
+                        params={{ listingId: inquiry.listingId }}
+                        className="text-[13px] font-semibold hover:underline"
+                      >
+                        {inquiry.listingTitle}
+                      </Link>
+                    ) : (
+                      <p className="text-[13px] font-semibold">{inquiry.listingTitle}</p>
+                    )}
                     <p className="mt-0.5 text-[11.5px] text-muted-foreground">
                       {inquiry.buyerName} · {inquiry.buyerEmail} ·{" "}
                       {new Date(inquiry.createdAt).toLocaleDateString()}
