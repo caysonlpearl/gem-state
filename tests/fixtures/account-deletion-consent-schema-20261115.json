@@ -1,0 +1,382 @@
+{
+  "rows": [
+    {
+      "source": "mobile_ad_consents",
+      "metadata": {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "columns": [
+          {
+            "name": "user_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "advertising",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "att",
+            "type": "text",
+            "default": "'not_determined'::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "platform",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "policy_version",
+            "type": "text",
+            "default": "'2026-11-12'::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX mobile_ad_consents_pkey ON public.mobile_ad_consents USING btree (user_id, platform)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "mobile_ad_consents_att_check",
+            "table": "mobile_ad_consents",
+            "definition": "CHECK (att = ANY (ARRAY['authorized'::text, 'denied'::text, 'restricted'::text, 'not_determined'::text, 'not_applicable'::text]))"
+          },
+          {
+            "name": "mobile_ad_consents_pkey",
+            "table": "mobile_ad_consents",
+            "definition": "PRIMARY KEY (user_id, platform)"
+          },
+          {
+            "name": "mobile_ad_consents_platform_check",
+            "table": "mobile_ad_consents",
+            "definition": "CHECK (platform = ANY (ARRAY['ios'::text, 'android'::text]))"
+          },
+          {
+            "name": "mobile_ad_consents_user_id_fkey",
+            "table": "mobile_ad_consents",
+            "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          }
+        ],
+        "rowSecurity": true,
+        "forceRowSecurity": false
+      }
+    },
+    {
+      "source": "shopping_accounts",
+      "metadata": {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "columns": [
+          {
+            "name": "user_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "terms_version",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "terms_accepted_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "shopping_alerts",
+            "type": "boolean",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "suppressed_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "alerts_version",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "alerts_updated_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "unsubscribe_token",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "history_after",
+            "type": "timestamp with time zone",
+            "default": "'1970-01-01 00:00:00+00'::timestamp with time zone",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "delivery_blocked",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "mobile_terms_version",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "mobile_terms_accepted_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "mobile_shopping_alerts",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "mobile_alerts_updated_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX shopping_accounts_pkey ON public.shopping_accounts USING btree (user_id)",
+          "CREATE UNIQUE INDEX shopping_accounts_unsubscribe_token_key ON public.shopping_accounts USING btree (unsubscribe_token)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "shopping_accounts_pkey",
+            "table": "shopping_accounts",
+            "definition": "PRIMARY KEY (user_id)"
+          },
+          {
+            "name": "shopping_accounts_unsubscribe_token_key",
+            "table": "shopping_accounts",
+            "definition": "UNIQUE (unsubscribe_token)"
+          },
+          {
+            "name": "shopping_accounts_user_id_fkey",
+            "table": "shopping_accounts",
+            "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          }
+        ],
+        "rowSecurity": true,
+        "forceRowSecurity": false
+      }
+    },
+    {
+      "source": "shopping_consents",
+      "metadata": {
+        "acl": "{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}",
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "user_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "subject",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "purpose",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "allowed",
+            "type": "boolean",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "version",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "recorded_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "source",
+            "type": "text",
+            "default": "'web'::text",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX shopping_consents_pkey ON public.shopping_consents USING btree (id)",
+          "CREATE INDEX shopping_consents_subject_time ON public.shopping_consents USING btree (subject, recorded_at DESC)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "shopping_consents_pkey",
+            "table": "shopping_consents",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "shopping_consents_purpose_check",
+            "table": "shopping_consents",
+            "definition": "CHECK (purpose = ANY (ARRAY['terms'::text, 'shopping_alerts'::text, 'personalization'::text, 'advertising'::text]))"
+          },
+          {
+            "name": "shopping_consents_user_id_fkey",
+            "table": "shopping_consents",
+            "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          }
+        ],
+        "rowSecurity": true,
+        "forceRowSecurity": false
+      }
+    }
+  ],
+  "functions": [
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "f21deb6c882a402de53ca30c499b89f7",
+      "signature": "register_shopping_signup()",
+      "definition": "CREATE OR REPLACE FUNCTION public.register_shopping_signup()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE channel text:=CASE WHEN new.raw_user_meta_data->>'shopping_signup_source'='mobile' THEN 'mobile' ELSE 'web' END;\n opted boolean:=coalesce(new.raw_user_meta_data->>'shopping_alerts'='true',false);\nBEGIN\n IF new.raw_user_meta_data->>'shopping_terms_version'='2026-11-12' THEN\n  INSERT INTO public.shopping_accounts(user_id,terms_version,terms_accepted_at,shopping_alerts,alerts_version,alerts_updated_at,\n   mobile_terms_version,mobile_terms_accepted_at,mobile_shopping_alerts,mobile_alerts_updated_at)\n  VALUES(new.id,'2026-11-12',now(),opted,'2026-11-12',now(),\n   CASE WHEN channel='mobile' THEN '2026-11-12' END,CASE WHEN channel='mobile' THEN now() END,\n   channel='mobile' AND opted,CASE WHEN channel='mobile' THEN now() END);\n  INSERT INTO public.shopping_consents(user_id,subject,purpose,allowed,version,source) VALUES\n   (new.id,'u:'||new.id::text,'terms',true,'2026-11-12',channel),\n   (new.id,'u:'||new.id::text,'shopping_alerts',opted,'2026-11-12',channel);\n END IF;\n RETURN new;\nEND $function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "5ed87a8f8789810b83ce3ca8a46c4c1d",
+      "signature": "set_shopping_privacy(text,uuid,boolean,boolean,text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.set_shopping_privacy(subject_key text, member_id uuid, personalize boolean, advertise boolean, policy text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n insert into shopping_privacy(subject,personalization,advertising) values(subject_key,personalize,advertise)\n on conflict(subject) do update set personalization=excluded.personalization,advertising=excluded.advertising,updated_at=now();\n insert into shopping_consents(subject,user_id,purpose,allowed,version) values\n (subject_key,member_id,'personalization',personalize,policy),(subject_key,member_id,'advertising',advertise,policy);\n if not personalize then perform clear_shopping_history(subject_key); end if;\n if not advertise then update shopping_ad_outbox set status='suppressed' where subject=subject_key and status='pending'; end if;\nend $function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "450d439ca8ab44790060a9c991c5c274",
+      "signature": "set_shopping_account(uuid,boolean,boolean,text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.set_shopping_account(member_id uuid, accept_terms boolean, alerts boolean, policy text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n insert into shopping_accounts(user_id) values(member_id) on conflict do nothing;\n if accept_terms then\n  update shopping_accounts set terms_version=policy,terms_accepted_at=now(),updated_at=now() where user_id=member_id;\n  insert into shopping_consents(user_id,subject,purpose,allowed,version) values(member_id,'u:'||member_id::text,'terms',true,policy);\n end if;\n if alerts is not null then\n  update shopping_accounts set shopping_alerts=alerts,alerts_version=policy,alerts_updated_at=now(),updated_at=now() where user_id=member_id;\n  insert into shopping_consents(user_id,subject,purpose,allowed,version) values(member_id,'u:'||member_id::text,'shopping_alerts',alerts,policy);\n  if alerts then update shopping_accounts set suppressed_at=null where user_id=member_id;\n  elsif not accept_terms then update shopping_accounts set suppressed_at=now() where user_id=member_id; end if;\n  if not alerts then update shopping_queue set status='suppressed' where user_id=member_id and status in ('pending','processing') and (not accept_terms or not requested); end if;\n end if;\nend $function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{postgres=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public, pg_temp"],
+      "bodyMd5": "58a351e2987f6fad9e8bb5b000d84c16",
+      "signature": "mobile_accept_terms(uuid,text,boolean)",
+      "definition": "CREATE OR REPLACE FUNCTION public.mobile_accept_terms(_user uuid, _version text, _shopping_alerts boolean)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE onboarding boolean;\nBEGIN\n IF _version IS DISTINCT FROM '2026-11-12' OR _shopping_alerts IS NULL THEN RAISE EXCEPTION 'Current terms and an explicit alert choice are required'; END IF;\n PERFORM pg_advisory_xact_lock(hashtextextended('bluebird:mobile-consent:'||_user::text,0));\n SELECT NOT EXISTS(SELECT 1 FROM public.shopping_accounts WHERE user_id=_user AND mobile_terms_version=_version AND mobile_terms_accepted_at IS NOT NULL) INTO onboarding;\n INSERT INTO public.shopping_accounts(user_id,terms_version,terms_accepted_at,shopping_alerts,alerts_version,alerts_updated_at,\n  mobile_terms_version,mobile_terms_accepted_at,mobile_shopping_alerts,mobile_alerts_updated_at)\n VALUES(_user,_version,now(),_shopping_alerts,_version,now(),_version,now(),_shopping_alerts,now())\n ON CONFLICT(user_id) DO UPDATE SET\n  terms_version=excluded.terms_version,\n  terms_accepted_at=CASE WHEN shopping_accounts.terms_version IS DISTINCT FROM excluded.terms_version THEN now() ELSE coalesce(shopping_accounts.terms_accepted_at,now()) END,\n  shopping_alerts=excluded.shopping_alerts,alerts_version=excluded.alerts_version,alerts_updated_at=now(),updated_at=now(),\n  mobile_terms_version=excluded.mobile_terms_version,\n  mobile_terms_accepted_at=CASE WHEN shopping_accounts.mobile_terms_version IS DISTINCT FROM excluded.mobile_terms_version THEN now() ELSE coalesce(shopping_accounts.mobile_terms_accepted_at,now()) END,\n  mobile_shopping_alerts=excluded.mobile_shopping_alerts,mobile_alerts_updated_at=now();\n IF _shopping_alerts THEN UPDATE public.shopping_accounts SET suppressed_at=NULL WHERE user_id=_user;\n ELSIF NOT onboarding THEN UPDATE public.shopping_accounts SET suppressed_at=now() WHERE user_id=_user; END IF;\n INSERT INTO public.shopping_consents(user_id,subject,purpose,allowed,version,source) VALUES\n  (_user,'u:'||_user::text,'terms',true,_version,'mobile'),(_user,'u:'||_user::text,'shopping_alerts',_shopping_alerts,_version,'mobile');\n IF NOT _shopping_alerts THEN\n  UPDATE public.shopping_queue SET status='suppressed',lease_until=NULL WHERE user_id=_user AND status IN('pending','processing') AND (NOT onboarding OR NOT requested);\n  UPDATE public.mobile_push_outbox p SET status='suppressed',lease_until=NULL FROM public.notifications n\n   WHERE p.notification_id=n.id AND p.user_id=_user AND n.kind<>'message' AND p.status IN('pending','processing');\n END IF;\nEND $function$\n",
+      "securityDefiner": true
+    }
+  ],
+  "capturedAt": "2026-11-15T14:37:48.467067+00:00",
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "metadataOnly": true,
+  "serverVersion": "17.6",
+  "workerEnabled": false,
+  "accessCoverage": {
+    "unguarded_tables": 0,
+    "unguarded_functions": 0,
+    "helper_privilege_gaps": 0
+  },
+  "inquiryMigrationInstalled": false
+}
