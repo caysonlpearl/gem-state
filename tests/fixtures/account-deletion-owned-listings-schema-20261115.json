@@ -1,0 +1,1955 @@
+{
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "capturedAt": "2026-11-15T07:21:46.001208+00:00",
+  "metadataOnly": true,
+  "rows": [
+    {
+      "source": "ask_events",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true
+          },
+          {
+            "name": "ask_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "actor_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "event_type",
+            "type": "listing_event_type",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "from_status",
+            "type": "listing_status",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "to_status",
+            "type": "listing_status",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "price_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "note",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX ask_events_pkey ON public.ask_events USING btree (id)",
+          "CREATE INDEX ask_events_ask_idx ON public.ask_events USING btree (ask_id, created_at)"
+        ],
+        "policies": [
+          {
+            "name": "Sellers read their own ask history",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = ask_events.ask_id) AND (a.seller_id = auth.uid()))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "ask_events_actor_id_fkey",
+            "table": "ask_events",
+            "definition": "FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "ask_events_ask_id_fkey",
+            "table": "ask_events",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "ask_events_pkey",
+            "table": "ask_events",
+            "definition": "PRIMARY KEY (id)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "ask_media",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true
+          },
+          {
+            "name": "ask_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "storage_path",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "caption",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "position",
+            "type": "integer",
+            "default": "0",
+            "notNull": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX ask_media_pkey ON public.ask_media USING btree (id)",
+          "CREATE INDEX ask_media_ask_idx ON public.ask_media USING btree (ask_id, \"position\")"
+        ],
+        "policies": [
+          {
+            "name": "Moderators read ask evidence",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Sellers add their own ask evidence",
+            "check": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = ask_media.ask_id) AND (a.seller_id = auth.uid()))))",
+            "roles": [
+              "authenticated"
+            ],
+            "using": null,
+            "command": "a",
+            "permissive": true
+          },
+          {
+            "name": "Sellers read their own ask evidence",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = ask_media.ask_id) AND (a.seller_id = auth.uid()))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Sellers remove their own ask evidence",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = ask_media.ask_id) AND (a.seller_id = auth.uid()) AND (a.status = 'active'::listing_status))))",
+            "command": "d",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": [
+          {
+            "name": "ask_media_count",
+            "bodyMd5": "8a48cc9c5b327a72d93ce72ee9c1840a",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.sync_ask_evidence_count()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE target uuid;\nBEGIN\n  target := COALESCE(NEW.ask_id, OLD.ask_id);\n  UPDATE public.asks a\n     SET evidence_count = (SELECT count(*) FROM public.ask_media m WHERE m.ask_id = target),\n         updated_at = now()\n   WHERE a.id = target;\n  RETURN NULL;\nEND;\n$function$\n",
+            "definition": "CREATE TRIGGER ask_media_count AFTER INSERT OR DELETE ON ask_media FOR EACH ROW EXECUTE FUNCTION sync_ask_evidence_count()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "ask_media_ask_id_fkey",
+            "table": "ask_media",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "ask_media_caption_check",
+            "table": "ask_media",
+            "definition": "CHECK (caption IS NULL OR length(caption) <= 200)"
+          },
+          {
+            "name": "ask_media_pkey",
+            "table": "ask_media",
+            "definition": "PRIMARY KEY (id)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "asks",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true
+          },
+          {
+            "name": "product_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "variant_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "seller_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "price_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "currency",
+            "type": "character(3)",
+            "default": "'USD'::bpchar",
+            "notNull": true
+          },
+          {
+            "name": "item_condition",
+            "type": "item_condition",
+            "default": "'new_with_tags'::item_condition",
+            "notNull": true
+          },
+          {
+            "name": "in_hand",
+            "type": "boolean",
+            "default": "true",
+            "notNull": true
+          },
+          {
+            "name": "acquired_location_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "seller_note",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "status",
+            "type": "listing_status",
+            "default": "'active'::listing_status",
+            "notNull": true
+          },
+          {
+            "name": "evidence_count",
+            "type": "integer",
+            "default": "0",
+            "notNull": true
+          },
+          {
+            "name": "expires_at",
+            "type": "timestamp with time zone",
+            "default": "(now() + '30 days'::interval)",
+            "notNull": true
+          },
+          {
+            "name": "matched_order_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "is_demo",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "fulfillment_window_days",
+            "type": "integer",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "approved_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "approved_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "review_note",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "public_media_count",
+            "type": "integer",
+            "default": "0",
+            "notNull": true
+          },
+          {
+            "name": "parcel_length_in",
+            "type": "numeric(6,2)",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "parcel_width_in",
+            "type": "numeric(6,2)",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "parcel_height_in",
+            "type": "numeric(6,2)",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "parcel_weight_lb",
+            "type": "numeric(7,2)",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "ship_by_days",
+            "type": "smallint",
+            "default": "3",
+            "notNull": true
+          },
+          {
+            "name": "featured_until",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "promoted_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "ranking_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "dealer_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "sold_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX asks_pkey ON public.asks USING btree (id)",
+          "CREATE INDEX asks_market_idx ON public.asks USING btree (variant_id, status, price_cents)",
+          "CREATE INDEX asks_seller_idx ON public.asks USING btree (seller_id, created_at DESC)",
+          "CREATE INDEX asks_public_visibility_ranking_idx ON public.asks USING btree (featured_until DESC NULLS LAST, ranking_at DESC, id) WHERE ((status = 'active'::listing_status) AND (approved_at IS NOT NULL) AND (is_demo = false))",
+          "CREATE INDEX asks_dealer_id_idx ON public.asks USING btree (dealer_id) WHERE (dealer_id IS NOT NULL)"
+        ],
+        "policies": [
+          {
+            "name": "Anonymous market reads approved active asks",
+            "check": null,
+            "roles": [
+              "anon"
+            ],
+            "using": "((status = 'active'::listing_status) AND (approved_at IS NOT NULL) AND (expires_at > now()))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Sellers create their own asks",
+            "check": "((seller_id = auth.uid()) AND (status = 'active'::listing_status) AND in_hand)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": null,
+            "command": "a",
+            "permissive": true
+          },
+          {
+            "name": "Sellers read their own asks",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(seller_id = auth.uid())",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Sellers update their own open asks",
+            "check": "(seller_id = auth.uid())",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "((seller_id = auth.uid()) AND (status = 'active'::listing_status))",
+            "command": "w",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": [
+          {
+            "name": "asks_apply_seller_shipping_defaults",
+            "bodyMd5": "0a7ec94716326131eecfae8f6132e09d",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.apply_seller_shipping_defaults()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE\n  handling_days smallint;\n  shipping_method text;\nBEGIN\n  IF coalesce(auth.role(),'')='service_role'\n     AND EXISTS(SELECT 1 FROM public.managed_import_sellers WHERE owner_user_id=NEW.seller_id)\n     AND current_setting('parkvault.trusted_operation',true)='on' THEN\n    NEW.ship_by_days:=coalesce(NEW.ship_by_days,7);\n    RETURN NEW;\n  END IF;\n\n  IF NEW.in_hand AND NOT NEW.is_demo THEN\n    SELECT sp.default_handling_days, sp.default_shipping_method\n      INTO handling_days, shipping_method\n      FROM public.seller_profiles sp\n     WHERE sp.user_id = NEW.seller_id AND sp.status = 'active';\n    IF handling_days IS NULL OR shipping_method IS NULL THEN\n      RAISE EXCEPTION 'Choose shipping method and handling time in your seller profile before listing';\n    END IF;\n    NEW.ship_by_days := handling_days;\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+            "definition": "CREATE TRIGGER asks_apply_seller_shipping_defaults BEFORE INSERT ON asks FOR EACH ROW EXECUTE FUNCTION apply_seller_shipping_defaults()"
+          },
+          {
+            "name": "asks_clear_sold_at_on_relist",
+            "bodyMd5": "4df71e55bf6140a3673cf7a048323a36",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.clear_ask_sold_at_on_relist()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nBEGIN\n  IF NEW.status = 'active' AND OLD.status IS DISTINCT FROM 'active' THEN\n    NEW.sold_at := NULL;\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+            "definition": "CREATE TRIGGER asks_clear_sold_at_on_relist BEFORE UPDATE OF status ON asks FOR EACH ROW EXECUTE FUNCTION clear_ask_sold_at_on_relist()"
+          },
+          {
+            "name": "asks_guard_user_updates",
+            "bodyMd5": "df9dac308d44f1b7b1f8c7981f29166c",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.guard_ask_user_updates()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  IF public.is_trusted_operation() THEN RETURN NEW; END IF;\n\n  IF auth.uid() IS NULL THEN\n    RAISE EXCEPTION 'Sign in required';\n  END IF;\n  IF auth.uid() <> OLD.seller_id OR auth.uid() <> NEW.seller_id THEN\n    RAISE EXCEPTION 'Only the Ask owner may change this Ask';\n  END IF;\n\n  IF NEW.product_id <> OLD.product_id\n     OR NEW.variant_id <> OLD.variant_id\n     OR NEW.currency <> OLD.currency\n     OR NEW.is_demo <> OLD.is_demo\n     OR NEW.in_hand <> OLD.in_hand\n     OR NEW.evidence_count <> OLD.evidence_count\n     OR COALESCE(NEW.matched_order_id::text, '') <> COALESCE(OLD.matched_order_id::text, '') THEN\n    RAISE EXCEPTION 'This field on an Ask is not member-editable';\n  END IF;\n  IF NEW.status NOT IN ('active', 'cancelled') THEN\n    RAISE EXCEPTION 'Members may only cancel an Ask';\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+            "definition": "CREATE TRIGGER asks_guard_user_updates BEFORE UPDATE ON asks FOR EACH ROW EXECUTE FUNCTION guard_ask_user_updates()"
+          },
+          {
+            "name": "asks_touch",
+            "bodyMd5": "9b1889f56258bf9d6554213c05019c76",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$\n",
+            "definition": "CREATE TRIGGER asks_touch BEFORE UPDATE ON asks FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+          },
+          {
+            "name": "managed_ask_edit",
+            "bodyMd5": "8c5604dae1b6a79e06b7b0d5ee1397ce",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.flag_import_seller_edit()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n IF auth.uid() IS NOT NULL THEN\n UPDATE public.fb_marketplace_import_items i SET seller_edited=true\n FROM public.asks a WHERE i.listing_id=a.id AND a.seller_id=auth.uid()\n AND ((TG_TABLE_NAME='asks' AND a.id=(to_jsonb(NEW)->>'id')::uuid) OR (TG_TABLE_NAME='products' AND a.product_id=(to_jsonb(NEW)->>'id')::uuid) OR (TG_TABLE_NAME='classified_listing_details' AND a.id=(to_jsonb(NEW)->>'listing_id')::uuid));\n END IF;\n RETURN NEW;\nEND $function$\n",
+            "definition": "CREATE TRIGGER managed_ask_edit AFTER UPDATE ON asks FOR EACH ROW EXECUTE FUNCTION flag_import_seller_edit()"
+          },
+          {
+            "name": "notify_on_new_ask",
+            "bodyMd5": "6ca6c922f3a673852433ed09fae151fb",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.notify_market_interest()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE recipient uuid; product_name text;\nBEGIN\n  IF NEW.is_demo OR NEW.status <> 'active' THEN RETURN NEW; END IF;\n  IF TG_TABLE_NAME = 'asks' AND NEW.approved_at IS NULL THEN RETURN NEW; END IF;\n  SELECT name INTO product_name FROM public.products WHERE id = NEW.product_id;\n  IF TG_TABLE_NAME = 'bids' THEN\n    FOR recipient IN\n      SELECT DISTINCT seller_id FROM public.asks\n      WHERE variant_id = NEW.variant_id AND status = 'active' AND approved_at IS NOT NULL\n        AND expires_at > now() AND seller_id <> NEW.buyer_id\n    LOOP\n      PERFORM public.notify_member(recipient, 'new_bid', 'New Bid on ' || product_name,\n        'A buyer placed a ' || to_char(NEW.price_cents / 100.0, 'FM$999G999G990D00') ||\n        ' Bid. Accept it or edit your Ask to counter.', NULL);\n    END LOOP;\n  ELSE\n    FOR recipient IN\n      SELECT DISTINCT buyer_id FROM public.bids\n      WHERE variant_id = NEW.variant_id AND status = 'active' AND expires_at > now()\n        AND buyer_id <> NEW.seller_id\n    LOOP\n      PERFORM public.notify_member(recipient, 'new_ask', 'New Ask for ' || product_name,\n        'A seller listed this item for ' || to_char(NEW.price_cents / 100.0, 'FM$999G999G990D00') || '.', NULL);\n    END LOOP;\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+            "definition": "CREATE TRIGGER notify_on_new_ask AFTER INSERT ON asks FOR EACH ROW EXECUTE FUNCTION notify_market_interest()"
+          },
+          {
+            "name": "publish_classified_product_after_approval",
+            "bodyMd5": "cac88d63c5cbc2573512065b248fa174",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.publish_classified_product_after_approval()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  IF NEW.status = 'active'\n     AND NEW.approved_at IS NOT NULL\n     AND NOT NEW.is_demo\n     AND EXISTS (\n       SELECT 1\n       FROM public.classified_listing_details AS details\n       WHERE details.listing_id = NEW.id\n     ) THEN\n    PERFORM set_config('parkvault.trusted_operation', 'on', true);\n\n    UPDATE public.products\n    SET status = 'published'::public.product_status\n    WHERE id = NEW.product_id\n      AND status = 'pending_review'::public.product_status;\n\n    PERFORM set_config('parkvault.trusted_operation', 'off', true);\n  END IF;\n\n  RETURN NEW;\nEXCEPTION WHEN OTHERS THEN\n  PERFORM set_config('parkvault.trusted_operation', 'off', true);\n  RAISE;\nEND;\n$function$\n",
+            "definition": "CREATE TRIGGER publish_classified_product_after_approval AFTER UPDATE OF status, approved_at ON asks FOR EACH ROW EXECUTE FUNCTION publish_classified_product_after_approval()"
+          },
+          {
+            "name": "require_verified_seller_for_ask",
+            "bodyMd5": "47fa85f9167ad3b449b0cd188f2db5ea",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.require_verified_seller_for_ask()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE\n  uid uuid := auth.uid();\n  seller public.seller_profiles;\nBEGIN\n  IF uid IS NULL OR NEW.seller_id <> uid THEN\n    RETURN NEW;\n  END IF;\n  SELECT * INTO seller FROM public.seller_profiles WHERE user_id = uid;\n  IF seller.user_id IS NULL OR seller.status <> 'active' OR seller.terms_accepted_at IS NULL THEN\n    RAISE EXCEPTION 'Complete seller setup before listing';\n  END IF;\n  RETURN NEW;\nEND\n$function$\n",
+            "definition": "CREATE TRIGGER require_verified_seller_for_ask BEFORE INSERT ON asks FOR EACH ROW EXECUTE FUNCTION require_verified_seller_for_ask()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "asks_acquired_location_id_fkey",
+            "table": "asks",
+            "definition": "FOREIGN KEY (acquired_location_id) REFERENCES locations(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "asks_dealer_id_fkey",
+            "table": "asks",
+            "definition": "FOREIGN KEY (dealer_id) REFERENCES dealer_profiles(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "asks_matched_order_fk",
+            "table": "asks",
+            "definition": "FOREIGN KEY (matched_order_id) REFERENCES orders(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "asks_parcel_dimensions_positive",
+            "table": "asks",
+            "definition": "CHECK (parcel_length_in IS NULL AND parcel_width_in IS NULL AND parcel_height_in IS NULL AND parcel_weight_lb IS NULL OR parcel_length_in > 0::numeric AND parcel_width_in > 0::numeric AND parcel_height_in > 0::numeric AND parcel_weight_lb > 0::numeric)"
+          },
+          {
+            "name": "asks_pkey",
+            "table": "asks",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "asks_price_cents_check",
+            "table": "asks",
+            "definition": "CHECK (price_cents >= 0 AND price_cents <= 1000000000)"
+          },
+          {
+            "name": "asks_product_id_fkey",
+            "table": "asks",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "asks_seller_id_fkey",
+            "table": "asks",
+            "definition": "FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "asks_seller_note_check",
+            "table": "asks",
+            "definition": "CHECK (seller_note IS NULL OR length(seller_note) <= 500)"
+          },
+          {
+            "name": "asks_ship_by_days_check",
+            "table": "asks",
+            "definition": "CHECK (ship_by_days >= 1 AND ship_by_days <= 7)"
+          },
+          {
+            "name": "asks_sourcing_window",
+            "table": "asks",
+            "definition": "CHECK (in_hand AND fulfillment_window_days IS NULL OR NOT in_hand AND fulfillment_window_days >= 1 AND fulfillment_window_days <= 60)"
+          },
+          {
+            "name": "asks_variant_id_fkey",
+            "table": "asks",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "listing_media_ask_id_fkey",
+            "table": "listing_media",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "ask_events_ask_id_fkey",
+            "table": "ask_events",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "ask_media_ask_id_fkey",
+            "table": "ask_media",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "checkout_shipping_quotes_ask_id_fkey",
+            "table": "checkout_shipping_quotes",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "classified_listing_details_listing_id_fkey",
+            "table": "classified_listing_details",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "listing_inquiries_listing_id_fkey",
+            "table": "listing_inquiries",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "listing_offers_ask_id_fkey",
+            "table": "listing_offers",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "market_matches_ask_id_fkey",
+            "table": "market_matches",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "orders_ask_id_fkey",
+            "table": "orders",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "seller_listing_requests_converted_ask_id_fkey",
+            "table": "seller_listing_requests",
+            "definition": "FOREIGN KEY (converted_ask_id) REFERENCES asks(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "conversations_listing_id_fkey",
+            "table": "conversations",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "listing_upgrade_purchases_listing_id_fkey",
+            "table": "listing_upgrade_purchases",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "saved_search_matches_listing_id_fkey",
+            "table": "saved_search_matches",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "classified_listing_metrics_listing_id_fkey",
+            "table": "classified_listing_metrics",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "dealer_inventory_listing_links_listing_id_fkey",
+            "table": "dealer_inventory_listing_links",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "job_applications_listing_id_fkey",
+            "table": "job_applications",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "classified_listing_reports_listing_id_fkey",
+            "table": "classified_listing_reports",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "fb_marketplace_import_items_listing_id_fkey",
+            "table": "fb_marketplace_import_items",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE SET NULL"
+          }
+        ]
+      }
+    },
+    {
+      "source": "classified_listing_details",
+      "metadata": {
+        "columns": [
+          {
+            "name": "listing_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "region",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "city",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "postal_code",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "fulfillment_mode",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "vehicle_make",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "vehicle_model",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "vehicle_year",
+            "type": "smallint",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "vehicle_trim",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "vehicle_mileage",
+            "type": "integer",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "vehicle_body_style",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "vehicle_transmission",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "vehicle_drivetrain",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "vehicle_fuel_type",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "vehicle_exterior_color",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "vehicle_title_status",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "vin",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "state",
+            "type": "text",
+            "default": "'ID'::text",
+            "notNull": true
+          },
+          {
+            "name": "home_mode",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_property_type",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_bedrooms",
+            "type": "numeric(4,1)",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_bathrooms",
+            "type": "numeric(4,1)",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_square_feet",
+            "type": "integer",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_year_built",
+            "type": "smallint",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_acreage",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_heating",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_cooling",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_garage_parking",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_yard",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_appliances_included",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_floor_coverings",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_basement_type",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_exterior_material",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_special_features",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_hoa_fees",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_school_district",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_lease_length",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_available",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_pets_policy",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_smoking_policy",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_open_house",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_employer_name",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_employer_address",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_pay_type",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_pay_min",
+            "type": "numeric",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_pay_max",
+            "type": "numeric",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_employment_type",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_experience_required",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_education_level",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_responsibilities",
+            "type": "text[]",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_qualifications",
+            "type": "text[]",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "service_subcategory",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "service_area",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "service_availability",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "service_business_address",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "service_license_number",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "service_license_lookup_url",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "service_offerings",
+            "type": "text[]",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_application_method",
+            "type": "text",
+            "default": "'gemlist'::text",
+            "notNull": true
+          },
+          {
+            "name": "job_application_external_contact",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_subcategory",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_species",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_breed",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_name",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_age",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_sex",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_placement_type",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_offered_by",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_hypoallergenic",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_vaccinated",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_spayed_neutered",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_microchipped",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_records_available",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_good_with_kids",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_good_with_dogs",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_good_with_cats",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_indoor_outdoor",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_special_needs",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "pet_breeding_terms",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "home_acres",
+            "type": "numeric",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "job_category",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "item_details",
+            "type": "jsonb",
+            "default": "'{}'::jsonb",
+            "notNull": true
+          },
+          {
+            "name": "service_pricing_type",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "service_price_max_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": false
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX classified_listing_details_pkey ON public.classified_listing_details USING btree (listing_id)",
+          "CREATE INDEX classified_listing_details_fulfillment_idx ON public.classified_listing_details USING btree (fulfillment_mode)",
+          "CREATE INDEX classified_listing_details_region_city_idx ON public.classified_listing_details USING btree (region, city)",
+          "CREATE INDEX classified_listing_details_state_city_idx ON public.classified_listing_details USING btree (state, city)",
+          "CREATE INDEX classified_listing_details_vehicle_body_style_idx ON public.classified_listing_details USING btree (vehicle_body_style)",
+          "CREATE INDEX classified_listing_details_vehicle_drivetrain_idx ON public.classified_listing_details USING btree (vehicle_drivetrain)",
+          "CREATE INDEX classified_listing_details_vehicle_fuel_type_idx ON public.classified_listing_details USING btree (vehicle_fuel_type)",
+          "CREATE INDEX classified_listing_details_vehicle_make_model_idx ON public.classified_listing_details USING btree (vehicle_make, vehicle_model)",
+          "CREATE INDEX classified_listing_details_vehicle_mileage_idx ON public.classified_listing_details USING btree (vehicle_mileage)",
+          "CREATE INDEX classified_listing_details_vehicle_year_idx ON public.classified_listing_details USING btree (vehicle_year)",
+          "CREATE INDEX classified_listing_details_home_mode_idx ON public.classified_listing_details USING btree (home_mode)",
+          "CREATE INDEX classified_listing_details_job_employment_type_idx ON public.classified_listing_details USING btree (job_employment_type)",
+          "CREATE INDEX classified_listing_details_service_subcategory_idx ON public.classified_listing_details USING btree (service_subcategory)",
+          "CREATE INDEX classified_listing_details_pet_subcategory_idx ON public.classified_listing_details USING btree (pet_subcategory)",
+          "CREATE INDEX classified_listing_details_pet_species_breed_idx ON public.classified_listing_details USING btree (pet_species, pet_breed)",
+          "CREATE INDEX classified_listing_details_pet_placement_idx ON public.classified_listing_details USING btree (pet_placement_type)",
+          "CREATE INDEX classified_listing_details_pet_offered_by_idx ON public.classified_listing_details USING btree (pet_offered_by)",
+          "CREATE INDEX classified_listing_details_home_acres_idx ON public.classified_listing_details USING btree (home_acres)",
+          "CREATE INDEX classified_listing_details_job_category_idx ON public.classified_listing_details USING btree (job_category)",
+          "CREATE INDEX classified_listing_details_item_details_gin_idx ON public.classified_listing_details USING gin (item_details)",
+          "CREATE INDEX classified_listing_details_home_property_type_idx ON public.classified_listing_details USING btree (home_property_type)",
+          "CREATE INDEX classified_listing_details_home_bedrooms_idx ON public.classified_listing_details USING btree (home_bedrooms)",
+          "CREATE INDEX classified_listing_details_home_bathrooms_idx ON public.classified_listing_details USING btree (home_bathrooms)",
+          "CREATE INDEX classified_listing_details_home_square_feet_idx ON public.classified_listing_details USING btree (home_square_feet)",
+          "CREATE INDEX classified_listing_details_job_pay_type_idx ON public.classified_listing_details USING btree (job_pay_type)",
+          "CREATE INDEX classified_listing_details_job_pay_min_idx ON public.classified_listing_details USING btree (job_pay_min)",
+          "CREATE INDEX classified_listing_details_job_pay_max_idx ON public.classified_listing_details USING btree (job_pay_max)",
+          "CREATE INDEX classified_listing_details_service_area_idx ON public.classified_listing_details USING btree (service_area)"
+        ],
+        "policies": [
+          {
+            "name": "Public reads approved classified details",
+            "check": null,
+            "roles": [
+              "anon",
+              "authenticated"
+            ],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = classified_listing_details.listing_id) AND (a.status = 'active'::listing_status) AND (a.approved_at IS NOT NULL) AND (a.expires_at > now()) AND (NOT a.is_demo))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Sellers read own classified details",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = classified_listing_details.listing_id) AND (a.seller_id = auth.uid()))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Sellers update own open classified details",
+            "check": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = classified_listing_details.listing_id) AND (a.seller_id = auth.uid()))))",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = classified_listing_details.listing_id) AND (a.seller_id = auth.uid()) AND (a.status = 'active'::listing_status))))",
+            "command": "w",
+            "permissive": true
+          },
+          {
+            "name": "Staff manage classified details",
+            "check": "is_staff(auth.uid())",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "is_staff(auth.uid())",
+            "command": "*",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": [
+          {
+            "name": "classified_listing_details_touch",
+            "bodyMd5": "9b1889f56258bf9d6554213c05019c76",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$\n",
+            "definition": "CREATE TRIGGER classified_listing_details_touch BEFORE UPDATE ON classified_listing_details FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+          },
+          {
+            "name": "managed_details_edit",
+            "bodyMd5": "8c5604dae1b6a79e06b7b0d5ee1397ce",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.flag_import_seller_edit()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n IF auth.uid() IS NOT NULL THEN\n UPDATE public.fb_marketplace_import_items i SET seller_edited=true\n FROM public.asks a WHERE i.listing_id=a.id AND a.seller_id=auth.uid()\n AND ((TG_TABLE_NAME='asks' AND a.id=(to_jsonb(NEW)->>'id')::uuid) OR (TG_TABLE_NAME='products' AND a.product_id=(to_jsonb(NEW)->>'id')::uuid) OR (TG_TABLE_NAME='classified_listing_details' AND a.id=(to_jsonb(NEW)->>'listing_id')::uuid));\n END IF;\n RETURN NEW;\nEND $function$\n",
+            "definition": "CREATE TRIGGER managed_details_edit AFTER UPDATE ON classified_listing_details FOR EACH ROW EXECUTE FUNCTION flag_import_seller_edit()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "classified_listing_details_city_length",
+            "table": "classified_listing_details",
+            "definition": "CHECK (char_length(btrim(city)) >= 2 AND char_length(btrim(city)) <= 80)"
+          },
+          {
+            "name": "classified_listing_details_fulfillment",
+            "table": "classified_listing_details",
+            "definition": "CHECK (fulfillment_mode = ANY (ARRAY['local_pickup'::text, 'shipping'::text, 'both'::text]))"
+          },
+          {
+            "name": "classified_listing_details_home_acres",
+            "table": "classified_listing_details",
+            "definition": "CHECK (home_acres IS NULL OR home_acres >= 0::numeric AND home_acres <= 100000::numeric)"
+          },
+          {
+            "name": "classified_listing_details_home_bathrooms",
+            "table": "classified_listing_details",
+            "definition": "CHECK (home_bathrooms IS NULL OR home_bathrooms >= 0::numeric AND home_bathrooms <= 20::numeric)"
+          },
+          {
+            "name": "classified_listing_details_home_bedrooms",
+            "table": "classified_listing_details",
+            "definition": "CHECK (home_bedrooms IS NULL OR home_bedrooms >= 0::numeric AND home_bedrooms <= 20::numeric)"
+          },
+          {
+            "name": "classified_listing_details_home_mode",
+            "table": "classified_listing_details",
+            "definition": "CHECK (home_mode IS NULL OR (home_mode = ANY (ARRAY['rent'::text, 'buy'::text, 'build'::text])))"
+          },
+          {
+            "name": "classified_listing_details_home_square_feet",
+            "table": "classified_listing_details",
+            "definition": "CHECK (home_square_feet IS NULL OR home_square_feet >= 0 AND home_square_feet <= 50000)"
+          },
+          {
+            "name": "classified_listing_details_home_year_built",
+            "table": "classified_listing_details",
+            "definition": "CHECK (home_year_built IS NULL OR home_year_built >= 1800 AND home_year_built <= 2100)"
+          },
+          {
+            "name": "classified_listing_details_item_details_object",
+            "table": "classified_listing_details",
+            "definition": "CHECK (jsonb_typeof(item_details) = 'object'::text)"
+          },
+          {
+            "name": "classified_listing_details_job_application_method_check",
+            "table": "classified_listing_details",
+            "definition": "CHECK (job_application_method = ANY (ARRAY['gemlist'::text, 'external'::text]))"
+          },
+          {
+            "name": "classified_listing_details_job_category_length",
+            "table": "classified_listing_details",
+            "definition": "CHECK (job_category IS NULL OR char_length(btrim(job_category)) >= 2 AND char_length(btrim(job_category)) <= 80)"
+          },
+          {
+            "name": "classified_listing_details_job_employment_type",
+            "table": "classified_listing_details",
+            "definition": "CHECK (job_employment_type IS NULL OR (job_employment_type = ANY (ARRAY['Full-time'::text, 'Part-time'::text, 'Seasonal'::text, 'Contract'::text, 'Temporary'::text])))"
+          },
+          {
+            "name": "classified_listing_details_job_pay_max",
+            "table": "classified_listing_details",
+            "definition": "CHECK (job_pay_max IS NULL OR job_pay_max >= 0::numeric)"
+          },
+          {
+            "name": "classified_listing_details_job_pay_min",
+            "table": "classified_listing_details",
+            "definition": "CHECK (job_pay_min IS NULL OR job_pay_min >= 0::numeric)"
+          },
+          {
+            "name": "classified_listing_details_job_pay_type",
+            "table": "classified_listing_details",
+            "definition": "CHECK (job_pay_type IS NULL OR (job_pay_type = ANY (ARRAY['Hourly'::text, 'Salary'::text, 'Commission'::text, 'Contract'::text])))"
+          },
+          {
+            "name": "classified_listing_details_listing_id_fkey",
+            "table": "classified_listing_details",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "classified_listing_details_pet_offered_by",
+            "table": "classified_listing_details",
+            "definition": "CHECK (pet_offered_by IS NULL OR (pet_offered_by = ANY (ARRAY['Owner'::text, 'Breeder'::text, 'Rescue'::text, 'Shelter'::text, 'Foster'::text, 'Business'::text])))"
+          },
+          {
+            "name": "classified_listing_details_pet_placement",
+            "table": "classified_listing_details",
+            "definition": "CHECK (pet_placement_type IS NULL OR (pet_placement_type = ANY (ARRAY['sale'::text, 'adoption'::text, 'rehoming'::text, 'free'::text, 'stud_breeding'::text, 'lost_found'::text, 'wanted'::text])))"
+          },
+          {
+            "name": "classified_listing_details_pet_sex",
+            "table": "classified_listing_details",
+            "definition": "CHECK (pet_sex IS NULL OR (pet_sex = ANY (ARRAY['Male'::text, 'Female'::text, 'Unknown / not disclosed'::text])))"
+          },
+          {
+            "name": "classified_listing_details_pkey",
+            "table": "classified_listing_details",
+            "definition": "PRIMARY KEY (listing_id)"
+          },
+          {
+            "name": "classified_listing_details_postal_code",
+            "table": "classified_listing_details",
+            "definition": "CHECK (postal_code IS NULL OR postal_code ~ '^[0-9]{5}$'::text)"
+          },
+          {
+            "name": "classified_listing_details_region_length",
+            "table": "classified_listing_details",
+            "definition": "CHECK (char_length(btrim(region)) >= 2 AND char_length(btrim(region)) <= 80)"
+          },
+          {
+            "name": "classified_listing_details_service_price_max_cents",
+            "table": "classified_listing_details",
+            "definition": "CHECK (service_price_max_cents IS NULL OR service_price_max_cents >= 0)"
+          },
+          {
+            "name": "classified_listing_details_service_pricing_type",
+            "table": "classified_listing_details",
+            "definition": "CHECK (service_pricing_type IS NULL OR (service_pricing_type = ANY (ARRAY['quote'::text, 'flat'::text, 'visit'::text, 'hour'::text])))"
+          },
+          {
+            "name": "classified_listing_details_state_code",
+            "table": "classified_listing_details",
+            "definition": "CHECK (state ~ '^[A-Z]{2}$'::text)"
+          },
+          {
+            "name": "classified_listing_details_vehicle_mileage",
+            "table": "classified_listing_details",
+            "definition": "CHECK (vehicle_mileage IS NULL OR vehicle_mileage >= 0 AND vehicle_mileage <= 2000000)"
+          },
+          {
+            "name": "classified_listing_details_vehicle_year",
+            "table": "classified_listing_details",
+            "definition": "CHECK (vehicle_year IS NULL OR vehicle_year >= 1900 AND vehicle_year <= 2100)"
+          },
+          {
+            "name": "classified_listing_details_vin",
+            "table": "classified_listing_details",
+            "definition": "CHECK (vin IS NULL OR vin ~ '^[A-HJ-NPR-Z0-9]{17}$'::text)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "classified_listing_metrics",
+      "metadata": {
+        "columns": [
+          {
+            "name": "listing_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "impressions",
+            "type": "bigint",
+            "default": "0",
+            "notNull": true
+          },
+          {
+            "name": "views",
+            "type": "bigint",
+            "default": "0",
+            "notNull": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX classified_listing_metrics_pkey ON public.classified_listing_metrics USING btree (listing_id)"
+        ],
+        "policies": [
+          {
+            "name": "Sellers read their listing metrics",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks listing\n  WHERE ((listing.id = classified_listing_metrics.listing_id) AND (listing.seller_id = auth.uid()))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": [
+          {
+            "name": "classified_listing_metrics_touch",
+            "bodyMd5": "9b1889f56258bf9d6554213c05019c76",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$\n",
+            "definition": "CREATE TRIGGER classified_listing_metrics_touch BEFORE UPDATE ON classified_listing_metrics FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "classified_listing_metrics_impressions_check",
+            "table": "classified_listing_metrics",
+            "definition": "CHECK (impressions >= 0)"
+          },
+          {
+            "name": "classified_listing_metrics_listing_id_fkey",
+            "table": "classified_listing_metrics",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "classified_listing_metrics_pkey",
+            "table": "classified_listing_metrics",
+            "definition": "PRIMARY KEY (listing_id)"
+          },
+          {
+            "name": "classified_listing_metrics_views_check",
+            "table": "classified_listing_metrics",
+            "definition": "CHECK (views >= 0)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "job_applications",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true
+          },
+          {
+            "name": "listing_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "applicant_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "resume_path",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "cover_letter",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "default": "'submitted'::text",
+            "notNull": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX job_applications_pkey ON public.job_applications USING btree (id)",
+          "CREATE UNIQUE INDEX job_applications_one_per_applicant ON public.job_applications USING btree (listing_id, applicant_id)",
+          "CREATE INDEX job_applications_listing_idx ON public.job_applications USING btree (listing_id)",
+          "CREATE INDEX job_applications_applicant_idx ON public.job_applications USING btree (applicant_id)"
+        ],
+        "policies": [
+          {
+            "name": "Applicants read their own applications",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(applicant_id = auth.uid())",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Sellers read applications to their own listings",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks\n  WHERE ((asks.id = job_applications.listing_id) AND (asks.seller_id = auth.uid()))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "job_applications_applicant_id_fkey",
+            "table": "job_applications",
+            "definition": "FOREIGN KEY (applicant_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "job_applications_cover_letter_length",
+            "table": "job_applications",
+            "definition": "CHECK (cover_letter IS NULL OR char_length(cover_letter) <= 4000)"
+          },
+          {
+            "name": "job_applications_listing_id_fkey",
+            "table": "job_applications",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "job_applications_one_per_applicant",
+            "table": "job_applications",
+            "definition": "UNIQUE (listing_id, applicant_id)"
+          },
+          {
+            "name": "job_applications_pkey",
+            "table": "job_applications",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "job_applications_status_check",
+            "table": "job_applications",
+            "definition": "CHECK (status = ANY (ARRAY['submitted'::text, 'reviewed'::text, 'contacted'::text, 'rejected'::text]))"
+          }
+        ]
+      }
+    },
+    {
+      "source": "listing_media",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true
+          },
+          {
+            "name": "ask_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "storage_path",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "alt_text",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "position",
+            "type": "integer",
+            "default": "0",
+            "notNull": true
+          },
+          {
+            "name": "rights_attested_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX listing_media_pkey ON public.listing_media USING btree (id)",
+          "CREATE UNIQUE INDEX listing_media_storage_path_key ON public.listing_media USING btree (storage_path)",
+          "CREATE INDEX listing_media_ask_position_idx ON public.listing_media USING btree (ask_id, \"position\")"
+        ],
+        "policies": [
+          {
+            "name": "Public reads media for approved live Asks",
+            "check": null,
+            "roles": [
+              "anon",
+              "authenticated"
+            ],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = listing_media.ask_id) AND (a.status = 'active'::listing_status) AND (a.approved_at IS NOT NULL) AND (a.expires_at > now()) AND (NOT a.is_demo))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Sellers add their listing media",
+            "check": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = listing_media.ask_id) AND (a.seller_id = auth.uid()) AND (a.status = 'active'::listing_status))))",
+            "roles": [
+              "authenticated"
+            ],
+            "using": null,
+            "command": "a",
+            "permissive": true
+          },
+          {
+            "name": "Sellers read their listing media",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = listing_media.ask_id) AND (a.seller_id = auth.uid()))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "Sellers remove their listing media",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.id = listing_media.ask_id) AND (a.seller_id = auth.uid()) AND (a.status = 'active'::listing_status))))",
+            "command": "d",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": [
+          {
+            "name": "listing_media_count",
+            "bodyMd5": "9dca2f42ffedc3fa54dd55d6ecaca363",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.sync_ask_public_media_count()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE target uuid;\nBEGIN\n  target := COALESCE(NEW.ask_id, OLD.ask_id);\n  UPDATE public.asks a\n     SET public_media_count = (SELECT count(*) FROM public.listing_media m WHERE m.ask_id = target),\n         updated_at = now()\n   WHERE a.id = target;\n  RETURN NULL;\nEND;\n$function$\n",
+            "definition": "CREATE TRIGGER listing_media_count AFTER INSERT OR DELETE ON listing_media FOR EACH ROW EXECUTE FUNCTION sync_ask_public_media_count()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "listing_media_alt_length",
+            "table": "listing_media",
+            "definition": "CHECK (alt_text IS NULL OR length(alt_text) <= 180)"
+          },
+          {
+            "name": "listing_media_ask_id_fkey",
+            "table": "listing_media",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "listing_media_pkey",
+            "table": "listing_media",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "listing_media_storage_path_key",
+            "table": "listing_media",
+            "definition": "UNIQUE (storage_path)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "listing_thumbnail_links",
+      "metadata": {
+        "columns": [
+          {
+            "name": "path",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "url",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "reuse_until",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX listing_thumbnail_links_pkey ON public.listing_thumbnail_links USING btree (path)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "listing_thumbnail_links_pkey",
+            "table": "listing_thumbnail_links",
+            "definition": "PRIMARY KEY (path)"
+          }
+        ]
+      }
+    }
+  ],
+  "enums": {
+    "app_role": [
+      "user",
+      "shopper",
+      "moderator",
+      "admin"
+    ],
+    "item_condition": [
+      "new_with_tags",
+      "new_without_tags",
+      "used_excellent",
+      "used_good",
+      "not_applicable"
+    ],
+    "listing_status": [
+      "active",
+      "matched",
+      "cancelled",
+      "expired"
+    ],
+    "product_status": [
+      "draft",
+      "pending_review",
+      "published",
+      "rejected",
+      "archived"
+    ],
+    "listing_event_type": [
+      "created",
+      "price_changed",
+      "cancelled",
+      "expired",
+      "matched",
+      "released",
+      "evidence_added"
+    ]
+  },
+  "jobFunctions": [
+    {
+      "bodyMd5": "ddbd108a2b4963f5d1560b6da27e65ae",
+      "signature": "is_trusted_operation()",
+      "definition": "CREATE OR REPLACE FUNCTION public.is_trusted_operation()\n RETURNS boolean\n LANGUAGE sql\n STABLE\n SET search_path TO 'public', 'pg_temp'\nAS $function$\n  SELECT coalesce(current_setting('parkvault.trusted_operation', true) = 'on', false)\n      -- Maintenance/administrative connections. These are NEVER treated as a\n      -- marketplace member: member functions still require auth.uid().\n      OR current_user IN ('postgres', 'supabase_admin', 'service_role');\n$function$\n",
+      "acl": [
+        "=X/postgres",
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "bodyMd5": "60b2a93fe006ba0dbe2ad1c2d90fd78e",
+      "signature": "submit_job_application(uuid,text,text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.submit_job_application(_listing_id uuid, _resume_path text, _cover_letter text DEFAULT NULL::text)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  uid uuid := auth.uid();\n  ask record;\n  category_slug text;\n  trimmed_cover_letter text := nullif(btrim(coalesce(_cover_letter, '')), '');\n  application_id uuid;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  IF trimmed_cover_letter IS NOT NULL AND char_length(trimmed_cover_letter) > 4000 THEN\n    RAISE EXCEPTION 'Cover letter must be 4000 characters or fewer';\n  END IF;\n  IF split_part(coalesce(_resume_path, ''), '/', 1) <> uid::text THEN\n    RAISE EXCEPTION 'Resume path does not belong to the caller';\n  END IF;\n\n  SELECT a.* INTO ask FROM public.asks a WHERE a.id = _listing_id;\n  IF ask.id IS NULL THEN RAISE EXCEPTION 'Listing not found'; END IF;\n  IF ask.status <> 'active' OR ask.approved_at IS NULL THEN\n    RAISE EXCEPTION 'This listing is not currently accepting applications';\n  END IF;\n  IF ask.seller_id = uid THEN RAISE EXCEPTION 'You cannot apply to your own listing'; END IF;\n\n  SELECT c.slug INTO category_slug\n  FROM public.products p JOIN public.categories c ON c.id = p.category_id\n  WHERE p.id = ask.product_id;\n  IF category_slug <> 'jobs' THEN RAISE EXCEPTION 'This listing is not a job listing'; END IF;\n\n  IF (\n    SELECT job_application_method FROM public.classified_listing_details\n    WHERE listing_id = _listing_id\n  ) <> 'gemlist' THEN\n    RAISE EXCEPTION 'This employer accepts applications through their own site, not Gem State';\n  END IF;\n\n  INSERT INTO public.job_applications (listing_id, applicant_id, resume_path, cover_letter)\n  VALUES (_listing_id, uid, _resume_path, trimmed_cover_letter)\n  ON CONFLICT ON CONSTRAINT job_applications_one_per_applicant\n  DO UPDATE SET\n    resume_path = excluded.resume_path,\n    cover_letter = excluded.cover_letter,\n    status = 'submitted',\n    updated_at = now()\n  RETURNING id INTO application_id;\n\n  INSERT INTO public.notifications (user_id, kind, title, body, entity_type, entity_id, destination_url)\n  VALUES (\n    ask.seller_id, 'job_application', 'New job application',\n    'Someone applied to your job listing.', 'job_application', application_id,\n    '/selling#applications'\n  );\n\n  RETURN application_id;\nEND;\nEND;$function$\n",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    {
+      "bodyMd5": "634de40149c5c13ddb2b182c0ee6f23f",
+      "signature": "update_job_application_status(uuid,text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.update_job_application_status(_application_id uuid, _status text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  uid uuid := auth.uid();\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  IF _status NOT IN ('submitted', 'reviewed', 'contacted', 'rejected') THEN\n    RAISE EXCEPTION 'Invalid application status';\n  END IF;\n  IF NOT EXISTS (\n    SELECT 1 FROM public.job_applications ja\n    JOIN public.asks a ON a.id = ja.listing_id\n    WHERE ja.id = _application_id AND a.seller_id = uid\n  ) THEN\n    RAISE EXCEPTION 'Application not found';\n  END IF;\n\n  UPDATE public.job_applications SET status = _status, updated_at = now() WHERE id = _application_id;\nEND;\nEND;$function$\n",
+      "acl": [
+        "postgres=X/postgres",
+        "anon=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    }
+  ],
+  "typesCapturedAt": "2026-11-15T07:37:07.765266+00:00",
+  "policiesCapturedAt": "2026-11-15T07:53:05.942093+00:00"
+}

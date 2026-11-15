@@ -4,6 +4,18 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type JobApplicationStatus = "submitted" | "reviewed" | "contacted" | "rejected";
 
+function applicationStatus(value: string): JobApplicationStatus {
+  switch (value) {
+    case "submitted":
+    case "reviewed":
+    case "contacted":
+    case "rejected":
+      return value;
+    default:
+      throw new Error("Application status is unavailable.");
+  }
+}
+
 export type MyJobApplication = {
   id: string;
   status: JobApplicationStatus;
@@ -28,7 +40,7 @@ export const submitJobApplication = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }) => {
-    const client = context.supabase as any;
+    const client = context.supabase;
     const { data: applicationId, error } = await client.rpc("submit_job_application", {
       _listing_id: data.listingId,
       _resume_path: data.resumePath,
@@ -44,7 +56,7 @@ export const getMyJobApplicationForListing = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
   .handler(async ({ data, context }): Promise<MyJobApplication | null> => {
-    const client = context.supabase as any;
+    const client = context.supabase;
     const { data: row, error } = await client
       .from("job_applications")
       .select("id,status,cover_letter,resume_path,created_at,updated_at")
@@ -55,7 +67,7 @@ export const getMyJobApplicationForListing = createServerFn({ method: "GET" })
     if (!row) return null;
     return {
       id: row.id,
-      status: row.status,
+      status: applicationStatus(row.status),
       coverLetter: row.cover_letter,
       resumePath: row.resume_path,
       createdAt: row.created_at,
@@ -76,36 +88,37 @@ export type SellerJobApplication = {
 export const getSellerJobApplications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<SellerJobApplication[]> => {
-    const client = context.supabase as any;
-    // RLS already scopes this to applications on listings the caller owns as
-    // seller, so this can safely go through the caller's own client.
+    const client = context.supabase;
+    // Applicants can also read their own submissions under RLS. Explicitly
+    // scope this employer inbox to currently owned, existing listing parents.
     const { data: applications, error } = await client
       .from("job_applications")
-      .select("id,listing_id,applicant_id,cover_letter,status,created_at")
+      .select("id,listing_id,applicant_id,cover_letter,status,created_at,asks!inner(seller_id)")
+      .eq("asks.seller_id", context.userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     if (!applications?.length) return [];
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const admin = supabaseAdmin as any;
-    const listingIds = [...new Set(applications.map((a: any) => a.listing_id))];
-    const applicantIds = [...new Set(applications.map((a: any) => a.applicant_id))];
+    const admin = supabaseAdmin;
+    const listingIds = [...new Set(applications.map((a) => a.listing_id))];
+    const applicantIds = [...new Set(applications.map((a) => a.applicant_id))];
     const [{ data: listings }, { data: profiles }] = await Promise.all([
       admin.from("asks").select("id,products(name)").in("id", listingIds),
       admin.from("profiles").select("id,display_name").in("id", applicantIds),
     ]);
     const titleById = new Map(
-      (listings ?? []).map((l: any) => [l.id, l.products?.name ?? "Job listing"]),
+      (listings ?? []).map((l) => [l.id, l.products?.name ?? "Job listing"]),
     );
-    const nameById = new Map((profiles ?? []).map((p: any) => [p.id, p.display_name]));
+    const nameById = new Map((profiles ?? []).map((p) => [p.id, p.display_name]));
 
-    return applications.map((application: any) => ({
+    return applications.map((application) => ({
       id: application.id,
       listingId: application.listing_id,
       listingTitle: titleById.get(application.listing_id) ?? "Job listing",
       applicantName: nameById.get(application.applicant_id) ?? "Gem State member",
       coverLetter: application.cover_letter,
-      status: application.status,
+      status: applicationStatus(application.status),
       createdAt: application.created_at,
     }));
   });
@@ -118,7 +131,7 @@ export const updateJobApplicationStatus = createServerFn({ method: "POST" })
     return { applicationId: String(input.applicationId), status: input.status };
   })
   .handler(async ({ data, context }) => {
-    const client = context.supabase as any;
+    const client = context.supabase;
     const { error } = await client.rpc("update_job_application_status", {
       _application_id: data.applicationId,
       _status: data.status,
@@ -136,7 +149,7 @@ export const getJobApplicationResumeUrl = createServerFn({ method: "POST" })
     applicationId: String(input.applicationId),
   }))
   .handler(async ({ data, context }): Promise<{ url: string }> => {
-    const client = context.supabase as any;
+    const client = context.supabase;
     const { data: row, error } = await client
       .from("job_applications")
       .select("resume_path")

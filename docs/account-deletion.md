@@ -1069,3 +1069,56 @@ inquiry removal and retire their member seats before owned listings disappear.
 Authored listings/catalog, job applications, remaining analytics, provider media,
 explicit financial/moderation/consent/audit retention and Apple/manual revocation
 still require their full composition and end-to-end rehearsal before activation.
+
+### Job application cleanup component (source only, November 15)
+
+`20261115030000_account_deletion_job_applications.sql` and
+`account-deletion-applications.server.ts` remove a deleting applicant's own
+application rows and their private resume references in leased pages of at most
+100 physical rows. Before removal, each exact resume reference must be resolved
+and present in the current durable inventory generation, and the applications
+source cursor must be complete. Discovery is not authorization or proof of
+provider-byte erasure; the full media phase must precede records cleanup.
+Unresolved locations, missing observations and stale generations stop removal.
+The inventory ledger survives row removal without copying cover letters.
+
+Employer deletion instead unlinks applications from their owned listings and
+sets `unavailable_at`. The surviving applicant's original identity, letter,
+resume path, status and timestamps remain unchanged. Ordinary listing deletion
+uses the same closed-link behavior through an explicit nullable foreign key;
+it cannot cascade someone else's private application away. The applicant Auth
+foreign key restricts an unsafe identity-delete shortcut. Retired applications
+cannot reopen or move to another listing. Captured applicant-read policies
+continue to allow the surviving person to read only their own retained record.
+The employer inbox now explicitly joins existing listings owned by its caller,
+because RLS also permits an applicant to read their own submissions; that
+permission alone does not make them an employer. Missing listing ids never
+reach the inbox's privileged listing/profile lookups.
+
+New applications and ordinary edits serialize with both applicant and employer
+deletion requests. Cleanup locks listing parents before unlinking their children,
+rechecks ownership and its live lease, and rolls back if a lease expires while
+waiting. A component pass cannot finish the records phase or delete Auth.
+Independent verification requires the matching verification lease, absent Auth,
+no authored applications and no application links to still-owned listings.
+Runtime contracts pin columns/defaults, incoming relationships, hooks, indexes,
+policies and helper definitions; unsupported changes stop cleanup.
+
+Disposable fixtures rebuild the captured listing, detail, media and application
+columns/constraints and actual trigger/function bodies, with synthetic supporting
+financial/catalog/business payloads and role assignments. The real account
+boundary installer creates the member-function proof registry; copying an
+already-wrapped function without its proof is insufficient. Focused tests cover
+bounded removal and unlinking, lost acknowledgements through the real Supabase
+client, durable resume discovery, actual submit/resubmit/status functions,
+retired-record access, inbox scope, permissions, drift and unsafe Auth shortcuts.
+Separate PostgreSQL connections verify request/write ordering and lease expiry.
+This does not establish provider erasure or a signed-in physical-device journey.
+
+**Installation hold:** this remains stacked on the source-only inquiry,
+conversation and profile components. No production migration or account erasure
+has occurred, and the worker is not activated. Full owned listing/catalog/media
+cleanup, remaining analytics, explicit financial/moderation/consent/audit
+retention and identity/revocation composition remain required. This component
+closes the application-cascade dependency; it does not close the overall store
+deletion requirement.
