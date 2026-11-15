@@ -240,7 +240,7 @@ export function PersonalizedShopping() {
                   position: index,
                   model: result.data.model,
                   source: "recommendation",
-                  ...((card.shoppingFeatures as Record<string, number>) ?? {}),
+                  ...((card.shoppingFeatures as Record<string, number | string>) ?? {}),
                 }}
               />
             )}

@@ -26,6 +26,8 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Verify deletion and listing transactions with isolated PostgreSQL connections
         run: BLUEBIRD_DELETION_PG=1 node --experimental-strip-types --test tests/account-deletion-concurrency.test.mjs tests/mobile-listing-management-concurrency.test.mjs tests/mobile-listing-production-concurrency.test.mjs
+      - name: Verify reviewed ranking transactions with isolated PostgreSQL connections
+        run: BLUEBIRD_RANKING_PG=1 node --experimental-strip-types --test tests/shopping-ranking-concurrency.test.mjs
       - run: npm run test:payments
       - run: npx tsc --noEmit
       - run: npm run build
@@ -42,6 +44,8 @@ jobs:
         run: npm run test:mobile:runtime:ui
         env:
           BLUEBIRD_SKIP_RUNTIME_SCREENSHOTS: "true"
+      - name: Verify reviewed ranking controls and unavailable states
+        run: node scripts/shopping-ranking-review-ui-smoke.mjs
       - name: Verify native shopper privacy and recommendation screens
         run: npm run test:mobile:shopping:ui
       - name: Verify overlapping public startup reads and session restoration

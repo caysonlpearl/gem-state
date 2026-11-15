@@ -191,11 +191,12 @@ function dto(card: any): MobileListing {
       Object.entries(card.shoppingFeatures ?? {})
         .filter(
           ([key, value]) =>
-            /^rank_(visual|budget|location|freshness)$/.test(key) &&
-            typeof value === "number" &&
-            Number.isFinite(value),
+            (/^rank_(visual|budget|location|freshness|engagement|intent)$/.test(key) &&
+              typeof value === "number" &&
+              Number.isFinite(value)) ||
+            (key === "rank_batch" && typeof value === "string" && /^[0-9a-f-]{36}$/.test(value)),
         )
-        .map(([key, value]) => [key, value as number]),
+        .map(([key, value]) => [key, value as number | string]),
     ),
     available: !card.ended && (!card.expiresAt || Date.parse(card.expiresAt) > Date.now()),
     canSave:

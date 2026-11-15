@@ -2,7 +2,9 @@ import { PGlite } from "@electric-sql/pglite";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 export async function shoppingDatabaseFixture() {
-  const db = new PGlite();
+  return installShoppingDatabase(new PGlite());
+}
+export async function installShoppingDatabase(db) {
   await db.exec(`create role anon;create role authenticated;create role service_role;create schema auth;create schema extensions;
  create table auth.users(id uuid primary key,raw_user_meta_data jsonb default '{}');
  create table products(id uuid primary key,status text);

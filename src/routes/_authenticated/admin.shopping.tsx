@@ -1,7 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getShoppingReport, setShoppingControl } from "@/lib/shopping-admin.functions";
+import {
+  getShoppingReport,
+  setShoppingControl,
+  reviewShoppingRanking,
+} from "@/lib/shopping-admin.functions";
+import {
+  ShoppingRankingReview,
+  type ShoppingRankingEvaluation,
+} from "@/components/admin/ShoppingRankingReview";
 export const Route = createFileRoute("/_authenticated/admin/shopping")({
   head: () => ({
     meta: [
@@ -14,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/admin/shopping")({
 function ShoppingReport() {
   const load = useServerFn(getShoppingReport),
     save = useServerFn(setShoppingControl),
+    review = useServerFn(reviewShoppingRanking),
     cache = useQueryClient();
   const query = useQuery({
     queryKey: ["shopping-report"],
@@ -31,6 +40,10 @@ function ShoppingReport() {
         | "learning";
       enabled: boolean;
     }) => save({ data }),
+    onSuccess: () => cache.invalidateQueries({ queryKey: ["shopping-report"] }),
+  });
+  const promotion = useMutation({
+    mutationFn: (data: { week: string; expectedVersion: string }) => review({ data }),
     onSuccess: () => cache.invalidateQueries({ queryKey: ["shopping-report"] }),
   });
   const r = query.data;
@@ -53,7 +66,7 @@ function ShoppingReport() {
               [
                 ["tracking", "Activity collection"],
                 ["embeddings", "Listing embedding jobs"],
-                ["learning", "Weekly ranking updates"],
+                ["learning", "Weekly ranking evaluation"],
                 ["recommendations", "Recommendations"],
                 ["notifications", "Shopping delivery"],
                 ["advertising", "Advertising adapters"],
@@ -131,12 +144,31 @@ function ShoppingReport() {
           </section>
           <section className="rounded-2xl border p-5">
             <h2 className="font-semibold">Weekly ranking evaluations</h2>
+            <p className="mt-2 mb-3 text-sm text-muted-foreground">
+              Candidates never replace the active model automatically. Apply only after reviewing
+              sufficient evidence.
+            </p>
+            {promotion.error && (
+              <p role="alert" className="my-3 text-sm">
+                {promotion.error.message}
+              </p>
+            )}
+            {promotion.isSuccess && (
+              <p role="status" className="my-3 text-sm">
+                Reviewed challenger applied.
+              </p>
+            )}
             {r.evaluations.length ? (
-              r.evaluations.map((e: { week: string; outcomes: number; promoted: boolean }) => (
-                <p key={e.week} className="mt-2 text-sm">
-                  {e.week}: {e.outcomes} shoppers with verified outcomes ·{" "}
-                  {e.promoted ? "challenger promoted" : "baseline retained"}
-                </p>
+              r.evaluations.map((e: ShoppingRankingEvaluation) => (
+                <ShoppingRankingReview
+                  key={`${e.week}:${r.controls.model_version}`}
+                  evaluation={e}
+                  activeVersion={r.controls.model_version}
+                  ready={r.rankingReviewReady}
+                  learning={r.controls.learning}
+                  pending={promotion.isPending}
+                  onApply={(data) => promotion.mutate(data)}
+                />
               ))
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">

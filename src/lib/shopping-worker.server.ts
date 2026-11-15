@@ -445,30 +445,17 @@ async function evaluateWeeklyRanking(db: any) {
   if (prior.data) return;
   const rows = await db.rpc("shopping_training_rows");
   if (rows.error) throw Error("Ranking observations unavailable.");
-  const { evaluateShoppingRanking, BASELINE_WEIGHTS } = await import("./shopping-learning");
+  const { evaluateShoppingRanking, rankingObservations } = await import("./shopping-learning");
   const controls = await shoppingControls(db);
-  const observations = (rows.data ?? []).map((r: any) => ({
-    subject: r.subject,
-    session: r.session,
-    listing: r.listing,
-    contact: r.contact,
-    features: ["rank_visual", "rank_budget", "rank_location", "rank_freshness"].map((k) =>
-      Math.max(0, Math.min(1, Number(r.context[k]) || 0)),
-    ),
-  }));
-  const evaluation = evaluateShoppingRanking(
-    observations,
-    controls.model?.weights ?? BASELINE_WEIGHTS,
-  );
-  const saved = await db.from("shopping_model_evaluations").insert({ week, ...evaluation });
-  if (saved.error) throw Error("Ranking evaluation could not be saved.");
-  if (evaluation.promoted)
-    await db
-      .from("shopping_controls")
-      .update({
-        model_version: `learned-${week}`,
-        model: { ...controls.model, weights: evaluation.challenger.weights },
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", true);
+  if (!controls.learning) return;
+  const observations = rankingObservations(rows.data ?? [], controls.model_version);
+  const evaluation = evaluateShoppingRanking(observations, controls.model?.weights);
+  const saved = await db.from("shopping_model_evaluations").insert({
+    week,
+    ...evaluation,
+    baseline: { ...evaluation.baseline, modelVersion: controls.model_version },
+  });
+  // A concurrent worker may already have recorded this week's candidate.
+  if (saved.error && saved.error.code !== "23505")
+    throw Error("Ranking evaluation could not be saved.");
 }

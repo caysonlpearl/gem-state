@@ -4,6 +4,9 @@ import { matchesLandingCard } from "./landing-card-pool.ts";
 import type { ListingCardSummary } from "./listing-card-summary";
 /** Public listing facts and private shopping intent only; never payment or message bodies. */
 export const SHOPPING_POLICY_VERSION = "2026-11-12";
+export const SHOPPING_RANKING_SCHEMA = "engagement-v1";
+export const shoppingRankingVersion = (version: string) =>
+  `${version}:category-seeds-v1:${SHOPPING_RANKING_SCHEMA}`;
 export const SHOPPING_MODEL = "siglip2-base-patch16-224-v1";
 export const SHOPPING_WEIGHTS = {
   purchase: 20,
@@ -128,6 +131,9 @@ const contextKeys = new Set([
   "rank_budget",
   "rank_location",
   "rank_freshness",
+  "rank_engagement",
+  "rank_intent",
+  "rank_batch",
   "placement",
   "position",
   "model",
@@ -167,6 +173,10 @@ export function shoppingFields(
   const output: Record<string, string | number | boolean> = {};
   for (const [key, value] of Object.entries(input)) {
     if (!(context ? contextKeys : searchKeys).has(key)) continue;
+    if (context && key === "rank_batch") {
+      if (typeof value === "string" && uuid.test(value)) output[key] = value;
+      continue;
+    }
     if (typeof value === "number" && Number.isFinite(value))
       output[key] = Math.max(-1e10, Math.min(1e10, value));
     else if (typeof value === "boolean" && context) output[key] = value;
@@ -268,6 +278,57 @@ export function interests(events: ShoppingEvent[], now = Date.now()): Map<string
   }
   return result;
 }
+/** Existing foreground events only. A view must precede engagement in the same
+ * session/listing. Per-session caps and distinct photos bound noisy/replayed input. */
+export function shoppingEngagement(events: ShoppingEvent[], now = Date.now()): Map<string, number> {
+  const sessions = new Map<
+    string,
+    { listing: string; seconds: number; photos: Set<number>; lastAt: number }
+  >();
+  const seen = new Set<string>();
+  for (const event of [...events].sort((a, b) => Date.parse(a.at ?? "") - Date.parse(b.at ?? ""))) {
+    const at = Date.parse(event.at ?? "");
+    if (
+      !event.listingId ||
+      !event.session ||
+      seen.has(event.id) ||
+      !Number.isFinite(at) ||
+      at > now ||
+      now - at > 30 * 86400000
+    )
+      continue;
+    seen.add(event.id);
+    const key = JSON.stringify([event.listingId, event.session]);
+    if (event.kind === "view" && !sessions.has(key)) {
+      sessions.set(key, { listing: event.listingId, seconds: 0, photos: new Set(), lastAt: at });
+      continue;
+    }
+    const session = sessions.get(key);
+    if (!session) continue;
+    if (event.kind === "active") {
+      const seconds = event.context?.seconds;
+      if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) continue;
+      session.seconds = Math.min(300, session.seconds + Math.min(300, seconds));
+      session.lastAt = at;
+    } else if (event.kind === "photo") {
+      const photo = event.context?.photo;
+      if (typeof photo !== "number" || !Number.isSafeInteger(photo) || photo <= 0 || photo > 100)
+        continue;
+      if (session.photos.size >= 8 || session.photos.has(photo)) continue;
+      session.photos.add(photo);
+      session.lastAt = at;
+    }
+  }
+  const result = new Map<string, number>();
+  for (const session of sessions.values()) {
+    const value =
+      ((session.seconds / 300 + session.photos.size / 8) / 2) *
+      2 ** (-(now - session.lastAt) / (14 * 86400000));
+    // Strongest bounded session, not a reward for manufacturing more sessions.
+    result.set(session.listing, Math.max(result.get(session.listing) ?? 0, value));
+  }
+  return result;
+}
 export function reminderStep(interest: Interest, now = Date.now()): number | null {
   if (
     interest.dismissed ||
@@ -331,7 +392,13 @@ export function rankShopping(
   activity: ShoppingEvent[],
   vectors: Map<string, number[]> = new Map(),
   now = Date.now(),
-  weights = { visual: 3, budget: 1, location: 0.5, freshness: 1 },
+  weights: {
+    visual: number;
+    budget: number;
+    location: number;
+    freshness: number;
+    engagement?: number;
+  } = { visual: 3, budget: 1, location: 0.5, freshness: 1 },
   similarities = new Map<string, number>(),
 ) {
   const profile = interests(activity, now);
@@ -340,11 +407,28 @@ export function rankShopping(
   const searches = activity.filter(
     (e) => e.kind === "search" && now - Date.parse(e.at ?? "") < 30 * 86400000,
   );
+  const engagement = shoppingEngagement(activity, now);
+  const batch = crypto.randomUUID();
+  // One common divisor across the response preserves score differences, including
+  // category/search intent. Recorded features reconstruct the actual ranking.
+  const scale = Math.max(
+    1,
+    seeds.reduce((sum, seed) => sum + seed.score, 0) +
+      searches.reduce(
+        (sum, search) =>
+          sum +
+          SHOPPING_WEIGHTS.search *
+            2 ** (-Math.max(0, now - Date.parse(search.at!)) / (14 * 86400000)),
+        0,
+      ) +
+      1,
+  );
   return cards
     .filter((c) => !profile.get(c.id)?.dismissed && !profile.get(c.id)?.purchased)
     .map((card) => {
       let score = 0,
-        total = 0,
+        intent = 0,
+        attention = 0,
         visual = 0,
         budget = 0,
         location = 0;
@@ -363,7 +447,9 @@ export function rankShopping(
         const similar =
           similarities.get(`${reference.id}:${card.id}`) ??
           cosine(vectors.get(reference.id) ?? [], vectors.get(card.id) ?? []);
-        total += seed.score;
+        intent += seed.score;
+        const affinity = (ratio + Math.max(0, Math.min(1, similar))) / 2;
+        attention += (engagement.get(seed.listingId) ?? 0) * affinity * seed.score;
         visual += Math.max(0, similar) * seed.score;
         budget += ratio * seed.score;
         location += (reference.city && reference.city === card.city ? 1 : 0) * seed.score;
@@ -375,19 +461,28 @@ export function rankShopping(
             Math.max(0, similar) * weights.visual);
       }
       for (const search of searches)
-        if (matchesShoppingSearch(card, search.search ?? {}))
-          score +=
+        if (matchesShoppingSearch(card, search.search ?? {})) {
+          const points =
             SHOPPING_WEIGHTS.search * 2 ** (-(now - Date.parse(search.at!)) / (14 * 86400000));
-      score +=
-        weights.freshness * Math.max(0, 1 - (now - Date.parse(card.createdAt)) / (30 * 86400000));
+          score += points;
+          intent += points;
+        }
+      const freshness = Math.max(
+        0,
+        Math.min(1, 1 - (now - Date.parse(card.createdAt)) / (30 * 86400000)),
+      );
+      score += weights.freshness * freshness + (weights.engagement ?? 0) * attention;
       return {
         card,
         score,
         features: {
-          rank_visual: visual / Math.max(1, total),
-          rank_budget: budget / Math.max(1, total),
-          rank_location: location / Math.max(1, total),
-          rank_freshness: Math.max(0, 1 - (now - Date.parse(card.createdAt)) / (30 * 86400000)),
+          rank_visual: visual / scale,
+          rank_budget: budget / scale,
+          rank_location: location / scale,
+          rank_freshness: freshness / scale,
+          rank_engagement: attention / scale,
+          rank_intent: intent / scale,
+          rank_batch: batch,
         },
         reason: "Based on your shopping activity",
       };
