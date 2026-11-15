@@ -7,7 +7,7 @@ DO $$ DECLARE expected_columns jsonb:=$columns${"product_suggestion_media":{"id"
  sources text[]:=ARRAY['product_suggestions','product_suggestion_media','seller_listing_requests'];target text;actual jsonb;
 BEGIN
  PERFORM 1 FROM public.account_deletion_controls WHERE id AND NOT worker_enabled FOR SHARE;
- IF NOT FOUND OR NOT public.account_deletion_catalog_barrier_current()OR NOT public.account_deletion_listing_barrier_current()
+ IF NOT FOUND OR NOT public.account_deletion_private_barrier_current()OR NOT public.account_deletion_catalog_barrier_current()OR NOT public.account_deletion_listing_barrier_current()
  OR public.account_access_coverage()IS DISTINCT FROM jsonb_build_object('unguarded_functions',0,'unguarded_tables',0,'helper_privilege_gaps',0)THEN RAISE EXCEPTION 'Review disabled submission prerequisites';END IF;
  FOREACH target IN ARRAY sources LOOP
   EXECUTE format('LOCK TABLE public.%I IN SHARE ROW EXCLUSIVE MODE',target);
