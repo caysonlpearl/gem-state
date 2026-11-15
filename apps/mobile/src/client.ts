@@ -21,6 +21,8 @@ export type Bootstrap = {
     accountOverview?: boolean;
     accountSaved?: boolean;
     accountReviews?: boolean;
+    accountListings?: boolean;
+    listingManagement?: boolean;
     fullSearch?: boolean;
     notificationCenter?: boolean;
     listingDetails?: boolean;

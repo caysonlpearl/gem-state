@@ -1,0 +1,2718 @@
+{
+  "capturedAt": "2026-11-14",
+  "scope": "Schema and function definitions only; no member records. Exact affected domain definitions, synthetic account/supporting state. Not a full production clone.",
+  "rows": [
+    {
+      "kind": "constraints",
+      "name": "ask_events",
+      "definition": [
+        "FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL",
+        "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE",
+        "PRIMARY KEY (id)"
+      ]
+    },
+    {
+      "kind": "constraints",
+      "name": "ask_media",
+      "definition": [
+        "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE",
+        "CHECK (((caption IS NULL) OR (length(caption) <= 200)))",
+        "PRIMARY KEY (id)"
+      ]
+    },
+    {
+      "kind": "constraints",
+      "name": "asks",
+      "definition": [
+        "FOREIGN KEY (acquired_location_id) REFERENCES locations(id) ON DELETE SET NULL",
+        "FOREIGN KEY (dealer_id) REFERENCES dealer_profiles(id) ON DELETE SET NULL",
+        "FOREIGN KEY (matched_order_id) REFERENCES orders(id) ON DELETE SET NULL",
+        "CHECK ((((parcel_length_in IS NULL) AND (parcel_width_in IS NULL) AND (parcel_height_in IS NULL) AND (parcel_weight_lb IS NULL)) OR ((parcel_length_in > (0)::numeric) AND (parcel_width_in > (0)::numeric) AND (parcel_height_in > (0)::numeric) AND (parcel_weight_lb > (0)::numeric))))",
+        "PRIMARY KEY (id)",
+        "CHECK (((price_cents >= 0) AND (price_cents <= 1000000000)))",
+        "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE",
+        "FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+        "CHECK (((seller_note IS NULL) OR (length(seller_note) <= 500)))",
+        "CHECK (((ship_by_days >= 1) AND (ship_by_days <= 7)))",
+        "CHECK (((in_hand AND (fulfillment_window_days IS NULL)) OR ((NOT in_hand) AND ((fulfillment_window_days >= 1) AND (fulfillment_window_days <= 60)))))",
+        "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "kind": "constraints",
+      "name": "categories",
+      "definition": [
+        "PRIMARY KEY (id)",
+        "UNIQUE (slug)"
+      ]
+    },
+    {
+      "kind": "constraints",
+      "name": "classified_listing_details",
+      "definition": [
+        "CHECK (((char_length(btrim(city)) >= 2) AND (char_length(btrim(city)) <= 80)))",
+        "CHECK ((fulfillment_mode = ANY (ARRAY['local_pickup'::text, 'shipping'::text, 'both'::text])))",
+        "CHECK (((home_acres IS NULL) OR ((home_acres >= (0)::numeric) AND (home_acres <= (100000)::numeric))))",
+        "CHECK (((home_bathrooms IS NULL) OR ((home_bathrooms >= (0)::numeric) AND (home_bathrooms <= (20)::numeric))))",
+        "CHECK (((home_bedrooms IS NULL) OR ((home_bedrooms >= (0)::numeric) AND (home_bedrooms <= (20)::numeric))))",
+        "CHECK (((home_mode IS NULL) OR (home_mode = ANY (ARRAY['rent'::text, 'buy'::text, 'build'::text]))))",
+        "CHECK (((home_square_feet IS NULL) OR ((home_square_feet >= 0) AND (home_square_feet <= 50000))))",
+        "CHECK (((home_year_built IS NULL) OR ((home_year_built >= 1800) AND (home_year_built <= 2100))))",
+        "CHECK ((jsonb_typeof(item_details) = 'object'::text))",
+        "CHECK ((job_application_method = ANY (ARRAY['gemlist'::text, 'external'::text])))",
+        "CHECK (((job_category IS NULL) OR ((char_length(btrim(job_category)) >= 2) AND (char_length(btrim(job_category)) <= 80))))",
+        "CHECK (((job_employment_type IS NULL) OR (job_employment_type = ANY (ARRAY['Full-time'::text, 'Part-time'::text, 'Seasonal'::text, 'Contract'::text, 'Temporary'::text]))))",
+        "CHECK (((job_pay_max IS NULL) OR (job_pay_max >= (0)::numeric)))",
+        "CHECK (((job_pay_min IS NULL) OR (job_pay_min >= (0)::numeric)))",
+        "CHECK (((job_pay_type IS NULL) OR (job_pay_type = ANY (ARRAY['Hourly'::text, 'Salary'::text, 'Commission'::text, 'Contract'::text]))))",
+        "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE",
+        "CHECK (((pet_offered_by IS NULL) OR (pet_offered_by = ANY (ARRAY['Owner'::text, 'Breeder'::text, 'Rescue'::text, 'Shelter'::text, 'Foster'::text, 'Business'::text]))))",
+        "CHECK (((pet_placement_type IS NULL) OR (pet_placement_type = ANY (ARRAY['sale'::text, 'adoption'::text, 'rehoming'::text, 'free'::text, 'stud_breeding'::text, 'lost_found'::text, 'wanted'::text]))))",
+        "CHECK (((pet_sex IS NULL) OR (pet_sex = ANY (ARRAY['Male'::text, 'Female'::text, 'Unknown / not disclosed'::text]))))",
+        "PRIMARY KEY (listing_id)",
+        "CHECK (((postal_code IS NULL) OR (postal_code ~ '^[0-9]{5}$'::text)))",
+        "CHECK (((char_length(btrim(region)) >= 2) AND (char_length(btrim(region)) <= 80)))",
+        "CHECK (((service_price_max_cents IS NULL) OR (service_price_max_cents >= 0)))",
+        "CHECK (((service_pricing_type IS NULL) OR (service_pricing_type = ANY (ARRAY['quote'::text, 'flat'::text, 'visit'::text, 'hour'::text]))))",
+        "CHECK ((state ~ '^[A-Z]{2}$'::text))",
+        "CHECK (((vehicle_mileage IS NULL) OR ((vehicle_mileage >= 0) AND (vehicle_mileage <= 2000000))))",
+        "CHECK (((vehicle_year IS NULL) OR ((vehicle_year >= 1900) AND (vehicle_year <= 2100))))",
+        "CHECK (((vin IS NULL) OR (vin ~ '^[A-HJ-NPR-Z0-9]{17}$'::text)))"
+      ]
+    },
+    {
+      "kind": "constraints",
+      "name": "fb_marketplace_import_items",
+      "definition": [
+        "FOREIGN KEY (batch_id) REFERENCES fb_marketplace_import_batches(id) ON DELETE CASCADE",
+        "CHECK ((fulfillment_mode = ANY (ARRAY['local_pickup'::text, 'shipping'::text, 'both'::text])))",
+        "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE SET NULL",
+        "PRIMARY KEY (id)",
+        "CHECK ((price_cents >= 0))",
+        "CHECK ((removed_reason = ANY (ARRAY['sold'::text, 'unavailable'::text, 'missing'::text])))",
+        "FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+        "UNIQUE (source_profile_url, source_url)",
+        "CHECK ((status = ANY (ARRAY['draft'::text, 'needs_update'::text, 'possibly_removed'::text, 'published'::text, 'discarded'::text])))",
+        "CHECK ((jsonb_typeof(item_details) = 'object'::text))"
+      ]
+    },
+    {
+      "kind": "constraints",
+      "name": "listing_media",
+      "definition": [
+        "CHECK (((alt_text IS NULL) OR (length(alt_text) <= 180)))",
+        "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE CASCADE",
+        "PRIMARY KEY (id)",
+        "UNIQUE (storage_path)"
+      ]
+    },
+    {
+      "kind": "constraints",
+      "name": "mobile_message_receipts",
+      "definition": [
+        "PRIMARY KEY (user_id, request_id)",
+        "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      ]
+    },
+    {
+      "kind": "constraints",
+      "name": "product_variants",
+      "definition": [
+        "PRIMARY KEY (id)",
+        "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE",
+        "UNIQUE (product_id, variation_key)"
+      ]
+    },
+    {
+      "kind": "constraints",
+      "name": "products",
+      "definition": [
+        "FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL",
+        "FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL",
+        "FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE SET NULL",
+        "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL",
+        "PRIMARY KEY (id)",
+        "CHECK (((retail_price_cents IS NULL) OR (retail_price_cents >= 0)))",
+        "UNIQUE (slug)"
+      ]
+    },
+    {
+      "kind": "enum",
+      "name": "item_condition",
+      "definition": [
+        "new_with_tags",
+        "new_without_tags",
+        "used_excellent",
+        "used_good",
+        "not_applicable"
+      ]
+    },
+    {
+      "kind": "enum",
+      "name": "listing_event_type",
+      "definition": [
+        "created",
+        "price_changed",
+        "cancelled",
+        "expired",
+        "matched",
+        "released",
+        "evidence_added"
+      ]
+    },
+    {
+      "kind": "enum",
+      "name": "listing_status",
+      "definition": [
+        "active",
+        "matched",
+        "cancelled",
+        "expired"
+      ]
+    },
+    {
+      "kind": "enum",
+      "name": "product_status",
+      "definition": [
+        "draft",
+        "pending_review",
+        "published",
+        "rejected",
+        "archived"
+      ]
+    },
+    {
+      "kind": "enum",
+      "name": "release_type",
+      "definition": [
+        "open_edition",
+        "limited_edition",
+        "seasonal",
+        "event_exclusive",
+        "annual_passholder",
+        "unknown",
+        "limited_release"
+      ]
+    },
+    {
+      "kind": "function",
+      "name": "_apply_classified_category_details(uuid,jsonb,jsonb,jsonb)",
+      "definition": {
+        "body_md5": "5c828c65bc7efa360a626d3727756844",
+        "definition": "CREATE OR REPLACE FUNCTION public._apply_classified_category_details(_listing_id uuid, _home jsonb DEFAULT '{}'::jsonb, _job jsonb DEFAULT '{}'::jsonb, _service jsonb DEFAULT '{}'::jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  home_bedrooms_value numeric;\n  home_bathrooms_value numeric;\n  home_square_feet_value integer;\n  home_year_built_value smallint;\n  home_acres_value numeric;\n  job_pay_min_value numeric;\n  job_pay_max_value numeric;\n  service_price_max_value integer;\nBEGIN\n  BEGIN\n    home_bedrooms_value := nullif(_home->>'bedrooms', '')::numeric;\n    home_bathrooms_value := nullif(_home->>'bathrooms', '')::numeric;\n    home_square_feet_value := nullif(_home->>'squareFeet', '')::integer;\n    home_year_built_value := nullif(_home->>'yearBuilt', '')::smallint;\n    home_acres_value := NULLIF(regexp_replace(_home->>'acreage', '[^0-9.]', '', 'g'), '')::numeric;\n    job_pay_min_value := nullif(_job->>'payMin', '')::numeric;\n    job_pay_max_value := nullif(_job->>'payMax', '')::numeric;\n    service_price_max_value := nullif(_service->>'priceMaxCents', '')::integer;\n  EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n    RAISE EXCEPTION 'Home, job, or service numeric fields must be valid numbers';\n  END;\n\n  UPDATE public.classified_listing_details\n  SET\n    home_mode = nullif(btrim(_home->>'mode'), ''),\n    home_property_type = nullif(btrim(_home->>'propertyType'), ''),\n    home_bedrooms = home_bedrooms_value,\n    home_bathrooms = home_bathrooms_value,\n    home_square_feet = home_square_feet_value,\n    home_year_built = home_year_built_value,\n    home_acreage = nullif(btrim(_home->>'acreage'), ''),\n    home_acres = home_acres_value,\n    home_heating = nullif(btrim(_home->>'heating'), ''),\n    home_cooling = nullif(btrim(_home->>'cooling'), ''),\n    home_garage_parking = nullif(btrim(_home->>'garageParking'), ''),\n    home_yard = nullif(btrim(_home->>'yard'), ''),\n    home_appliances_included = nullif(btrim(_home->>'appliancesIncluded'), ''),\n    home_floor_coverings = nullif(btrim(_home->>'floorCoverings'), ''),\n    home_basement_type = nullif(btrim(_home->>'basementType'), ''),\n    home_exterior_material = nullif(btrim(_home->>'exteriorMaterial'), ''),\n    home_special_features = nullif(btrim(_home->>'specialFeatures'), ''),\n    home_hoa_fees = nullif(btrim(_home->>'hoaFees'), ''),\n    home_school_district = nullif(btrim(_home->>'schoolDistrict'), ''),\n    home_lease_length = nullif(btrim(_home->>'leaseLength'), ''),\n    home_available = nullif(btrim(_home->>'available'), ''),\n    home_pets_policy = nullif(btrim(_home->>'pets'), ''),\n    home_smoking_policy = nullif(btrim(_home->>'smoking'), ''),\n    home_open_house = nullif(btrim(_home->>'openHouse'), ''),\n    job_category = nullif(btrim(_job->>'category'), ''),\n    job_employer_name = nullif(btrim(_job->>'employerName'), ''),\n    job_employer_address = nullif(btrim(_job->>'employerAddress'), ''),\n    job_pay_type = nullif(btrim(_job->>'payType'), ''),\n    job_pay_min = job_pay_min_value,\n    job_pay_max = job_pay_max_value,\n    job_employment_type = nullif(btrim(_job->>'employmentType'), ''),\n    job_experience_required = nullif(btrim(_job->>'experienceRequired'), ''),\n    job_education_level = nullif(btrim(_job->>'educationLevel'), ''),\n    job_responsibilities = CASE WHEN jsonb_typeof(_job->'responsibilities') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_job->'responsibilities') AS value)\n      ELSE NULL END,\n    job_qualifications = CASE WHEN jsonb_typeof(_job->'qualifications') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_job->'qualifications') AS value)\n      ELSE NULL END,\n    service_subcategory = nullif(btrim(_service->>'subcategory'), ''),\n    service_area = nullif(btrim(_service->>'serviceArea'), ''),\n    service_availability = nullif(btrim(_service->>'availability'), ''),\n    service_business_address = nullif(btrim(_service->>'businessAddress'), ''),\n    service_license_number = nullif(btrim(_service->>'licenseNumber'), ''),\n    service_license_lookup_url = nullif(btrim(_service->>'licenseLookupUrl'), ''),\n    service_offerings = CASE WHEN jsonb_typeof(_service->'offerings') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_service->'offerings') AS value)\n      ELSE NULL END,\n    service_pricing_type = nullif(btrim(_service->>'pricingType'), ''),\n    service_price_max_cents = service_price_max_value\n  WHERE listing_id = _listing_id;\nEND;\nEND;$function$\n",
+        "anon_execute": false,
+        "member_execute": false,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public._apply_classified_category_details(_listing_id uuid, _home jsonb DEFAULT '{}'::jsonb, _job jsonb DEFAULT '{}'::jsonb, _service jsonb DEFAULT '{}'::jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE\n  home_bedrooms_value numeric;\n  home_bathrooms_value numeric;\n  home_square_feet_value integer;\n  home_year_built_value smallint;\n  home_acres_value numeric;\n  job_pay_min_value numeric;\n  job_pay_max_value numeric;\n  service_price_max_value integer;\nBEGIN\n  BEGIN\n    home_bedrooms_value := nullif(_home->>'bedrooms', '')::numeric;\n    home_bathrooms_value := nullif(_home->>'bathrooms', '')::numeric;\n    home_square_feet_value := nullif(_home->>'squareFeet', '')::integer;\n    home_year_built_value := nullif(_home->>'yearBuilt', '')::smallint;\n    home_acres_value := NULLIF(regexp_replace(_home->>'acreage', '[^0-9.]', '', 'g'), '')::numeric;\n    job_pay_min_value := nullif(_job->>'payMin', '')::numeric;\n    job_pay_max_value := nullif(_job->>'payMax', '')::numeric;\n    service_price_max_value := nullif(_service->>'priceMaxCents', '')::integer;\n  EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n    RAISE EXCEPTION 'Home, job, or service numeric fields must be valid numbers';\n  END;\n\n  UPDATE public.classified_listing_details\n  SET\n    home_mode = nullif(btrim(_home->>'mode'), ''),\n    home_property_type = nullif(btrim(_home->>'propertyType'), ''),\n    home_bedrooms = home_bedrooms_value,\n    home_bathrooms = home_bathrooms_value,\n    home_square_feet = home_square_feet_value,\n    home_year_built = home_year_built_value,\n    home_acreage = nullif(btrim(_home->>'acreage'), ''),\n    home_acres = home_acres_value,\n    home_heating = nullif(btrim(_home->>'heating'), ''),\n    home_cooling = nullif(btrim(_home->>'cooling'), ''),\n    home_garage_parking = nullif(btrim(_home->>'garageParking'), ''),\n    home_yard = nullif(btrim(_home->>'yard'), ''),\n    home_appliances_included = nullif(btrim(_home->>'appliancesIncluded'), ''),\n    home_floor_coverings = nullif(btrim(_home->>'floorCoverings'), ''),\n    home_basement_type = nullif(btrim(_home->>'basementType'), ''),\n    home_exterior_material = nullif(btrim(_home->>'exteriorMaterial'), ''),\n    home_special_features = nullif(btrim(_home->>'specialFeatures'), ''),\n    home_hoa_fees = nullif(btrim(_home->>'hoaFees'), ''),\n    home_school_district = nullif(btrim(_home->>'schoolDistrict'), ''),\n    home_lease_length = nullif(btrim(_home->>'leaseLength'), ''),\n    home_available = nullif(btrim(_home->>'available'), ''),\n    home_pets_policy = nullif(btrim(_home->>'pets'), ''),\n    home_smoking_policy = nullif(btrim(_home->>'smoking'), ''),\n    home_open_house = nullif(btrim(_home->>'openHouse'), ''),\n    job_category = nullif(btrim(_job->>'category'), ''),\n    job_employer_name = nullif(btrim(_job->>'employerName'), ''),\n    job_employer_address = nullif(btrim(_job->>'employerAddress'), ''),\n    job_pay_type = nullif(btrim(_job->>'payType'), ''),\n    job_pay_min = job_pay_min_value,\n    job_pay_max = job_pay_max_value,\n    job_employment_type = nullif(btrim(_job->>'employmentType'), ''),\n    job_experience_required = nullif(btrim(_job->>'experienceRequired'), ''),\n    job_education_level = nullif(btrim(_job->>'educationLevel'), ''),\n    job_responsibilities = CASE WHEN jsonb_typeof(_job->'responsibilities') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_job->'responsibilities') AS value)\n      ELSE NULL END,\n    job_qualifications = CASE WHEN jsonb_typeof(_job->'qualifications') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_job->'qualifications') AS value)\n      ELSE NULL END,\n    service_subcategory = nullif(btrim(_service->>'subcategory'), ''),\n    service_area = nullif(btrim(_service->>'serviceArea'), ''),\n    service_availability = nullif(btrim(_service->>'availability'), ''),\n    service_business_address = nullif(btrim(_service->>'businessAddress'), ''),\n    service_license_number = nullif(btrim(_service->>'licenseNumber'), ''),\n    service_license_lookup_url = nullif(btrim(_service->>'licenseLookupUrl'), ''),\n    service_offerings = CASE WHEN jsonb_typeof(_service->'offerings') = 'array'\n      THEN (SELECT array_agg(value) FROM jsonb_array_elements_text(_service->'offerings') AS value)\n      ELSE NULL END,\n    service_pricing_type = nullif(btrim(_service->>'pricingType'), ''),\n    service_price_max_cents = service_price_max_value\n  WHERE listing_id = _listing_id;\nEND;\n$function$\n",
+        "registered_body_md5": "5c828c65bc7efa360a626d3727756844"
+      }
+    },
+    {
+      "kind": "function",
+      "name": "_apply_classified_pet_details(uuid,jsonb)",
+      "definition": {
+        "body_md5": "ad2bc12f4bb71a6777a7d04f7aec958d",
+        "definition": "CREATE OR REPLACE FUNCTION public._apply_classified_pet_details(_listing_id uuid, _pet jsonb DEFAULT '{}'::jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  category_slug text;\nBEGIN\n  SELECT c.slug INTO category_slug\n  FROM public.asks a\n  JOIN public.products p ON p.id = a.product_id\n  JOIN public.categories c ON c.id = p.category_id\n  WHERE a.id = _listing_id;\n\n  IF category_slug = 'pets' AND (\n    nullif(btrim(_pet->>'subcategory'), '') IS NULL\n    OR nullif(btrim(_pet->>'species'), '') IS NULL\n    OR nullif(btrim(_pet->>'placementType'), '') IS NULL\n    OR nullif(btrim(_pet->>'offeredBy'), '') IS NULL\n  ) THEN\n    RAISE EXCEPTION 'Pet subcategory, species, placement type, and offered by are required';\n  END IF;\n\n  UPDATE public.classified_listing_details\n  SET\n    pet_subcategory = nullif(btrim(_pet->>'subcategory'), ''),\n    pet_species = nullif(btrim(_pet->>'species'), ''),\n    pet_breed = nullif(btrim(_pet->>'breed'), ''),\n    pet_name = nullif(btrim(_pet->>'name'), ''),\n    pet_age = nullif(btrim(_pet->>'age'), ''),\n    pet_sex = nullif(btrim(_pet->>'sex'), ''),\n    pet_placement_type = nullif(btrim(_pet->>'placementType'), ''),\n    pet_offered_by = nullif(btrim(_pet->>'offeredBy'), ''),\n    pet_hypoallergenic = nullif(btrim(_pet->>'hypoallergenic'), ''),\n    pet_vaccinated = nullif(btrim(_pet->>'vaccinated'), ''),\n    pet_spayed_neutered = nullif(btrim(_pet->>'spayedNeutered'), ''),\n    pet_microchipped = nullif(btrim(_pet->>'microchipped'), ''),\n    pet_records_available = nullif(btrim(_pet->>'recordsAvailable'), ''),\n    pet_good_with_kids = nullif(btrim(_pet->>'goodWithKids'), ''),\n    pet_good_with_dogs = nullif(btrim(_pet->>'goodWithDogs'), ''),\n    pet_good_with_cats = nullif(btrim(_pet->>'goodWithCats'), ''),\n    pet_indoor_outdoor = nullif(btrim(_pet->>'indoorOutdoor'), ''),\n    pet_special_needs = nullif(btrim(_pet->>'specialNeeds'), ''),\n    pet_breeding_terms = nullif(btrim(_pet->>'breedingTerms'), '')\n  WHERE listing_id = _listing_id;\nEND;\nEND;$function$\n",
+        "anon_execute": false,
+        "member_execute": false,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public._apply_classified_pet_details(_listing_id uuid, _pet jsonb DEFAULT '{}'::jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE\n  category_slug text;\nBEGIN\n  SELECT c.slug INTO category_slug\n  FROM public.asks a\n  JOIN public.products p ON p.id = a.product_id\n  JOIN public.categories c ON c.id = p.category_id\n  WHERE a.id = _listing_id;\n\n  IF category_slug = 'pets' AND (\n    nullif(btrim(_pet->>'subcategory'), '') IS NULL\n    OR nullif(btrim(_pet->>'species'), '') IS NULL\n    OR nullif(btrim(_pet->>'placementType'), '') IS NULL\n    OR nullif(btrim(_pet->>'offeredBy'), '') IS NULL\n  ) THEN\n    RAISE EXCEPTION 'Pet subcategory, species, placement type, and offered by are required';\n  END IF;\n\n  UPDATE public.classified_listing_details\n  SET\n    pet_subcategory = nullif(btrim(_pet->>'subcategory'), ''),\n    pet_species = nullif(btrim(_pet->>'species'), ''),\n    pet_breed = nullif(btrim(_pet->>'breed'), ''),\n    pet_name = nullif(btrim(_pet->>'name'), ''),\n    pet_age = nullif(btrim(_pet->>'age'), ''),\n    pet_sex = nullif(btrim(_pet->>'sex'), ''),\n    pet_placement_type = nullif(btrim(_pet->>'placementType'), ''),\n    pet_offered_by = nullif(btrim(_pet->>'offeredBy'), ''),\n    pet_hypoallergenic = nullif(btrim(_pet->>'hypoallergenic'), ''),\n    pet_vaccinated = nullif(btrim(_pet->>'vaccinated'), ''),\n    pet_spayed_neutered = nullif(btrim(_pet->>'spayedNeutered'), ''),\n    pet_microchipped = nullif(btrim(_pet->>'microchipped'), ''),\n    pet_records_available = nullif(btrim(_pet->>'recordsAvailable'), ''),\n    pet_good_with_kids = nullif(btrim(_pet->>'goodWithKids'), ''),\n    pet_good_with_dogs = nullif(btrim(_pet->>'goodWithDogs'), ''),\n    pet_good_with_cats = nullif(btrim(_pet->>'goodWithCats'), ''),\n    pet_indoor_outdoor = nullif(btrim(_pet->>'indoorOutdoor'), ''),\n    pet_special_needs = nullif(btrim(_pet->>'specialNeeds'), ''),\n    pet_breeding_terms = nullif(btrim(_pet->>'breedingTerms'), '')\n  WHERE listing_id = _listing_id;\nEND;\n$function$\n",
+        "registered_body_md5": "ad2bc12f4bb71a6777a7d04f7aec958d"
+      }
+    },
+    {
+      "kind": "function",
+      "name": "apply_seller_shipping_defaults()",
+      "definition": {
+        "body_md5": "0a7ec94716326131eecfae8f6132e09d",
+        "definition": "CREATE OR REPLACE FUNCTION public.apply_seller_shipping_defaults()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE\n  handling_days smallint;\n  shipping_method text;\nBEGIN\n  IF coalesce(auth.role(),'')='service_role'\n     AND EXISTS(SELECT 1 FROM public.managed_import_sellers WHERE owner_user_id=NEW.seller_id)\n     AND current_setting('parkvault.trusted_operation',true)='on' THEN\n    NEW.ship_by_days:=coalesce(NEW.ship_by_days,7);\n    RETURN NEW;\n  END IF;\n\n  IF NEW.in_hand AND NOT NEW.is_demo THEN\n    SELECT sp.default_handling_days, sp.default_shipping_method\n      INTO handling_days, shipping_method\n      FROM public.seller_profiles sp\n     WHERE sp.user_id = NEW.seller_id AND sp.status = 'active';\n    IF handling_days IS NULL OR shipping_method IS NULL THEN\n      RAISE EXCEPTION 'Choose shipping method and handling time in your seller profile before listing';\n    END IF;\n    NEW.ship_by_days := handling_days;\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "bind_import_seller_owner()",
+      "definition": {
+        "body_md5": "f13aca85fc8cbe484c516fdfe84b5557",
+        "definition": "CREATE OR REPLACE FUNCTION public.bind_import_seller_owner()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE s public.managed_import_sellers; BEGIN\n SELECT * INTO s FROM public.managed_import_sellers WHERE source_profile_url=NEW.source_profile_url FOR UPDATE;\n IF s.id IS NOT NULL THEN\n  IF s.claimed_at IS NULL AND EXISTS(SELECT 1 FROM public.seller_claim_transfers j JOIN public.seller_claim_tokens t ON t.id=j.claim_token_id WHERE t.managed_seller_id=s.id AND j.status='preparing' AND j.lease_until>now()) THEN RAISE EXCEPTION 'Claim in progress; retry importing after it finishes'; END IF;\n  NEW.seller_id:=s.owner_user_id;\n END IF;\n RETURN NEW;\nEND $function$\n",
+        "anon_execute": false,
+        "member_execute": false,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "cancel_ask(uuid)",
+      "definition": {
+        "body_md5": "b6baedc4edd96f3109b2bae79f74f794",
+        "definition": "CREATE OR REPLACE FUNCTION public.cancel_ask(_ask_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE uid uuid := auth.uid(); a record;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  PERFORM set_config('parkvault.trusted_operation', 'on', true);\n  SELECT * INTO a FROM public.asks WHERE id = _ask_id AND seller_id = uid FOR UPDATE;\n  IF a.id IS NULL THEN RAISE EXCEPTION 'Ask not found'; END IF;\n  IF a.status <> 'active' THEN RAISE EXCEPTION 'Only active Asks can be cancelled'; END IF;\n  UPDATE public.asks SET status = 'cancelled' WHERE id = _ask_id;\n  INSERT INTO public.ask_events (ask_id, actor_id, event_type, from_status, to_status)\n  VALUES (_ask_id, uid, 'cancelled', 'active', 'cancelled');\n  PERFORM set_config('parkvault.trusted_operation', 'off', true);\nEND;\nEND;$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public.cancel_ask(_ask_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE uid uuid := auth.uid(); a record;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  PERFORM set_config('parkvault.trusted_operation', 'on', true);\n  SELECT * INTO a FROM public.asks WHERE id = _ask_id AND seller_id = uid FOR UPDATE;\n  IF a.id IS NULL THEN RAISE EXCEPTION 'Ask not found'; END IF;\n  IF a.status <> 'active' THEN RAISE EXCEPTION 'Only active Asks can be cancelled'; END IF;\n  UPDATE public.asks SET status = 'cancelled' WHERE id = _ask_id;\n  INSERT INTO public.ask_events (ask_id, actor_id, event_type, from_status, to_status)\n  VALUES (_ask_id, uid, 'cancelled', 'active', 'cancelled');\n  PERFORM set_config('parkvault.trusted_operation', 'off', true);\nEND;\n$function$\n",
+        "registered_body_md5": "b6baedc4edd96f3109b2bae79f74f794"
+      }
+    },
+    {
+      "kind": "function",
+      "name": "clear_ask_sold_at_on_relist()",
+      "definition": {
+        "body_md5": "4df71e55bf6140a3673cf7a048323a36",
+        "definition": "CREATE OR REPLACE FUNCTION public.clear_ask_sold_at_on_relist()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nBEGIN\n  IF NEW.status = 'active' AND OLD.status IS DISTINCT FROM 'active' THEN\n    NEW.sold_at := NULL;\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": false,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "flag_import_seller_edit()",
+      "definition": {
+        "body_md5": "8c5604dae1b6a79e06b7b0d5ee1397ce",
+        "definition": "CREATE OR REPLACE FUNCTION public.flag_import_seller_edit()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n IF auth.uid() IS NOT NULL THEN\n UPDATE public.fb_marketplace_import_items i SET seller_edited=true\n FROM public.asks a WHERE i.listing_id=a.id AND a.seller_id=auth.uid()\n AND ((TG_TABLE_NAME='asks' AND a.id=(to_jsonb(NEW)->>'id')::uuid) OR (TG_TABLE_NAME='products' AND a.product_id=(to_jsonb(NEW)->>'id')::uuid) OR (TG_TABLE_NAME='classified_listing_details' AND a.id=(to_jsonb(NEW)->>'listing_id')::uuid));\n END IF;\n RETURN NEW;\nEND $function$\n",
+        "anon_execute": false,
+        "member_execute": false,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "guard_archived_import_source()",
+      "definition": {
+        "body_md5": "bb7aba0f4c6c0d25b45e55893de06afb",
+        "definition": "CREATE OR REPLACE FUNCTION public.guard_archived_import_source()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$ BEGIN\n -- Claim transfer may still update only ownership and photo paths on a removed source.\n IF TG_OP='UPDATE' AND TG_TABLE_NAME IN ('fb_marketplace_import_items','fb_marketplace_import_batches') THEN\n   IF (to_jsonb(NEW) - ARRAY['seller_id','evidence_paths','public_paths','updated_at']) IS NOT DISTINCT FROM (to_jsonb(OLD) - ARRAY['seller_id','evidence_paths','public_paths','updated_at']) THEN RETURN NEW; END IF;\n END IF;\n PERFORM pg_advisory_xact_lock(hashtextextended(NEW.source_profile_url,0));\n IF EXISTS(SELECT 1 FROM public.import_source_archives WHERE source_profile_url=NEW.source_profile_url AND archived_at IS NOT NULL)\n THEN RAISE EXCEPTION 'This import was removed. Restore it before importing or refreshing'; END IF;\n RETURN NEW;\nEND $function$\n",
+        "anon_execute": false,
+        "member_execute": false,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "guard_ask_user_updates()",
+      "definition": {
+        "body_md5": "df9dac308d44f1b7b1f8c7981f29166c",
+        "definition": "CREATE OR REPLACE FUNCTION public.guard_ask_user_updates()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  IF public.is_trusted_operation() THEN RETURN NEW; END IF;\n\n  IF auth.uid() IS NULL THEN\n    RAISE EXCEPTION 'Sign in required';\n  END IF;\n  IF auth.uid() <> OLD.seller_id OR auth.uid() <> NEW.seller_id THEN\n    RAISE EXCEPTION 'Only the Ask owner may change this Ask';\n  END IF;\n\n  IF NEW.product_id <> OLD.product_id\n     OR NEW.variant_id <> OLD.variant_id\n     OR NEW.currency <> OLD.currency\n     OR NEW.is_demo <> OLD.is_demo\n     OR NEW.in_hand <> OLD.in_hand\n     OR NEW.evidence_count <> OLD.evidence_count\n     OR COALESCE(NEW.matched_order_id::text, '') <> COALESCE(OLD.matched_order_id::text, '') THEN\n    RAISE EXCEPTION 'This field on an Ask is not member-editable';\n  END IF;\n  IF NEW.status NOT IN ('active', 'cancelled') THEN\n    RAISE EXCEPTION 'Members may only cancel an Ask';\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": false,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "is_trusted_operation()",
+      "definition": {
+        "body_md5": "ddbd108a2b4963f5d1560b6da27e65ae",
+        "definition": "CREATE OR REPLACE FUNCTION public.is_trusted_operation()\n RETURNS boolean\n LANGUAGE sql\n STABLE\n SET search_path TO 'public', 'pg_temp'\nAS $function$\n  SELECT coalesce(current_setting('parkvault.trusted_operation', true) = 'on', false)\n      -- Maintenance/administrative connections. These are NEVER treated as a\n      -- marketplace member: member functions still require auth.uid().\n      OR current_user IN ('postgres', 'supabase_admin', 'service_role');\n$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": false,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "notify_market_interest()",
+      "definition": {
+        "body_md5": "6ca6c922f3a673852433ed09fae151fb",
+        "definition": "CREATE OR REPLACE FUNCTION public.notify_market_interest()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE recipient uuid; product_name text;\nBEGIN\n  IF NEW.is_demo OR NEW.status <> 'active' THEN RETURN NEW; END IF;\n  IF TG_TABLE_NAME = 'asks' AND NEW.approved_at IS NULL THEN RETURN NEW; END IF;\n  SELECT name INTO product_name FROM public.products WHERE id = NEW.product_id;\n  IF TG_TABLE_NAME = 'bids' THEN\n    FOR recipient IN\n      SELECT DISTINCT seller_id FROM public.asks\n      WHERE variant_id = NEW.variant_id AND status = 'active' AND approved_at IS NOT NULL\n        AND expires_at > now() AND seller_id <> NEW.buyer_id\n    LOOP\n      PERFORM public.notify_member(recipient, 'new_bid', 'New Bid on ' || product_name,\n        'A buyer placed a ' || to_char(NEW.price_cents / 100.0, 'FM$999G999G990D00') ||\n        ' Bid. Accept it or edit your Ask to counter.', NULL);\n    END LOOP;\n  ELSE\n    FOR recipient IN\n      SELECT DISTINCT buyer_id FROM public.bids\n      WHERE variant_id = NEW.variant_id AND status = 'active' AND expires_at > now()\n        AND buyer_id <> NEW.seller_id\n    LOOP\n      PERFORM public.notify_member(recipient, 'new_ask', 'New Ask for ' || product_name,\n        'A seller listed this item for ' || to_char(NEW.price_cents / 100.0, 'FM$999G999G990D00') || '.', NULL);\n    END LOOP;\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "publish_classified_product_after_approval()",
+      "definition": {
+        "body_md5": "cac88d63c5cbc2573512065b248fa174",
+        "definition": "CREATE OR REPLACE FUNCTION public.publish_classified_product_after_approval()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  IF NEW.status = 'active'\n     AND NEW.approved_at IS NOT NULL\n     AND NOT NEW.is_demo\n     AND EXISTS (\n       SELECT 1\n       FROM public.classified_listing_details AS details\n       WHERE details.listing_id = NEW.id\n     ) THEN\n    PERFORM set_config('parkvault.trusted_operation', 'on', true);\n\n    UPDATE public.products\n    SET status = 'published'::public.product_status\n    WHERE id = NEW.product_id\n      AND status = 'pending_review'::public.product_status;\n\n    PERFORM set_config('parkvault.trusted_operation', 'off', true);\n  END IF;\n\n  RETURN NEW;\nEXCEPTION WHEN OTHERS THEN\n  PERFORM set_config('parkvault.trusted_operation', 'off', true);\n  RAISE;\nEND;\n$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "relist_ask(uuid)",
+      "definition": {
+        "body_md5": "1f678e798b94c3263b39b0b960ec1548",
+        "definition": "CREATE OR REPLACE FUNCTION public.relist_ask(_ask_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE uid uuid := auth.uid(); old_status public.listing_status;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  SELECT status INTO old_status FROM public.asks\n    WHERE id = _ask_id AND seller_id = uid FOR UPDATE;\n  IF old_status IS NULL THEN RAISE EXCEPTION 'Ask not found'; END IF;\n  IF old_status NOT IN ('cancelled','expired') THEN RAISE EXCEPTION 'Only a cancelled or expired Ask can be relisted'; END IF;\n  IF NOT EXISTS (SELECT 1 FROM public.ask_media WHERE ask_id = _ask_id)\n     OR NOT EXISTS (SELECT 1 FROM public.listing_media WHERE ask_id = _ask_id) THEN\n    RAISE EXCEPTION 'Private evidence and a public listing photo are required';\n  END IF;\n  UPDATE public.asks SET status = 'active', approved_at = NULL, approved_by = NULL,\n    review_note = NULL, expires_at = now() + interval '30 days',\n    matched_order_id = NULL, updated_at = now() WHERE id = _ask_id;\n  INSERT INTO public.ask_events (ask_id, actor_id, event_type, from_status, to_status, price_cents, note)\n  SELECT id, uid, 'released', old_status, 'active', price_cents, 'Relisted by seller; awaiting admin approval'\n  FROM public.asks WHERE id = _ask_id;\nEND;\nEND;$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public.relist_ask(_ask_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE uid uuid := auth.uid(); old_status public.listing_status;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  SELECT status INTO old_status FROM public.asks\n    WHERE id = _ask_id AND seller_id = uid FOR UPDATE;\n  IF old_status IS NULL THEN RAISE EXCEPTION 'Ask not found'; END IF;\n  IF old_status NOT IN ('cancelled','expired') THEN RAISE EXCEPTION 'Only a cancelled or expired Ask can be relisted'; END IF;\n  IF NOT EXISTS (SELECT 1 FROM public.ask_media WHERE ask_id = _ask_id)\n     OR NOT EXISTS (SELECT 1 FROM public.listing_media WHERE ask_id = _ask_id) THEN\n    RAISE EXCEPTION 'Private evidence and a public listing photo are required';\n  END IF;\n  UPDATE public.asks SET status = 'active', approved_at = NULL, approved_by = NULL,\n    review_note = NULL, expires_at = now() + interval '30 days',\n    matched_order_id = NULL, updated_at = now() WHERE id = _ask_id;\n  INSERT INTO public.ask_events (ask_id, actor_id, event_type, from_status, to_status, price_cents, note)\n  SELECT id, uid, 'released', old_status, 'active', price_cents, 'Relisted by seller; awaiting admin approval'\n  FROM public.asks WHERE id = _ask_id;\nEND;\n$function$\n",
+        "registered_body_md5": "1f678e798b94c3263b39b0b960ec1548"
+      }
+    },
+    {
+      "kind": "function",
+      "name": "replace_listing_media(uuid,text[])",
+      "definition": {
+        "body_md5": "eaa1317153e8d3e983e2200deedd6a28",
+        "definition": "CREATE OR REPLACE FUNCTION public.replace_listing_media(_ask_id uuid, _paths text[])\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE uid uuid := auth.uid(); p text; idx integer := 0;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  IF coalesce(array_length(_paths,1),0) < 1 OR coalesce(array_length(_paths,1),0) > 8 THEN\n    RAISE EXCEPTION 'Add between 1 and 8 listing photos';\n  END IF;\n  IF NOT EXISTS (SELECT 1 FROM public.asks WHERE id = _ask_id AND seller_id = uid AND status = 'active') THEN\n    RAISE EXCEPTION 'Only an open Ask can be edited';\n  END IF;\n  DELETE FROM public.listing_media WHERE ask_id = _ask_id;\n  FOREACH p IN ARRAY _paths LOOP\n    IF split_part(p,'/',1) <> uid::text THEN RAISE EXCEPTION 'Listing photo path does not belong to the caller'; END IF;\n    INSERT INTO public.listing_media (ask_id, storage_path, position, rights_attested_at)\n    VALUES (_ask_id, p, idx, now());\n    idx := idx + 1;\n  END LOOP;\n  UPDATE public.asks SET approved_at = NULL, approved_by = NULL, review_note = NULL,\n    updated_at = now() WHERE id = _ask_id;\nEND;\nEND;$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public.replace_listing_media(_ask_id uuid, _paths text[])\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE uid uuid := auth.uid(); p text; idx integer := 0;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  IF coalesce(array_length(_paths,1),0) < 1 OR coalesce(array_length(_paths,1),0) > 8 THEN\n    RAISE EXCEPTION 'Add between 1 and 8 listing photos';\n  END IF;\n  IF NOT EXISTS (SELECT 1 FROM public.asks WHERE id = _ask_id AND seller_id = uid AND status = 'active') THEN\n    RAISE EXCEPTION 'Only an open Ask can be edited';\n  END IF;\n  DELETE FROM public.listing_media WHERE ask_id = _ask_id;\n  FOREACH p IN ARRAY _paths LOOP\n    IF split_part(p,'/',1) <> uid::text THEN RAISE EXCEPTION 'Listing photo path does not belong to the caller'; END IF;\n    INSERT INTO public.listing_media (ask_id, storage_path, position, rights_attested_at)\n    VALUES (_ask_id, p, idx, now());\n    idx := idx + 1;\n  END LOOP;\n  UPDATE public.asks SET approved_at = NULL, approved_by = NULL, review_note = NULL,\n    updated_at = now() WHERE id = _ask_id;\nEND;\n$function$\n",
+        "registered_body_md5": "eaa1317153e8d3e983e2200deedd6a28"
+      }
+    },
+    {
+      "kind": "function",
+      "name": "require_verified_seller_for_ask()",
+      "definition": {
+        "body_md5": "47fa85f9167ad3b449b0cd188f2db5ea",
+        "definition": "CREATE OR REPLACE FUNCTION public.require_verified_seller_for_ask()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE\n  uid uuid := auth.uid();\n  seller public.seller_profiles;\nBEGIN\n  IF uid IS NULL OR NEW.seller_id <> uid THEN\n    RETURN NEW;\n  END IF;\n  SELECT * INTO seller FROM public.seller_profiles WHERE user_id = uid;\n  IF seller.user_id IS NULL OR seller.status <> 'active' OR seller.terms_accepted_at IS NULL THEN\n    RAISE EXCEPTION 'Complete seller setup before listing';\n  END IF;\n  RETURN NEW;\nEND\n$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "set_updated_at()",
+      "definition": {
+        "body_md5": "9b1889f56258bf9d6554213c05019c76",
+        "definition": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": false,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "set_variant_watch_baseline()",
+      "definition": {
+        "body_md5": "6fa96ec79c192fe9697b9a1a1eca4001",
+        "definition": "CREATE OR REPLACE FUNCTION public.set_variant_watch_baseline()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nBEGIN\n  IF NEW.watch_baseline IS NULL OR NEW.watch_baseline = 0 THEN\n    NEW.watch_baseline := public.variant_watch_baseline(NEW.id);\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": false,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "sync_ask_evidence_count()",
+      "definition": {
+        "body_md5": "8a48cc9c5b327a72d93ce72ee9c1840a",
+        "definition": "CREATE OR REPLACE FUNCTION public.sync_ask_evidence_count()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE target uuid;\nBEGIN\n  target := COALESCE(NEW.ask_id, OLD.ask_id);\n  UPDATE public.asks a\n     SET evidence_count = (SELECT count(*) FROM public.ask_media m WHERE m.ask_id = target),\n         updated_at = now()\n   WHERE a.id = target;\n  RETURN NULL;\nEND;\n$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "sync_ask_public_media_count()",
+      "definition": {
+        "body_md5": "9dca2f42ffedc3fa54dd55d6ecaca363",
+        "definition": "CREATE OR REPLACE FUNCTION public.sync_ask_public_media_count()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE target uuid;\nBEGIN\n  target := COALESCE(NEW.ask_id, OLD.ask_id);\n  UPDATE public.asks a\n     SET public_media_count = (SELECT count(*) FROM public.listing_media m WHERE m.ask_id = target),\n         updated_at = now()\n   WHERE a.id = target;\n  RETURN NULL;\nEND;\n$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "touch_updated_at()",
+      "definition": {
+        "body_md5": "9baf00d43cdeb2cd0e55c1de045be21b",
+        "definition": "CREATE OR REPLACE FUNCTION public.touch_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nBEGIN NEW.updated_at = now(); RETURN NEW; END; $function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": false,
+        "original_definition": null,
+        "registered_body_md5": null
+      }
+    },
+    {
+      "kind": "function",
+      "name": "update_ask(uuid,integer,item_condition,text,numeric,numeric,numeric,numeric)",
+      "definition": {
+        "body_md5": "99040473f400ddee7d1184055b3b84cd",
+        "definition": "CREATE OR REPLACE FUNCTION public.update_ask(_ask_id uuid, _price_cents integer, _item_condition item_condition, _seller_note text, _parcel_length_in numeric, _parcel_width_in numeric, _parcel_height_in numeric, _parcel_weight_lb numeric)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE uid uuid := auth.uid(); old_price integer; was_approved boolean;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  IF _price_cents < 100 OR _price_cents > 1000000000 THEN RAISE EXCEPTION 'Ask price out of range'; END IF;\n  SELECT price_cents, approved_at IS NOT NULL INTO old_price, was_approved FROM public.asks\n    WHERE id = _ask_id AND seller_id = uid AND status = 'active' FOR UPDATE;\n  IF old_price IS NULL THEN RAISE EXCEPTION 'Only an open Ask can be edited'; END IF;\n  UPDATE public.asks SET price_cents = _price_cents, item_condition = _item_condition,\n    seller_note = nullif(btrim(_seller_note),''), parcel_length_in = _parcel_length_in,\n    parcel_width_in = _parcel_width_in, parcel_height_in = _parcel_height_in,\n    parcel_weight_lb = _parcel_weight_lb, approved_at = NULL, approved_by = NULL,\n    review_note = NULL, updated_at = now()\n    WHERE id = _ask_id;\n  IF old_price <> _price_cents OR was_approved THEN\n    INSERT INTO public.ask_events (ask_id, actor_id, event_type, price_cents, note)\n    VALUES (_ask_id, uid, 'price_changed', _price_cents,\n      CASE WHEN was_approved THEN 'Listing updated by seller and returned to admin review'\n           ELSE 'Listing updated by seller while awaiting review' END);\n  END IF;\nEND;\nEND;$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public.update_ask(_ask_id uuid, _price_cents integer, _item_condition item_condition, _seller_note text, _parcel_length_in numeric, _parcel_width_in numeric, _parcel_height_in numeric, _parcel_weight_lb numeric)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE uid uuid := auth.uid(); old_price integer; was_approved boolean;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  IF _price_cents < 100 OR _price_cents > 1000000000 THEN RAISE EXCEPTION 'Ask price out of range'; END IF;\n  SELECT price_cents, approved_at IS NOT NULL INTO old_price, was_approved FROM public.asks\n    WHERE id = _ask_id AND seller_id = uid AND status = 'active' FOR UPDATE;\n  IF old_price IS NULL THEN RAISE EXCEPTION 'Only an open Ask can be edited'; END IF;\n  UPDATE public.asks SET price_cents = _price_cents, item_condition = _item_condition,\n    seller_note = nullif(btrim(_seller_note),''), parcel_length_in = _parcel_length_in,\n    parcel_width_in = _parcel_width_in, parcel_height_in = _parcel_height_in,\n    parcel_weight_lb = _parcel_weight_lb, approved_at = NULL, approved_by = NULL,\n    review_note = NULL, updated_at = now()\n    WHERE id = _ask_id;\n  IF old_price <> _price_cents OR was_approved THEN\n    INSERT INTO public.ask_events (ask_id, actor_id, event_type, price_cents, note)\n    VALUES (_ask_id, uid, 'price_changed', _price_cents,\n      CASE WHEN was_approved THEN 'Listing updated by seller and returned to admin review'\n           ELSE 'Listing updated by seller while awaiting review' END);\n  END IF;\nEND;\n$function$\n",
+        "registered_body_md5": "99040473f400ddee7d1184055b3b84cd"
+      }
+    },
+    {
+      "kind": "function",
+      "name": "update_classified_listing(uuid,text,text,uuid,integer,item_condition,text,text,text,text,text,text,numeric,numeric,numeric,numeric,jsonb)",
+      "definition": {
+        "body_md5": "5fa271ed1e0becb57288e4a97f568519",
+        "definition": "CREATE OR REPLACE FUNCTION public.update_classified_listing(_listing_id uuid, _title text, _description text, _category_id uuid, _price_cents integer, _item_condition item_condition, _seller_note text, _region text, _city text, _state text, _postal_code text, _fulfillment_mode text, _parcel_length_in numeric, _parcel_width_in numeric, _parcel_height_in numeric, _parcel_weight_lb numeric, _vehicle jsonb DEFAULT '{}'::jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  uid uuid := auth.uid();\n  product_id uuid;\n  normalized_state text := upper(btrim(coalesce(_state, '')));\n  vehicle_year_value smallint;\n  vehicle_mileage_value integer;\n  vin_value text;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  SELECT a.product_id INTO product_id\n  FROM public.asks a\n  WHERE a.id = _listing_id AND a.seller_id = uid;\n  IF product_id IS NULL THEN RAISE EXCEPTION 'Listing not found'; END IF;\n  IF NOT EXISTS (SELECT 1 FROM public.asks WHERE id = _listing_id AND status = 'active') THEN\n    RAISE EXCEPTION 'Only open listings can be edited';\n  END IF;\n  IF char_length(btrim(coalesce(_title, ''))) NOT BETWEEN 3 AND 120 THEN\n    RAISE EXCEPTION 'Enter a title between 3 and 120 characters';\n  END IF;\n  IF char_length(btrim(coalesce(_description, ''))) NOT BETWEEN 20 AND 5000 THEN\n    RAISE EXCEPTION 'Enter a description between 20 and 5000 characters';\n  END IF;\n  IF NOT EXISTS (SELECT 1 FROM public.categories WHERE id = _category_id) THEN\n    RAISE EXCEPTION 'Choose a valid category';\n  END IF;\n  IF _price_cents < 100 OR _price_cents > 1000000000 THEN\n    RAISE EXCEPTION 'Enter a listing price between $1 and $10,000,000';\n  END IF;\n  IF char_length(btrim(coalesce(_region, ''))) NOT BETWEEN 2 AND 80\n     OR char_length(btrim(coalesce(_city, ''))) NOT BETWEEN 2 AND 80 THEN\n    RAISE EXCEPTION 'Enter a valid region and city';\n  END IF;\n  IF normalized_state !~ '^[A-Z]{2}$' THEN\n    RAISE EXCEPTION 'Enter a valid two-letter state code';\n  END IF;\n  IF _postal_code IS NOT NULL AND _postal_code !~ '^[0-9]{5}$' THEN\n    RAISE EXCEPTION 'Enter a five-digit ZIP code';\n  END IF;\n  IF _fulfillment_mode NOT IN ('local_pickup', 'shipping', 'both') THEN\n    RAISE EXCEPTION 'Choose local pickup, shipping, or both';\n  END IF;\n\n  BEGIN\n    vehicle_year_value := nullif(_vehicle->>'year', '')::smallint;\n    vehicle_mileage_value := nullif(_vehicle->>'mileage', '')::integer;\n  EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n    RAISE EXCEPTION 'Vehicle year and mileage must be valid numbers';\n  END;\n  vin_value := upper(nullif(btrim(_vehicle->>'vin'), ''));\n  IF vehicle_year_value IS NOT NULL AND vehicle_year_value NOT BETWEEN 1900 AND 2100 THEN\n    RAISE EXCEPTION 'Vehicle year is outside the supported range';\n  END IF;\n  IF vehicle_mileage_value IS NOT NULL AND vehicle_mileage_value NOT BETWEEN 0 AND 2000000 THEN\n    RAISE EXCEPTION 'Vehicle mileage is outside the supported range';\n  END IF;\n  IF vin_value IS NOT NULL AND vin_value !~ '^[A-HJ-NPR-Z0-9]{17}$' THEN\n    RAISE EXCEPTION 'VIN must contain 17 valid characters';\n  END IF;\n\n  PERFORM public.update_ask(\n    _listing_id,\n    _price_cents,\n    _item_condition,\n    _seller_note,\n    _parcel_length_in,\n    _parcel_width_in,\n    _parcel_height_in,\n    _parcel_weight_lb\n  );\n  UPDATE public.products\n  SET name = btrim(_title), description = btrim(_description), category_id = _category_id,\n      status = 'pending_review'::public.product_status\n  WHERE id = product_id AND created_by = uid;\n  UPDATE public.classified_listing_details\n  SET region = btrim(_region), city = btrim(_city), state = normalized_state,\n      postal_code = nullif(btrim(coalesce(_postal_code, '')), ''), fulfillment_mode = _fulfillment_mode,\n      vehicle_make = nullif(btrim(_vehicle->>'make'), ''), vehicle_model = nullif(btrim(_vehicle->>'model'), ''),\n      vehicle_year = vehicle_year_value, vehicle_trim = nullif(btrim(_vehicle->>'trim'), ''),\n      vehicle_mileage = vehicle_mileage_value, vehicle_body_style = nullif(btrim(_vehicle->>'body_style'), ''),\n      vehicle_transmission = nullif(btrim(_vehicle->>'transmission'), ''),\n      vehicle_drivetrain = nullif(btrim(_vehicle->>'drivetrain'), ''),\n      vehicle_fuel_type = nullif(btrim(_vehicle->>'fuel_type'), ''),\n      vehicle_exterior_color = nullif(btrim(_vehicle->>'exterior_color'), ''),\n      vehicle_title_status = nullif(btrim(_vehicle->>'title_status'), ''), vin = vin_value\n  WHERE listing_id = _listing_id;\n  UPDATE public.asks\n  SET approved_at = NULL, updated_at = now()\n  WHERE id = _listing_id AND seller_id = uid;\nEND;\nEND;$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public.update_classified_listing(_listing_id uuid, _title text, _description text, _category_id uuid, _price_cents integer, _item_condition item_condition, _seller_note text, _region text, _city text, _state text, _postal_code text, _fulfillment_mode text, _parcel_length_in numeric, _parcel_width_in numeric, _parcel_height_in numeric, _parcel_weight_lb numeric, _vehicle jsonb DEFAULT '{}'::jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE\n  uid uuid := auth.uid();\n  product_id uuid;\n  normalized_state text := upper(btrim(coalesce(_state, '')));\n  vehicle_year_value smallint;\n  vehicle_mileage_value integer;\n  vin_value text;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  SELECT a.product_id INTO product_id\n  FROM public.asks a\n  WHERE a.id = _listing_id AND a.seller_id = uid;\n  IF product_id IS NULL THEN RAISE EXCEPTION 'Listing not found'; END IF;\n  IF NOT EXISTS (SELECT 1 FROM public.asks WHERE id = _listing_id AND status = 'active') THEN\n    RAISE EXCEPTION 'Only open listings can be edited';\n  END IF;\n  IF char_length(btrim(coalesce(_title, ''))) NOT BETWEEN 3 AND 120 THEN\n    RAISE EXCEPTION 'Enter a title between 3 and 120 characters';\n  END IF;\n  IF char_length(btrim(coalesce(_description, ''))) NOT BETWEEN 20 AND 5000 THEN\n    RAISE EXCEPTION 'Enter a description between 20 and 5000 characters';\n  END IF;\n  IF NOT EXISTS (SELECT 1 FROM public.categories WHERE id = _category_id) THEN\n    RAISE EXCEPTION 'Choose a valid category';\n  END IF;\n  IF _price_cents < 100 OR _price_cents > 1000000000 THEN\n    RAISE EXCEPTION 'Enter a listing price between $1 and $10,000,000';\n  END IF;\n  IF char_length(btrim(coalesce(_region, ''))) NOT BETWEEN 2 AND 80\n     OR char_length(btrim(coalesce(_city, ''))) NOT BETWEEN 2 AND 80 THEN\n    RAISE EXCEPTION 'Enter a valid region and city';\n  END IF;\n  IF normalized_state !~ '^[A-Z]{2}$' THEN\n    RAISE EXCEPTION 'Enter a valid two-letter state code';\n  END IF;\n  IF _postal_code IS NOT NULL AND _postal_code !~ '^[0-9]{5}$' THEN\n    RAISE EXCEPTION 'Enter a five-digit ZIP code';\n  END IF;\n  IF _fulfillment_mode NOT IN ('local_pickup', 'shipping', 'both') THEN\n    RAISE EXCEPTION 'Choose local pickup, shipping, or both';\n  END IF;\n\n  BEGIN\n    vehicle_year_value := nullif(_vehicle->>'year', '')::smallint;\n    vehicle_mileage_value := nullif(_vehicle->>'mileage', '')::integer;\n  EXCEPTION WHEN invalid_text_representation OR numeric_value_out_of_range THEN\n    RAISE EXCEPTION 'Vehicle year and mileage must be valid numbers';\n  END;\n  vin_value := upper(nullif(btrim(_vehicle->>'vin'), ''));\n  IF vehicle_year_value IS NOT NULL AND vehicle_year_value NOT BETWEEN 1900 AND 2100 THEN\n    RAISE EXCEPTION 'Vehicle year is outside the supported range';\n  END IF;\n  IF vehicle_mileage_value IS NOT NULL AND vehicle_mileage_value NOT BETWEEN 0 AND 2000000 THEN\n    RAISE EXCEPTION 'Vehicle mileage is outside the supported range';\n  END IF;\n  IF vin_value IS NOT NULL AND vin_value !~ '^[A-HJ-NPR-Z0-9]{17}$' THEN\n    RAISE EXCEPTION 'VIN must contain 17 valid characters';\n  END IF;\n\n  PERFORM public.update_ask(\n    _listing_id,\n    _price_cents,\n    _item_condition,\n    _seller_note,\n    _parcel_length_in,\n    _parcel_width_in,\n    _parcel_height_in,\n    _parcel_weight_lb\n  );\n  UPDATE public.products\n  SET name = btrim(_title), description = btrim(_description), category_id = _category_id,\n      status = 'pending_review'::public.product_status\n  WHERE id = product_id AND created_by = uid;\n  UPDATE public.classified_listing_details\n  SET region = btrim(_region), city = btrim(_city), state = normalized_state,\n      postal_code = nullif(btrim(coalesce(_postal_code, '')), ''), fulfillment_mode = _fulfillment_mode,\n      vehicle_make = nullif(btrim(_vehicle->>'make'), ''), vehicle_model = nullif(btrim(_vehicle->>'model'), ''),\n      vehicle_year = vehicle_year_value, vehicle_trim = nullif(btrim(_vehicle->>'trim'), ''),\n      vehicle_mileage = vehicle_mileage_value, vehicle_body_style = nullif(btrim(_vehicle->>'body_style'), ''),\n      vehicle_transmission = nullif(btrim(_vehicle->>'transmission'), ''),\n      vehicle_drivetrain = nullif(btrim(_vehicle->>'drivetrain'), ''),\n      vehicle_fuel_type = nullif(btrim(_vehicle->>'fuel_type'), ''),\n      vehicle_exterior_color = nullif(btrim(_vehicle->>'exterior_color'), ''),\n      vehicle_title_status = nullif(btrim(_vehicle->>'title_status'), ''), vin = vin_value\n  WHERE listing_id = _listing_id;\n  UPDATE public.asks\n  SET approved_at = NULL, updated_at = now()\n  WHERE id = _listing_id AND seller_id = uid;\nEND;\n$function$\n",
+        "registered_body_md5": "5fa271ed1e0becb57288e4a97f568519"
+      }
+    },
+    {
+      "kind": "function",
+      "name": "update_classified_listing(uuid,text,text,uuid,integer,item_condition,text,text,text,text,text,text,numeric,numeric,numeric,numeric,jsonb,jsonb,jsonb,jsonb)",
+      "definition": {
+        "body_md5": "c36e2e037e6dd0bbb1a6076235a081c9",
+        "definition": "CREATE OR REPLACE FUNCTION public.update_classified_listing(_listing_id uuid, _title text, _description text, _category_id uuid, _price_cents integer, _item_condition item_condition, _seller_note text, _region text, _city text, _state text, _postal_code text, _fulfillment_mode text, _parcel_length_in numeric, _parcel_width_in numeric, _parcel_height_in numeric, _parcel_weight_lb numeric, _vehicle jsonb, _home jsonb, _job jsonb, _service jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nBEGIN\n  PERFORM public.update_classified_listing(\n    _listing_id, _title, _description, _category_id, _price_cents, _item_condition, _seller_note,\n    _region, _city, _state, _postal_code, _fulfillment_mode,\n    _parcel_length_in, _parcel_width_in, _parcel_height_in, _parcel_weight_lb, _vehicle\n  );\n\n  PERFORM public._apply_classified_category_details(_listing_id, _home, _job, _service);\nEND;\nEND;$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public.update_classified_listing(_listing_id uuid, _title text, _description text, _category_id uuid, _price_cents integer, _item_condition item_condition, _seller_note text, _region text, _city text, _state text, _postal_code text, _fulfillment_mode text, _parcel_length_in numeric, _parcel_width_in numeric, _parcel_height_in numeric, _parcel_weight_lb numeric, _vehicle jsonb, _home jsonb, _job jsonb, _service jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  PERFORM public.update_classified_listing(\n    _listing_id, _title, _description, _category_id, _price_cents, _item_condition, _seller_note,\n    _region, _city, _state, _postal_code, _fulfillment_mode,\n    _parcel_length_in, _parcel_width_in, _parcel_height_in, _parcel_weight_lb, _vehicle\n  );\n\n  PERFORM public._apply_classified_category_details(_listing_id, _home, _job, _service);\nEND;\n$function$\n",
+        "registered_body_md5": "c36e2e037e6dd0bbb1a6076235a081c9"
+      }
+    },
+    {
+      "kind": "function",
+      "name": "update_classified_listing(uuid,text,text,uuid,integer,item_condition,text,text,text,text,text,text,numeric,numeric,numeric,numeric,jsonb,jsonb,jsonb,jsonb,jsonb)",
+      "definition": {
+        "body_md5": "ff1f4470989e59afaaede30f1de11de2",
+        "definition": "CREATE OR REPLACE FUNCTION public.update_classified_listing(_listing_id uuid, _title text, _description text, _category_id uuid, _price_cents integer, _item_condition item_condition, _seller_note text, _region text, _city text, _state text, _postal_code text, _fulfillment_mode text, _parcel_length_in numeric, _parcel_width_in numeric, _parcel_height_in numeric, _parcel_weight_lb numeric, _vehicle jsonb, _home jsonb, _job jsonb, _service jsonb, _pet jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nBEGIN\n  PERFORM public.update_classified_listing(\n    _listing_id, _title, _description, _category_id, _price_cents, _item_condition, _seller_note,\n    _region, _city, _state, _postal_code, _fulfillment_mode,\n    _parcel_length_in, _parcel_width_in, _parcel_height_in, _parcel_weight_lb,\n    _vehicle, _home, _job, _service\n  );\n  PERFORM public._apply_classified_pet_details(_listing_id, _pet);\nEND;\nEND;$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public.update_classified_listing(_listing_id uuid, _title text, _description text, _category_id uuid, _price_cents integer, _item_condition item_condition, _seller_note text, _region text, _city text, _state text, _postal_code text, _fulfillment_mode text, _parcel_length_in numeric, _parcel_width_in numeric, _parcel_height_in numeric, _parcel_weight_lb numeric, _vehicle jsonb, _home jsonb, _job jsonb, _service jsonb, _pet jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  PERFORM public.update_classified_listing(\n    _listing_id, _title, _description, _category_id, _price_cents, _item_condition, _seller_note,\n    _region, _city, _state, _postal_code, _fulfillment_mode,\n    _parcel_length_in, _parcel_width_in, _parcel_height_in, _parcel_weight_lb,\n    _vehicle, _home, _job, _service\n  );\n  PERFORM public._apply_classified_pet_details(_listing_id, _pet);\nEND;\n$function$\n",
+        "registered_body_md5": "ff1f4470989e59afaaede30f1de11de2"
+      }
+    },
+    {
+      "kind": "function",
+      "name": "update_free_pet_listing(uuid,text,text,uuid,integer,item_condition,text,text,text,text,text,text,numeric,numeric,numeric,numeric,jsonb,jsonb,jsonb,jsonb,jsonb)",
+      "definition": {
+        "body_md5": "7e7c0a806cbc5a669f0423fad4ef25be",
+        "definition": "CREATE OR REPLACE FUNCTION public.update_free_pet_listing(_listing_id uuid, _title text, _description text, _category_id uuid, _price_cents integer, _item_condition item_condition, _seller_note text, _region text, _city text, _state text, _postal_code text, _fulfillment_mode text, _parcel_length_in numeric, _parcel_width_in numeric, _parcel_height_in numeric, _parcel_weight_lb numeric, _vehicle jsonb, _home jsonb, _job jsonb, _service jsonb, _pet jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  product_id uuid;\nBEGIN\n  IF _price_cents <> 0 OR _category_id IS NULL OR NOT EXISTS (\n    SELECT 1 FROM public.categories WHERE id = _category_id AND slug = 'pets'\n  ) THEN\n    RAISE EXCEPTION 'Only free pet listings may use this function';\n  END IF;\n\n  SELECT a.product_id INTO product_id\n  FROM public.asks a\n  JOIN public.products p ON p.id = a.product_id\n  JOIN public.categories c ON c.id = p.category_id\n  WHERE a.id = _listing_id\n    AND a.seller_id = auth.uid()\n    AND c.slug = 'pets';\n\n  IF product_id IS NULL THEN\n    RAISE EXCEPTION 'Pet listing not found';\n  END IF;\n\n  PERFORM public.update_classified_listing(\n    _listing_id, _title, _description, _category_id, 100, _item_condition,\n    _seller_note, _region, _city, _state, _postal_code, _fulfillment_mode,\n    _parcel_length_in, _parcel_width_in, _parcel_height_in, _parcel_weight_lb,\n    _vehicle, _home, _job, _service, _pet\n  );\n\n  UPDATE public.asks\n  SET price_cents = 0\n  WHERE id = _listing_id;\n\n  UPDATE public.products\n  SET retail_price_cents = 0\n  WHERE id = product_id;\n\n  UPDATE public.ask_events\n  SET price_cents = 0\n  WHERE id = (\n    SELECT id\n    FROM public.ask_events\n    WHERE ask_id = _listing_id\n    ORDER BY created_at DESC, id DESC\n    LIMIT 1\n  );\nEND;\nEND;$function$\n",
+        "anon_execute": true,
+        "member_execute": true,
+        "service_execute": true,
+        "security_definer": true,
+        "original_definition": "CREATE OR REPLACE FUNCTION public.update_free_pet_listing(_listing_id uuid, _title text, _description text, _category_id uuid, _price_cents integer, _item_condition item_condition, _seller_note text, _region text, _city text, _state text, _postal_code text, _fulfillment_mode text, _parcel_length_in numeric, _parcel_width_in numeric, _parcel_height_in numeric, _parcel_weight_lb numeric, _vehicle jsonb, _home jsonb, _job jsonb, _service jsonb, _pet jsonb)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nDECLARE\n  product_id uuid;\nBEGIN\n  IF _price_cents <> 0 OR _category_id IS NULL OR NOT EXISTS (\n    SELECT 1 FROM public.categories WHERE id = _category_id AND slug = 'pets'\n  ) THEN\n    RAISE EXCEPTION 'Only free pet listings may use this function';\n  END IF;\n\n  SELECT a.product_id INTO product_id\n  FROM public.asks a\n  JOIN public.products p ON p.id = a.product_id\n  JOIN public.categories c ON c.id = p.category_id\n  WHERE a.id = _listing_id\n    AND a.seller_id = auth.uid()\n    AND c.slug = 'pets';\n\n  IF product_id IS NULL THEN\n    RAISE EXCEPTION 'Pet listing not found';\n  END IF;\n\n  PERFORM public.update_classified_listing(\n    _listing_id, _title, _description, _category_id, 100, _item_condition,\n    _seller_note, _region, _city, _state, _postal_code, _fulfillment_mode,\n    _parcel_length_in, _parcel_width_in, _parcel_height_in, _parcel_weight_lb,\n    _vehicle, _home, _job, _service, _pet\n  );\n\n  UPDATE public.asks\n  SET price_cents = 0\n  WHERE id = _listing_id;\n\n  UPDATE public.products\n  SET retail_price_cents = 0\n  WHERE id = product_id;\n\n  UPDATE public.ask_events\n  SET price_cents = 0\n  WHERE id = (\n    SELECT id\n    FROM public.ask_events\n    WHERE ask_id = _listing_id\n    ORDER BY created_at DESC, id DESC\n    LIMIT 1\n  );\nEND;\n$function$\n",
+        "registered_body_md5": "7e7c0a806cbc5a669f0423fad4ef25be"
+      }
+    },
+    {
+      "kind": "triggers",
+      "name": "ask_media",
+      "definition": [
+        "CREATE TRIGGER ask_media_count AFTER INSERT OR DELETE ON public.ask_media FOR EACH ROW EXECUTE FUNCTION sync_ask_evidence_count()"
+      ]
+    },
+    {
+      "kind": "triggers",
+      "name": "asks",
+      "definition": [
+        "CREATE TRIGGER asks_apply_seller_shipping_defaults BEFORE INSERT ON public.asks FOR EACH ROW EXECUTE FUNCTION apply_seller_shipping_defaults()",
+        "CREATE TRIGGER asks_clear_sold_at_on_relist BEFORE UPDATE OF status ON public.asks FOR EACH ROW EXECUTE FUNCTION clear_ask_sold_at_on_relist()",
+        "CREATE TRIGGER asks_guard_user_updates BEFORE UPDATE ON public.asks FOR EACH ROW EXECUTE FUNCTION guard_ask_user_updates()",
+        "CREATE TRIGGER asks_touch BEFORE UPDATE ON public.asks FOR EACH ROW EXECUTE FUNCTION set_updated_at()",
+        "CREATE TRIGGER managed_ask_edit AFTER UPDATE ON public.asks FOR EACH ROW EXECUTE FUNCTION flag_import_seller_edit()",
+        "CREATE TRIGGER notify_on_new_ask AFTER INSERT ON public.asks FOR EACH ROW EXECUTE FUNCTION notify_market_interest()",
+        "CREATE TRIGGER publish_classified_product_after_approval AFTER UPDATE OF status, approved_at ON public.asks FOR EACH ROW EXECUTE FUNCTION publish_classified_product_after_approval()",
+        "CREATE TRIGGER require_verified_seller_for_ask BEFORE INSERT ON public.asks FOR EACH ROW EXECUTE FUNCTION require_verified_seller_for_ask()"
+      ]
+    },
+    {
+      "kind": "triggers",
+      "name": "classified_listing_details",
+      "definition": [
+        "CREATE TRIGGER classified_listing_details_touch BEFORE UPDATE ON public.classified_listing_details FOR EACH ROW EXECUTE FUNCTION set_updated_at()",
+        "CREATE TRIGGER managed_details_edit AFTER UPDATE ON public.classified_listing_details FOR EACH ROW EXECUTE FUNCTION flag_import_seller_edit()"
+      ]
+    },
+    {
+      "kind": "triggers",
+      "name": "fb_marketplace_import_items",
+      "definition": [
+        "CREATE TRIGGER bind_import_item_owner BEFORE INSERT OR UPDATE OF seller_id, source_profile_url ON public.fb_marketplace_import_items FOR EACH ROW EXECUTE FUNCTION bind_import_seller_owner()",
+        "CREATE TRIGGER fb_marketplace_import_items_set_updated_at BEFORE UPDATE ON public.fb_marketplace_import_items FOR EACH ROW EXECUTE FUNCTION set_updated_at()",
+        "CREATE TRIGGER guard_archived_import_item BEFORE INSERT OR UPDATE ON public.fb_marketplace_import_items FOR EACH ROW EXECUTE FUNCTION guard_archived_import_source()"
+      ]
+    },
+    {
+      "kind": "triggers",
+      "name": "listing_media",
+      "definition": [
+        "CREATE TRIGGER listing_media_count AFTER INSERT OR DELETE ON public.listing_media FOR EACH ROW EXECUTE FUNCTION sync_ask_public_media_count()"
+      ]
+    },
+    {
+      "kind": "triggers",
+      "name": "product_variants",
+      "definition": [
+        "CREATE TRIGGER product_variants_watch_baseline BEFORE INSERT ON public.product_variants FOR EACH ROW EXECUTE FUNCTION set_variant_watch_baseline()",
+        "CREATE TRIGGER trg_variants_touch BEFORE UPDATE ON public.product_variants FOR EACH ROW EXECUTE FUNCTION touch_updated_at()"
+      ]
+    },
+    {
+      "kind": "triggers",
+      "name": "products",
+      "definition": [
+        "CREATE TRIGGER managed_product_edit AFTER UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION flag_import_seller_edit()",
+        "CREATE TRIGGER trg_products_touch BEFORE UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION touch_updated_at()"
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "ask_events",
+      "definition": [
+        {
+          "name": "id",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "ask_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "actor_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "event_type",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "listing_event_type",
+          "generated": ""
+        },
+        {
+          "name": "from_status",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "listing_status",
+          "generated": ""
+        },
+        {
+          "name": "to_status",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "listing_status",
+          "generated": ""
+        },
+        {
+          "name": "price_cents",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "note",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "ask_media",
+      "definition": [
+        {
+          "name": "id",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "ask_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "storage_path",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "caption",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "position",
+          "default": "0",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "asks",
+      "definition": [
+        {
+          "name": "id",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "product_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "variant_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "seller_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "price_cents",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "currency",
+          "default": "'USD'::bpchar",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "character(3)",
+          "generated": ""
+        },
+        {
+          "name": "item_condition",
+          "default": "'new_with_tags'::item_condition",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "item_condition",
+          "generated": ""
+        },
+        {
+          "name": "in_hand",
+          "default": "true",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "boolean",
+          "generated": ""
+        },
+        {
+          "name": "acquired_location_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "seller_note",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "status",
+          "default": "'active'::listing_status",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "listing_status",
+          "generated": ""
+        },
+        {
+          "name": "evidence_count",
+          "default": "0",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "expires_at",
+          "default": "(now() + '30 days'::interval)",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "matched_order_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "is_demo",
+          "default": "false",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "boolean",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "fulfillment_window_days",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "approved_at",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "approved_by",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "review_note",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "public_media_count",
+          "default": "0",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "parcel_length_in",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "numeric(6,2)",
+          "generated": ""
+        },
+        {
+          "name": "parcel_width_in",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "numeric(6,2)",
+          "generated": ""
+        },
+        {
+          "name": "parcel_height_in",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "numeric(6,2)",
+          "generated": ""
+        },
+        {
+          "name": "parcel_weight_lb",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "numeric(7,2)",
+          "generated": ""
+        },
+        {
+          "name": "ship_by_days",
+          "default": "3",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "smallint",
+          "generated": ""
+        },
+        {
+          "name": "featured_until",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "promoted_at",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "ranking_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "dealer_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "sold_at",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "categories",
+      "definition": [
+        {
+          "name": "id",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "slug",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "name",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "position",
+          "default": "0",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "classified_listing_details",
+      "definition": [
+        {
+          "name": "listing_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "region",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "city",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "postal_code",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "fulfillment_mode",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "vehicle_make",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "vehicle_model",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "vehicle_year",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "smallint",
+          "generated": ""
+        },
+        {
+          "name": "vehicle_trim",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "vehicle_mileage",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "vehicle_body_style",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "vehicle_transmission",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "vehicle_drivetrain",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "vehicle_fuel_type",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "vehicle_exterior_color",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "vehicle_title_status",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "vin",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "state",
+          "default": "'ID'::text",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_mode",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_property_type",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_bedrooms",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "numeric(4,1)",
+          "generated": ""
+        },
+        {
+          "name": "home_bathrooms",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "numeric(4,1)",
+          "generated": ""
+        },
+        {
+          "name": "home_square_feet",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "home_year_built",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "smallint",
+          "generated": ""
+        },
+        {
+          "name": "home_acreage",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_heating",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_cooling",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_garage_parking",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_yard",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_appliances_included",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_floor_coverings",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_basement_type",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_exterior_material",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_special_features",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_hoa_fees",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_school_district",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_lease_length",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_available",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_pets_policy",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_smoking_policy",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_open_house",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "job_employer_name",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "job_employer_address",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "job_pay_type",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "job_pay_min",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "numeric",
+          "generated": ""
+        },
+        {
+          "name": "job_pay_max",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "numeric",
+          "generated": ""
+        },
+        {
+          "name": "job_employment_type",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "job_experience_required",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "job_education_level",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "job_responsibilities",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text[]",
+          "generated": ""
+        },
+        {
+          "name": "job_qualifications",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text[]",
+          "generated": ""
+        },
+        {
+          "name": "service_subcategory",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "service_area",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "service_availability",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "service_business_address",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "service_license_number",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "service_license_lookup_url",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "service_offerings",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text[]",
+          "generated": ""
+        },
+        {
+          "name": "job_application_method",
+          "default": "'gemlist'::text",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "job_application_external_contact",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_subcategory",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_species",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_breed",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_name",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_age",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_sex",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_placement_type",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_offered_by",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_hypoallergenic",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_vaccinated",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_spayed_neutered",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_microchipped",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_records_available",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_good_with_kids",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_good_with_dogs",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_good_with_cats",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_indoor_outdoor",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_special_needs",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "pet_breeding_terms",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "home_acres",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "numeric",
+          "generated": ""
+        },
+        {
+          "name": "job_category",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "item_details",
+          "default": "'{}'::jsonb",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "jsonb",
+          "generated": ""
+        },
+        {
+          "name": "service_pricing_type",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "service_price_max_cents",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "integer",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "fb_marketplace_import_batches",
+      "definition": [
+        {
+          "name": "id",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "seller_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "imported_by",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "source_profile_url",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "seller_name",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "fb_marketplace_import_items",
+      "definition": [
+        {
+          "name": "id",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "batch_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "seller_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "source_url",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "title",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "description",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "price_cents",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "condition",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "category_slug",
+          "default": "'general'::text",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "evidence_paths",
+          "default": "'{}'::text[]",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text[]",
+          "generated": ""
+        },
+        {
+          "name": "public_paths",
+          "default": "'{}'::text[]",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text[]",
+          "generated": ""
+        },
+        {
+          "name": "status",
+          "default": "'draft'::text",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "previous_price_cents",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "previous_description",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "listing_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "city",
+          "default": "''::text",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "state",
+          "default": "''::text",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "region",
+          "default": "''::text",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "fulfillment_mode",
+          "default": "'local_pickup'::text",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "source_profile_url",
+          "default": "''::text",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "removed_reason",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "last_applied_snapshot",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "jsonb",
+          "generated": ""
+        },
+        {
+          "name": "sync_conflict",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "seller_edited",
+          "default": "false",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "boolean",
+          "generated": ""
+        },
+        {
+          "name": "item_details",
+          "default": "'{}'::jsonb",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "jsonb",
+          "generated": ""
+        },
+        {
+          "name": "last_applied_item_details",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "jsonb",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "import_source_archives",
+      "definition": [
+        {
+          "name": "source_profile_url",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "archived_at",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "changed_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "changed_by",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "listing_media",
+      "definition": [
+        {
+          "name": "id",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "ask_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "storage_path",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "alt_text",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "position",
+          "default": "0",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "rights_attested_at",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "managed_import_sellers",
+      "definition": [
+        {
+          "name": "id",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "source_profile_url",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "display_name",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "owner_user_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "original_user_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "required_claimant_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "claimed_at",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "imported_by",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "authorized_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "sync_enabled",
+          "default": "true",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "boolean",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "mobile_message_receipts",
+      "definition": [
+        {
+          "name": "user_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "request_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "input_hash",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "bytea",
+          "generated": ""
+        },
+        {
+          "name": "result",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "jsonb",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "product_variants",
+      "definition": [
+        {
+          "name": "id",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "product_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "size",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "color",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "edition",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "sku_label",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "position",
+          "default": "0",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "active",
+          "default": "true",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "boolean",
+          "generated": ""
+        },
+        {
+          "name": "variation_key",
+          "default": "((((lower(btrim(COALESCE(size, '~'::text))) || '|'::text) || lower(btrim(COALESCE(color, '~'::text)))) || '|'::text) || lower(btrim(COALESCE(edition, '~'::text))))",
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": "s"
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "watch_baseline",
+          "default": "0",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "smallint",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "products",
+      "definition": [
+        {
+          "name": "id",
+          "default": "gen_random_uuid()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "slug",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "name",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "brand_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "collection_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "category_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "description",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "release_date",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "date",
+          "generated": ""
+        },
+        {
+          "name": "release_type",
+          "default": "'unknown'::release_type",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "release_type",
+          "generated": ""
+        },
+        {
+          "name": "retail_price_cents",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "integer",
+          "generated": ""
+        },
+        {
+          "name": "retail_price_currency",
+          "default": "'USD'::bpchar",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "character(3)",
+          "generated": ""
+        },
+        {
+          "name": "retail_price_source",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "retail_price_observed_at",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "status",
+          "default": "'draft'::product_status",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "product_status",
+          "generated": ""
+        },
+        {
+          "name": "is_demo",
+          "default": "false",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "boolean",
+          "generated": ""
+        },
+        {
+          "name": "created_by",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        }
+      ]
+    },
+    {
+      "kind": "column_types",
+      "name": "seller_profiles",
+      "definition": [
+        {
+          "name": "user_id",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "uuid",
+          "generated": ""
+        },
+        {
+          "name": "slug",
+          "default": null,
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "bio",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "status",
+          "default": "'draft'::text",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "ship_from_name",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "ship_from_phone",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "ship_from_line1",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "ship_from_line2",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "ship_from_city",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "ship_from_region",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "ship_from_postal_code",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "ship_from_country",
+          "default": "'US'::bpchar",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "character(2)",
+          "generated": ""
+        },
+        {
+          "name": "terms_version",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "terms_accepted_at",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "stripe_account_id",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "stripe_details_submitted",
+          "default": "false",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "boolean",
+          "generated": ""
+        },
+        {
+          "name": "stripe_charges_enabled",
+          "default": "false",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "boolean",
+          "generated": ""
+        },
+        {
+          "name": "stripe_payouts_enabled",
+          "default": "false",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "boolean",
+          "generated": ""
+        },
+        {
+          "name": "stripe_status_checked_at",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "created_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "updated_at",
+          "default": "now()",
+          "identity": "",
+          "nullable": false,
+          "sql_type": "timestamp with time zone",
+          "generated": ""
+        },
+        {
+          "name": "default_shipping_method",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        },
+        {
+          "name": "default_handling_days",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "smallint",
+          "generated": ""
+        },
+        {
+          "name": "stripe_account_mode",
+          "default": null,
+          "identity": "",
+          "nullable": true,
+          "sql_type": "text",
+          "generated": ""
+        }
+      ]
+    }
+  ],
+  "permissionRevisionVerified": "20261114180000_classified_detail_helper_permissions; independent production readback on 2026-11-14; helper bodies and guards unchanged"
+}

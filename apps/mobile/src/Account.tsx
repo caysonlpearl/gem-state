@@ -3,6 +3,7 @@ import { rememberNativeAuthDestination } from "./auth-destination";
 import { NativeNotifications, useNativeNotifications } from "./Notifications";
 import { NativeSavedSearches } from "./SavedSearches";
 import { NativeAccountSaved } from "./AccountSaved";
+import { NativeAccountListings } from "./AccountListings";
 import { NativeAccountReviews } from "./AccountReviews";
 import { NativeAccountOverview } from "./AccountOverview";
 import { saveProfileAvatar } from "./account-media";
@@ -48,6 +49,7 @@ const sections = [
   "messages",
   "notifications",
   "reviews",
+  "listings",
 ] as const;
 export function NativeAccount({
   ownerId,
@@ -63,9 +65,19 @@ export function NativeAccount({
   overviewReady = false,
   savedReady = false,
   reviewsReady = false,
+  listingsReady = false,
+  managementReady = false,
 }: {
   ownerId: string;
-  section: "overview" | "profile" | "settings" | "searches" | "notifications" | "saved" | "reviews";
+  section:
+    | "overview"
+    | "profile"
+    | "settings"
+    | "searches"
+    | "notifications"
+    | "saved"
+    | "reviews"
+    | "listings";
   policyVersion: string;
   onNavigate: (path: string) => void;
   onSignOut: (scope?: "local" | "global") => Promise<void>;
@@ -77,6 +89,8 @@ export function NativeAccount({
   overviewReady?: boolean;
   savedReady?: boolean;
   reviewsReady?: boolean;
+  listingsReady?: boolean;
+  managementReady?: boolean;
 }) {
   const inbox = useNativeNotifications();
   const actor = useMemo(() => ({ userId: ownerId, installId: installIdentifier() }), [ownerId]);
@@ -87,7 +101,7 @@ export function NativeAccount({
     [version, setVersion] = useState(0);
   const locked = useRef(false);
   useEffect(() => {
-    if (["notifications", "overview", "saved", "reviews"].includes(section)) return;
+    if (["notifications", "overview", "saved", "reviews", "listings"].includes(section)) return;
     if (!controlsReady) {
       setError("Account controls are temporarily unavailable. Please retry shortly.");
       return;
@@ -274,7 +288,10 @@ export function NativeAccount({
       onSelect={selectSection}
       onSignOut={() => void onSignOut()}
       availableSections={sections.filter(
-        (value) => (value !== "overview" || overviewReady) && (value !== "reviews" || reviewsReady),
+        (value) =>
+          (value !== "overview" || overviewReady) &&
+          (value !== "reviews" || reviewsReady) &&
+          (value !== "listings" || listingsReady),
       )}
       unreadMessages={inbox.data?.unreadMessages ?? 0}
       unreadNotifications={inbox.data?.unread ?? 0}
@@ -284,6 +301,7 @@ export function NativeAccount({
         section !== "overview" &&
         section !== "saved" &&
         section !== "reviews" &&
+        section !== "listings" &&
         error && (
           <div
             className="mb-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
@@ -315,12 +333,25 @@ export function NativeAccount({
         section !== "overview" &&
         section !== "saved" &&
         section !== "reviews" &&
+        section !== "listings" &&
         notice && (
           <p className="mb-5 rounded-xl border border-border bg-card p-4 text-sm" role="status">
             {notice}
           </p>
         )}
-      {section === "reviews" ? (
+      {section === "listings" ? (
+        listingsReady ? (
+          <NativeAccountListings
+            ownerId={ownerId}
+            managementReady={managementReady}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          <p role="alert" className="text-sm">
+            Your listings are temporarily unavailable. Please retry shortly.
+          </p>
+        )
+      ) : section === "reviews" ? (
         reviewsReady ? (
           <NativeAccountReviews
             ownerId={ownerId}

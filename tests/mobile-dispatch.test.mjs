@@ -1,3 +1,5 @@
+import { loadSourceModule } from "./helpers/load-source-module.mjs";
+const listingContract = loadSourceModule("lib/mobile-listing-contract.ts");
 import * as deletionAccess from "../src/lib/account-deletion-access.server.ts";
 import { storefrontFixture, storefrontActors } from "./support/mobile-storefront-fixture.mjs";
 import * as storefrontHandlers from "../src/lib/mobile-storefront.server.ts";
@@ -48,6 +50,7 @@ function harness({
   reviewBlocked = false,
   scopedDealerConversation = false,
   legacySavedCount = 0,
+  listingManagement = false,
 } = {}) {
   const user = "11111111-1111-4111-8111-111111111111",
     nativeListing = "22222222-2222-4222-8222-222222222222",
@@ -225,6 +228,60 @@ function harness({
         writes.push({ kind: "remove-saved", ownerId, variantIds });
         return { removed: true };
       },
+    },
+    "./mobile-listing-capability.server": {
+      mobileListingManagementReady: async () => listingManagement,
+    },
+    "./mobile-listing-contract": listingContract,
+    "./mobile-account-listings.server": {
+      loadMobileAccountListings: async (_client, ownerId) => {
+        reads.push({ table: "owned-listings", ownerId });
+        return { ownerId, listings: [], sellerExists: true, unavailableMetrics: [] };
+      },
+      loadMobileOwnedThumbnail: async (_client, ownerId, listingId, sign) => {
+        reads.push({ table: "owned-thumbnail", ownerId, listingId });
+        return { url: (await sign([ownerId + "/fixture.jpg"])).get(ownerId + "/fixture.jpg") };
+      },
+    },
+    "./mobile-listing-management.server": {
+      readOwnedMobileListingSnapshot: async (_client, ownerId, listingId) => {
+        reads.push({ table: "owned-snapshot", ownerId, listingId });
+        return {
+          ownerId,
+          version: "a".repeat(64),
+          snapshot: {
+            id: listingId,
+            status: "active",
+            approved_at: null,
+            listing_media: [{ storage_path: ownerId + "/fixture.jpg" }],
+          },
+        };
+      },
+      commitOwnedMobileListing: async (_client, attempt) => {
+        if (attempt.action !== "edit" && Object.keys(attempt.input).length)
+          throw new protocol.MobileApiError(
+            400,
+            "invalid_listing_action",
+            "Check the listing action.",
+          );
+        writes.push({ kind: "manage-listing", ...attempt });
+        return { listingId: attempt.listingId, action: attempt.action, replayed: false };
+      },
+    },
+    "./photo-storage.server": {
+      signPrivatePhotoUrls: async (bucket, paths, duration, thumbnail, signal) => {
+        reads.push({
+          table: "sign-owned",
+          bucket,
+          paths,
+          thumbnail,
+          bounded: signal instanceof AbortSignal,
+        });
+        return new Map(paths.map((p) => [p, "https://images.fixture.invalid/signed.jpg"]));
+      },
+    },
+    "./landing-pages.server": {
+      pingListingChange: async (listingId) => writes.push({ kind: "listing-cache", listingId }),
     },
     "./mobile-account-reviews.server": {
       loadMobileAccountReviews: async (_client, ownerId) => {
@@ -426,6 +483,7 @@ function harness({
       },
     },
     "./classifieds.functions": {
+      classifiedListingEditorFromRecord: (record, imageUrls) => ({ id: record.id, imageUrls }),
       createClassifiedListing: async ({ data }) => {
         writes.push({ kind: "listing", ...data });
         return { listingId: "fixture-listing" };
@@ -1403,6 +1461,13 @@ test("deletion-pending identities cannot read or mutate private native routes, w
     ["account/overview", "GET"],
     ["account/reviews", "GET"],
     ["account/saved", "GET"],
+    ["account/listings", "GET"],
+    ["account/listings/11111111-1111-4111-8111-111111111111/editor", "GET"],
+    [
+      "account/listings/11111111-1111-4111-8111-111111111111/manage",
+      "POST",
+      { action: "archive", version: "a".repeat(64) },
+    ],
     ["account/saved/partner", "DELETE", { listingId: "marketcheck-dealer-retired" }],
     ["account/saved", "DELETE", { variantIds: [h.user] }],
     ["conversations", "GET"],
@@ -1420,4 +1485,142 @@ test("deletion-pending identities cannot read or mutate private native routes, w
     assert.equal((await response.json()).error.code, "deletion_pending", path);
   }
   assert.equal(h.writes.length, 0);
+});
+
+test("owned listing reads use live actor scope and ignore forged owner query parameters", async () => {
+  const h = harness(),
+    path = "account/listings";
+  assert.equal((await h.request(path, "GET", undefined, null)).status, 401);
+  assert.equal((await harness({ valid: false }).request(path)).status, 401);
+  assert.equal((await h.request(path + "?ownerId=victim")).status, 200);
+  assert.deepEqual(
+    h.reads.find((r) => r.table === "owned-listings"),
+    { table: "owned-listings", ownerId: h.user },
+  );
+  const b = (await (await h.request("bootstrap")).json()).data.features;
+  assert.equal(b.accountListings, true);
+  assert.equal(b.listingManagement, false);
+  const id = crypto.randomUUID();
+  assert.equal((await h.request(`account/listings/${id}/thumbnail`)).status, 200);
+  assert.equal(h.reads.find((r) => r.table === "sign-owned").bucket, "listing-media");
+  assert.equal(h.reads.find((r) => r.table === "sign-owned").thumbnail, true);
+  assert.equal(h.reads.find((r) => r.table === "sign-owned").bounded, true);
+  assert.equal((await h.request(`account/listings/${id}/editor`)).status, 503);
+  assert(!h.reads.some((r) => r.table === "owned-snapshot"));
+});
+test("owned listing editor projects one version and signed media without raw snapshot paths; version-only reads never sign", async () => {
+  const h = harness({ listingManagement: true }),
+    id = crypto.randomUUID();
+  const version = await (await h.request(`account/listings/${id}/version`)).json();
+  assert.deepEqual(version.data, {
+    ownerId: h.user,
+    listingId: id,
+    version: "a".repeat(64),
+    status: "active",
+    approvedAt: null,
+  });
+  assert(!h.reads.some((r) => r.table === "sign-owned"));
+  const r = await h.request(`account/listings/${id}/editor`),
+    body = await r.json();
+  assert.equal(r.status, 200);
+  assert.equal(body.data.ownerId, h.user);
+  assert.equal(body.data.editor.id, id);
+  assert(!JSON.stringify(body).includes("storage_path"));
+  assert(!JSON.stringify(body).includes("fixture.jpg"));
+  assert.equal(h.reads.find((r) => r.table === "sign-owned").thumbnail, false);
+  assert.equal(h.reads.find((r) => r.table === "sign-owned").bounded, true);
+});
+test("listing changes require exact actions, revisions, header IDs, strict caller-free scope and the independent capability", async () => {
+  const id = crypto.randomUUID(),
+    path = `account/listings/${id}/manage`,
+    input = { action: "archive", version: "a".repeat(64) };
+  const off = harness();
+  assert.equal((await off.request(path, "POST", input)).status, 503);
+  assert.equal(off.writes.length, 0);
+  const h = harness({ listingManagement: true });
+  for (const body of [
+    input,
+    { ...input, ownerId: "victim" },
+    { ...input, version: "bad" },
+    { ...input, action: "promote" },
+    { ...input, input: { ownerId: "victim" } },
+  ]) {
+    const missing = body === input;
+    assert.equal(
+      (
+        await h.request(
+          path,
+          "POST",
+          body,
+          "valid",
+          missing ? {} : { "Idempotency-Key": crypto.randomUUID() },
+        )
+      ).status,
+      400,
+    );
+  }
+  const key = crypto.randomUUID();
+  assert.equal(
+    (await h.request(path, "POST", input, "valid", { "Idempotency-Key": key })).status,
+    200,
+  );
+  const w = h.writes.find((w) => w.kind === "manage-listing");
+  assert.equal(w.requestId, key);
+  assert.equal(w.listingId, id);
+  assert.deepEqual(w.input, {});
+  assert.equal(h.writes.filter((w) => w.kind === "listing-cache").length, 1);
+});
+
+test("native edit requests validate full website fields and normalize SQL details without forwarding caller identity", async () => {
+  const h = harness({ listingManagement: true }),
+    id = crypto.randomUUID(),
+    key = crypto.randomUUID();
+  const input = {
+    title: "Local Tacoma",
+    description: "A well cared for local pickup ready for its next owner.",
+    category: "cars-trucks",
+    condition: "used_good",
+    priceCents: 2500000,
+    state: "ID",
+    city: "boise",
+    region: "Wrong",
+    fulfillmentMode: "local_pickup",
+    vehicle: {
+      make: "toyota",
+      model: "tacoma",
+      year: 2020,
+      mileage: 35000,
+      bodyStyle: "Pickup",
+      transmission: "Automatic",
+      drivetrain: "4WD",
+      fuelType: "Gasoline",
+      titleStatus: "Clean",
+    },
+    publicMediaPaths: [h.user + "/photo.jpg"],
+  };
+  const request = (input, key) =>
+    h.request(
+      `account/listings/${id}/manage`,
+      "POST",
+      { action: "edit", version: "a".repeat(64), input },
+      "valid",
+      { "Idempotency-Key": key },
+    );
+  assert.equal((await request(input, key)).status, 200);
+  const w = h.writes.find((w) => w.kind === "manage-listing");
+  assert.equal(w.requestId, key);
+  assert.equal(w.input.city, "Boise");
+  assert.equal(w.input.region, "Treasure Valley");
+  assert.equal(w.input.vehicle.make, "Toyota");
+  assert.equal(w.input.vehicle.body_style, "Pickup");
+  assert(!("bodyStyle" in w.input.vehicle));
+  for (const changes of [
+    { ownerId: "victim" },
+    { priceCents: -5 },
+    { category: "firearms" },
+    { publicMediaPaths: ["victim/photo.jpg"] },
+    { vehicle: null },
+  ])
+    assert.equal((await request({ ...input, ...changes }, crypto.randomUUID())).status, 400);
+  assert.equal(h.writes.filter((w) => w.kind === "manage-listing").length, 1);
 });

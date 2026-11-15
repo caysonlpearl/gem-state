@@ -10,9 +10,7 @@ import {
   BookmarkSimple,
   ChatCircle,
   CreditCard,
-  Eye,
   MagnifyingGlass,
-  PencilSimple,
   Plus,
   ShieldCheck,
   Storefront,
@@ -24,6 +22,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AccountOverviewView } from "./AccountOverviewView";
 import { ReviewsSectionView } from "./ReviewsSectionView";
+import { ListingsSectionView, type SellerListingLinkProps } from "./ListingsSectionView";
 import { AccountLayoutView } from "./AccountLayoutView";
 import { AccountProfileView, type AccountLinkProps } from "./AccountProfileView";
 import {
@@ -94,7 +93,6 @@ import { getMySavedPartnerJobs } from "@/lib/saved-jobs.functions";
 import { getMySavedPartnerVehicles } from "@/lib/saved-vehicles.functions";
 import { sellerListingState } from "@/lib/seller-listing-state";
 
-import { Button } from "@/components/ui/button";
 import {
   createListingUpgradeCheckout,
   getListingUpgradeOptions,
@@ -1100,28 +1098,6 @@ function ListingsSection({
   const queryClient = useQueryClient();
   const cancel = useServerFn(cancelListing);
   const relist = useServerFn(relistSellerListing);
-  const [filter, setFilter] = useState("active");
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState("newest");
-  const matchesFilter = (item: MyListing) => {
-    if (filter === "all") return true;
-    if (["active", "pending", "inactive"].includes(filter))
-      return sellerListingState(item).group === filter;
-    return filter === item.status;
-  };
-  const visible = listings
-    .filter(
-      (item) => item.productName.toLowerCase().includes(query.toLowerCase()) && matchesFilter(item),
-    )
-    .sort((a, b) =>
-      sort === "views"
-        ? (b.views ?? 0) - (a.views ?? 0)
-        : sort === "leads"
-          ? (b.leadCount ?? 0) - (a.leadCount ?? 0)
-          : sort === "oldest"
-            ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
   const cancelMutation = useMutation({
     mutationFn: (id: string) => cancel({ data: { kind: "ask", id } }),
     onSuccess: async () => {
@@ -1148,258 +1124,18 @@ function ListingsSection({
       toast.error(error instanceof Error ? error.message : "Could not relist listing."),
   });
   return (
-    <div className="space-y-6">
-      <SectionHeader
-        eyebrow="Seller workspace"
-        title="Your listings"
-        body="Edit, duplicate, promote, archive, and track every listing from this Seller Center. Metrics and buyer leads are shown on each row."
-        action={
-          <Link
-            to="/create-listing"
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-[12.5px] font-semibold text-accent-foreground hover:opacity-90"
-          >
-            <Plus size={16} weight="bold" /> Add listing
-          </Link>
-        }
-      />
-      <ImportSyncPanel />
-      {!sellerSetup?.exists && (
-        <div className="rounded-2xl border border-primary/25 bg-primary/5 p-5">
-          <p className="text-[14px] font-semibold">Become a Bluebird seller</p>
-          <p className="mt-1 max-w-[60ch] text-[12.5px] leading-relaxed text-muted-foreground">
-            Set up your public seller profile before publishing. Direct-contact listings do not
-            require buyer checkout or payout onboarding.
-          </p>
-          <Link
-            to="/seller-setup"
-            className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground"
-          >
-            Start seller setup
-            <ArrowRight size={14} />
-          </Link>
-        </div>
-      )}
-      <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
-        <div role="group" aria-label="Filter listings by status" className="flex flex-wrap gap-2.5">
-          {(
-            [
-              ["active", "Active"],
-              ["pending", "Awaiting approval"],
-              ["inactive", "Inactive"],
-              ["all", "All"],
-            ] as const
-          ).map(([value, label]) => (
-            <Button
-              key={value}
-              type="button"
-              aria-pressed={filter === value}
-              variant={filter === value ? "default" : "outline"}
-              onClick={() => setFilter(value)}
-              className="min-h-11 rounded-xl px-4 text-[12.5px] font-semibold focus-visible:ring-2 focus-visible:ring-offset-2"
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
-          <label className="field flex items-center gap-2">
-            <MagnifyingGlass size={15} className="text-muted-foreground" />
-            <span className="sr-only">Search listings</span>
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search your listings"
-              className="min-w-0 flex-1 bg-transparent outline-none"
-            />
-          </label>
-          <select
-            aria-label="Sort seller listings"
-            value={sort}
-            onChange={(event) => setSort(event.target.value)}
-            className="field"
-          >
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="views">Most views</option>
-            <option value="leads">Most leads</option>
-          </select>
-        </div>
-      </div>
-      {visible.length === 0 ? (
-        <EmptyState
-          title="No listings in this view"
-          body="Your active, pending, and inactive listings will appear here."
-          action={
-            <Link
-              to="/create-listing"
-              className="text-[12px] font-semibold text-primary hover:underline"
-            >
-              Create a listing
-            </Link>
-          }
-        />
-      ) : (
-        <div className="space-y-3">
-          {visible.map((item) => (
-            <SellerListingCard
-              key={item.id}
-              item={item}
-              onTakeDown={() => {
-                if (
-                  window.confirm(
-                    "Remove this listing from public search? Buyers will no longer find it, but existing messages and saved records will remain. You can relist it later for review.",
-                  )
-                )
-                  cancelMutation.mutate(item.id);
-              }}
-              onRelist={() => relistMutation.mutate(item.id)}
-            />
-          ))}
-        </div>
-      )}
-      <p className="text-[11px] text-muted-foreground">
-        Legacy Seller Center links still work, but this account section is now the primary place to
-        manage listings.
-      </p>
-    </div>
+    <ListingsSectionView
+      listings={listings}
+      sellerExists={sellerSetup?.exists === true}
+      link={WebsiteSellerListingLink}
+      importSync={<ImportSyncPanel />}
+      onTakeDown={(id) => cancelMutation.mutate(id)}
+      onRelist={(id) => relistMutation.mutate(id)}
+    />
   );
 }
-
-function SellerListingCard({
-  item,
-  onTakeDown,
-  onRelist,
-}: {
-  item: MyListing;
-  onTakeDown: () => void;
-  onRelist: () => void;
-}) {
-  const state = sellerListingState(item);
-  const active = state.group === "active";
-  const statusLabel = state.label;
-  return (
-    <article className="grid gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-[120px_minmax(0,1fr)_220px]">
-      <div className="aspect-[4/3] overflow-hidden rounded-xl bg-secondary">
-        {item.thumbnailUrl ? (
-          <img src={item.thumbnailUrl} alt="" className="size-full object-cover" />
-        ) : (
-          <div className="grid size-full place-items-center text-[11px] text-muted-foreground">
-            No photo
-          </div>
-        )}
-      </div>
-      <div>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h3 className="text-[14px] font-semibold leading-snug">{item.productName}</h3>
-            <p className="mt-1 text-[12px] text-muted-foreground">{item.variantLabel}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${active ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}
-            >
-              {statusLabel}
-            </span>
-            {item.upgradeStatus === "paid" && (
-              <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
-                Upgraded
-              </span>
-            )}
-          </div>
-        </div>
-        <p className="numeric mt-3 text-[18px] font-bold">{formatUsd(item.priceCents)}</p>
-        <p className="mt-1 text-[11.5px] text-muted-foreground">
-          Created {new Date(item.createdAt).toLocaleDateString()} · Expires{" "}
-          {new Date(item.expiresAt).toLocaleDateString()}
-        </p>
-        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-[11.5px] sm:grid-cols-4">
-          <Metric label="Views" value={item.views ?? 0} />
-          <Metric label="Impressions" value={item.impressions ?? 0} />
-          <Metric label="Leads" value={item.leadCount ?? 0} />
-          <Metric label="Offers" value={item.activeBidCount ?? 0} />
-        </dl>
-      </div>
-      <div className="self-center">
-        <div className="rounded-xl bg-secondary/55 p-3 text-[11.5px]">
-          <p className="font-semibold">Metrics</p>
-          <p className="mt-1 text-muted-foreground">
-            <Eye size={13} className="mr-1 inline" />
-            {item.views ?? 0} views · {item.impressions ?? 0} impressions
-          </p>
-          <Link
-            to="/account"
-            search={{ section: "messages" }}
-            className="mt-1 inline-flex text-muted-foreground hover:text-foreground"
-          >
-            {item.leadCount ?? 0} buyer leads
-            <ArrowRight size={12} className="ml-1" />
-          </Link>
-          <p className="mt-1 text-muted-foreground">
-            {item.upgradeStatus === "paid" ? "Upgrade applied" : "Standard placement"}
-          </p>
-        </div>
-        <details className="relative mt-3">
-          <summary className="flex h-9 cursor-pointer list-none items-center justify-center gap-1.5 rounded-lg border border-input px-2.5 text-[11px] font-semibold hover:bg-secondary">
-            <PencilSimple size={13} /> Manage
-          </summary>
-          <div className="absolute right-0 z-10 mt-1 grid min-w-[170px] gap-1 rounded-xl border border-border bg-card p-2 shadow-lg">
-            <Link
-              to="/listings/$listingId/edit"
-              params={{ listingId: item.id }}
-              className="rounded-lg px-2.5 py-2 text-left text-[11.5px] hover:bg-secondary"
-            >
-              Edit listing
-            </Link>
-            <Link
-              to="/listings/$listingId"
-              params={{ listingId: item.id }}
-              className="rounded-lg px-2.5 py-2 text-left text-[11.5px] hover:bg-secondary"
-            >
-              View listing
-            </Link>
-            <Link
-              to="/account"
-              search={{ section: "messages" }}
-              className="rounded-lg px-2.5 py-2 text-left text-[11.5px] hover:bg-secondary"
-            >
-              View leads & messages
-            </Link>
-            <Link
-              to="/account"
-              search={{ section: "billing" }}
-              className="rounded-lg px-2.5 py-2 text-left text-[11.5px] hover:bg-secondary"
-            >
-              Promote listing
-            </Link>
-            <Link
-              to="/create-listing"
-              search={{ duplicateFrom: item.id }}
-              className="rounded-lg px-2.5 py-2 text-left text-[11.5px] hover:bg-secondary"
-            >
-              Duplicate
-            </Link>
-            {active ? (
-              <button
-                type="button"
-                onClick={onTakeDown}
-                className="rounded-lg px-2.5 py-2 text-left text-[11.5px] text-destructive hover:bg-destructive/5"
-              >
-                Archive listing
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onRelist}
-                className="rounded-lg px-2.5 py-2 text-left text-[11.5px] hover:bg-secondary"
-              >
-                Restore / relist
-              </button>
-            )}
-          </div>
-        </details>
-      </div>
-    </article>
-  );
+function WebsiteSellerListingLink(props: SellerListingLinkProps) {
+  return <Link {...props} />;
 }
 
 function ReviewsSection({
@@ -1630,14 +1366,6 @@ function BillingSection({
           </div>
         )}
       </section>
-    </div>
-  );
-}
-function Metric({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div>
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 font-semibold">{value}</dd>
     </div>
   );
 }

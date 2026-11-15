@@ -1,3 +1,4 @@
+import { vehicleForRpc } from "./classified-listing-rpc";
 import {
   type ClassifiedBrowseInput,
   conditionValues,
@@ -740,44 +741,55 @@ export const getClassifiedListingEditor = createServerFn({ method: "GET" })
     if (!row) return null;
 
     const record = row as any;
-    const details = record.classified_listing_details as Record<string, unknown>;
     const media = ((record.listing_media ?? []) as { storage_path: string; position: number }[])
       .sort((a, b) => a.position - b.position)
       .map((item) => item.storage_path);
     const urls = await signListingMedia(media);
-    const category = record.products?.categories?.slug ?? "general";
-    const description = record.products?.description ?? "";
-    return {
-      id: record.id,
-      title: record.products?.name ?? "",
-      description,
-      category,
-      priceCents: Number(record.price_cents),
-      condition: record.item_condition,
-      sellerNote: record.seller_note ?? "",
-      itemDetails: normalizeClassifiedItemDetails(
-        category,
-        (details["item_details"] as Record<string, unknown> | null) ?? {},
-      ),
-      state: String(details["state"] ?? "ID").toUpperCase(),
-      region: String(details["region"] ?? ""),
-      city: String(details["city"] ?? ""),
-      postalCode: String(details["postal_code"] ?? ""),
-      fulfillmentMode: String(details["fulfillment_mode"] ?? "local_pickup"),
-      vehicle: vehicleOf(details),
-      home: homeOf(details),
-      job: jobOf(details, description),
-      service: serviceOf(details, description, Number(record.price_cents)),
-      pet: petOf(details),
-      parcelLengthIn: record.parcel_length_in == null ? "" : String(record.parcel_length_in),
-      parcelWidthIn: record.parcel_width_in == null ? "" : String(record.parcel_width_in),
-      parcelHeightIn: record.parcel_height_in == null ? "" : String(record.parcel_height_in),
-      parcelWeightLb: record.parcel_weight_lb == null ? "" : String(record.parcel_weight_lb),
-      status: record.status,
-      approvedAt: record.approved_at ?? null,
-      imageUrls: media.map((path) => urls.get(path)).filter((url): url is string => Boolean(url)),
-    };
+    return classifiedListingEditorFromRecord(
+      record,
+      media.map((path) => urls.get(path)).filter((url): url is string => Boolean(url)),
+    );
   });
+
+/** Shared domain projection; callers scope ownership before providing a record. */
+export function classifiedListingEditorFromRecord(
+  record: any,
+  imageUrls: string[],
+): ClassifiedListingEditor {
+  const details = record.classified_listing_details as Record<string, unknown>;
+  const category = record.products?.categories?.slug ?? "general";
+  const description = record.products?.description ?? "";
+  return {
+    id: record.id,
+    title: record.products?.name ?? "",
+    description,
+    category,
+    priceCents: Number(record.price_cents),
+    condition: record.item_condition,
+    sellerNote: record.seller_note ?? "",
+    itemDetails: normalizeClassifiedItemDetails(
+      category,
+      (details["item_details"] as Record<string, unknown> | null) ?? {},
+    ),
+    state: String(details["state"] ?? "ID").toUpperCase(),
+    region: String(details["region"] ?? ""),
+    city: String(details["city"] ?? ""),
+    postalCode: String(details["postal_code"] ?? ""),
+    fulfillmentMode: String(details["fulfillment_mode"] ?? "local_pickup"),
+    vehicle: vehicleOf(details),
+    home: homeOf(details),
+    job: jobOf(details, description),
+    service: serviceOf(details, description, Number(record.price_cents)),
+    pet: petOf(details),
+    parcelLengthIn: record.parcel_length_in == null ? "" : String(record.parcel_length_in),
+    parcelWidthIn: record.parcel_width_in == null ? "" : String(record.parcel_width_in),
+    parcelHeightIn: record.parcel_height_in == null ? "" : String(record.parcel_height_in),
+    parcelWeightLb: record.parcel_weight_lb == null ? "" : String(record.parcel_weight_lb),
+    status: record.status,
+    approvedAt: record.approved_at ?? null,
+    imageUrls,
+  };
+}
 
 export type UpdateClassifiedListingInput = {
   listingId: string;
@@ -954,25 +966,6 @@ function vehicleOf(details: Record<string, unknown>): ClassifiedVehicle | null {
     exteriorColor: (details["vehicle_exterior_color"] as string | null) ?? null,
     titleStatus: (details["vehicle_title_status"] as string | null) ?? null,
     vin: (details["vin"] as string | null) ?? null,
-  };
-}
-
-/** The database compatibility function stores vehicle JSON with SQL-style keys. */
-function vehicleForRpc(vehicle: ClassifiedListingInput["vehicle"] | undefined) {
-  if (!vehicle) return {};
-  return {
-    make: vehicle.make,
-    model: vehicle.model,
-    year: vehicle.year,
-    trim: vehicle.trim,
-    mileage: vehicle.mileage,
-    body_style: vehicle.bodyStyle,
-    transmission: vehicle.transmission,
-    drivetrain: vehicle.drivetrain,
-    fuel_type: vehicle.fuelType,
-    exterior_color: vehicle.exteriorColor,
-    title_status: vehicle.titleStatus,
-    vin: vehicle.vin,
   };
 }
 

@@ -17,6 +17,7 @@ import {
 } from "./photo-storage";
 import { createR2PhotoStore, photoSha256, readR2PhotoConfig } from "./r2-photo-storage.server";
 import { serverEnv } from "./runtime-env.server";
+import { withFetchSignal } from "./scoped-fetch.server";
 
 export function currentPhotoMode() {
   return photoMode(serverEnv("BLUEBIRD_PHOTO_STORAGE_MODE"));
@@ -235,7 +236,8 @@ export function createSupabasePhotoSource(db: SupabaseClient): PhotoSource {
 
 let singleton: { key: string; store: ReturnType<typeof createPhotoStorage> } | null = null;
 
-export async function getPhotoStorage(forceR2 = false) {
+export async function getPhotoStorage(forceR2 = false, signal?: AbortSignal) {
+  signal?.throwIfAborted();
   const mode = currentPhotoMode();
   const uploadMode = currentPhotoUploadMode();
   const sourceFallback = currentPhotoSourceFallbackPolicy();
@@ -249,20 +251,27 @@ export async function getPhotoStorage(forceR2 = false) {
   ];
   const env = Object.fromEntries(names.map((name) => [name, serverEnv(name)]));
   const key = `${mode}:${uploadMode}:${sourceFallback.expiresAt}:${withR2}:${photoSha256(JSON.stringify(env))}`;
-  if (singleton?.key === key) return singleton.store;
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const db = supabaseAdmin as unknown as SupabaseClient;
+  if (!signal && singleton?.key === key) return singleton.store;
+  const { supabaseAdmin, createSupabaseAdminClient } =
+    await import("@/integrations/supabase/client.server");
+  // Never cache a client whose deadline belongs to one request. The shared
+  // website/background store retains its existing client and behavior.
+  const db = (signal
+    ? createSupabaseAdminClient(signal)
+    : supabaseAdmin) as unknown as SupabaseClient;
   const store = createPhotoStorage({
     mode,
     uploadMode,
     sourceFallbackExpiresAt: sourceFallback.expiresAt,
     source: createSupabasePhotoSource(db),
     receipts: createSupabasePhotoReceipts(db),
-    ...(withR2 ? { r2: createR2PhotoStore(readR2PhotoConfig(env)) } : {}),
+    ...(withR2
+      ? { r2: createR2PhotoStore(readR2PhotoConfig(env), withFetchSignal(fetch, signal)) }
+      : {}),
     thumbnail: async (bytes, type) =>
       (await import("./photo-thumbnail.server")).makePhotoThumbnail(bytes, type),
   });
-  singleton = { key, store };
+  if (!signal) singleton = { key, store };
   return store;
 }
 
@@ -271,6 +280,10 @@ export async function signPrivatePhotoUrls(
   paths: string[],
   seconds = 3600,
   thumbnail = false,
+  signal?: AbortSignal,
 ) {
-  return (await getPhotoStorage()).sign(bucket, paths, seconds, thumbnail);
+  signal?.throwIfAborted();
+  const urls = await (await getPhotoStorage(false, signal)).sign(bucket, paths, seconds, thumbnail);
+  signal?.throwIfAborted();
+  return urls;
 }

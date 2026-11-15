@@ -41,16 +41,19 @@ export function Post({
   ownerId,
   onSubmitted,
   initialSetup = false,
+  duplicateFrom,
 }: {
   bootstrap: Bootstrap;
   ownerId: string;
   onSubmitted: (id: string) => void;
   initialSetup?: boolean;
+  duplicateFrom?: ClassifiedListingEditor;
 }) {
   const actor = useMemo(() => ({ userId: ownerId, installId: installIdentifier() }), [ownerId]);
   const [seller, setSeller] = useState<SellerSetup | null>(null),
     [error, setError] = useState(""),
     [showSetup, setShowSetup] = useState(initialSetup);
+  const [duplicateSource, setDuplicateSource] = useState(duplicateFrom);
   const [submitted, setSubmitted] = useState(false),
     [version, setVersion] = useState(0);
   useEffect(() => {
@@ -106,6 +109,7 @@ export function Post({
             className="h-11 bg-primary px-4 text-sm text-primary-foreground"
             onClick={() => {
               setSubmitted(false);
+              setDuplicateSource(undefined);
               setVersion((n) => n + 1);
             }}
           >
@@ -126,6 +130,7 @@ export function Post({
       key={`${ownerId}:${version}`}
       ownerId={ownerId}
       bootstrap={bootstrap}
+      duplicateFrom={duplicateSource}
       onProfile={() => setShowSetup(true)}
       onSubmitted={(id) => {
         setSubmitted(true);
@@ -244,9 +249,10 @@ function NativeSellerSetup({
     />
   );
 }
-function restoreDraft(ownerId: string): ListingFormState {
+function restoreDraft(ownerId: string, duplicateFrom?: ClassifiedListingEditor): ListingFormState {
+  const draftId = duplicateFrom ? `${ownerId}-duplicate-${duplicateFrom.id}` : ownerId;
   try {
-    const stored = JSON.parse(sessionStorage.getItem(`bb-draft-listing-${ownerId}`) ?? "null");
+    const stored = JSON.parse(sessionStorage.getItem(`bb-draft-listing-${draftId}`) ?? "null");
     if (stored?.form) {
       const form = { ...initialListingForm };
       for (const key of Object.keys(initialListingForm) as (keyof ListingFormState)[])
@@ -263,6 +269,7 @@ function restoreDraft(ownerId: string): ListingFormState {
       if (!mobileCategoryAllowed(form.category)) form.category = "";
       return form;
     }
+    if (duplicateFrom) return fromEditor(duplicateFrom);
     const old = JSON.parse(sessionStorage.getItem(`bb-draft-${ownerId}`) ?? "null");
     if (old) {
       const base = {
@@ -308,17 +315,19 @@ function restoreDraft(ownerId: string): ListingFormState {
 function NativeListingEditor({
   ownerId,
   bootstrap,
+  duplicateFrom,
   onProfile,
   onSubmitted,
 }: {
   ownerId: string;
   bootstrap: Bootstrap;
+  duplicateFrom?: ClassifiedListingEditor;
   onProfile: () => void;
   onSubmitted: (id: string) => void;
 }) {
   const [initialAttempt] = useState(() => readPostingAttempt(ownerId));
   const [restored] = useState(() => {
-    if (!initialAttempt) return restoreDraft(ownerId);
+    if (!initialAttempt) return restoreDraft(ownerId, duplicateFrom);
     const payload = initialAttempt.payload;
     return fromEditor({
       ...payload,
@@ -333,10 +342,14 @@ function NativeListingEditor({
   });
   const state = useListingFormState({
     mode: "create",
+    duplicateFrom,
     initialDraft: restored,
     onDraftChange: (form) => {
       try {
-        sessionStorage.setItem(`bb-draft-listing-${ownerId}`, JSON.stringify({ form }));
+        sessionStorage.setItem(
+          `bb-draft-listing-${duplicateFrom ? `${ownerId}-duplicate-${duplicateFrom.id}` : ownerId}`,
+          JSON.stringify({ form }),
+        );
       } catch {
         /* Optional storage. */
       }
@@ -399,7 +412,10 @@ function NativeListingEditor({
       }
       const result = await submitPostingAttempt(ownerId, attempt);
       clearPostingAttempt(ownerId);
-      for (const key of [`bb-draft-listing-${ownerId}`, `bb-draft-${ownerId}`])
+      for (const key of [
+        `bb-draft-listing-${duplicateFrom ? `${ownerId}-duplicate-${duplicateFrom.id}` : ownerId}`,
+        `bb-draft-${ownerId}`,
+      ])
         try {
           sessionStorage.removeItem(key);
         } catch {
@@ -436,7 +452,7 @@ function NativeListingEditor({
         </p>
       )}
       <ListingFormView
-        props={{ mode: "create" }}
+        props={{ mode: "create", duplicateFrom }}
         state={state}
         categories={bootstrap.categories
           .filter((c) => mobileCategoryAllowed(c.slug))
@@ -451,7 +467,7 @@ function NativeListingEditor({
     </section>
   );
 }
-function NativeVinLookup({
+export function NativeVinLookup({
   form,
   set,
   ownerId,

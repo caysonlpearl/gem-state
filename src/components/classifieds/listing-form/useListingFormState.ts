@@ -22,7 +22,7 @@ export function useListingFormState(
   },
 ) {
   const [form, setForm] = useState<ListingFormState>(() => {
-    if (props.mode === "edit") return fromEditor(props.initial);
+    if (props.mode === "edit") return props.initialDraft ?? fromEditor(props.initial);
     return (
       props.initialDraft ??
       (props.duplicateFrom ? fromEditor(props.duplicateFrom) : initialListingForm)
@@ -51,8 +51,8 @@ export function useListingFormState(
 
   useEffect(() => {
     if (props.mode === "edit") {
-      setForm(fromEditor(props.initial));
-      setKind(kindForCategory(props.initial.category));
+      setForm(props.initialDraft ?? fromEditor(props.initial));
+      setKind(kindForCategory((props.initialDraft ?? fromEditor(props.initial)).category));
     }
     // Only re-hydrate when switching to a different listing, not on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps

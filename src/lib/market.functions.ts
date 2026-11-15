@@ -1,3 +1,4 @@
+import { accountListingModel } from "./account-listing-model";
 import { getPhotoStorageModule } from "./photo-storage-access";
 /* eslint-disable @typescript-eslint/no-explicit-any -- the generated Supabase client types lag the applied seller migration until the next linked type generation */
 import { createServerFn } from "@tanstack/react-start";
@@ -720,62 +721,15 @@ export const getMyListings = createServerFn({ method: "GET" })
       }
     }
 
-    const shape = (row: Record<string, unknown>): MyListing => {
-      const product = row["products"] as { slug: string; name: string } | null;
-      const summary = summaryByVariant.get(row["variant_id"] as string) as any;
-      return {
-        id: row["id"] as string,
-        variantId: row["variant_id"] as string,
-        productSlug: product?.slug ?? "",
-        productName: product?.name ?? "Unknown product",
-        productStatus: (product as { status?: string } | null)?.status ?? null,
-        variantLabel: label(
-          row["product_variants"] as {
-            size: string | null;
-            color: string | null;
-            edition: string | null;
-          } | null,
-        ),
-        priceCents: row["price_cents"] as number,
-        currency: row["currency"] as string,
-        status: row["status"] as string,
-        approvedAt: (row["approved_at"] as string | null) ?? null,
-        expiresAt: row["expires_at"] as string,
-        createdAt: row["created_at"] as string,
-        matchedOrderId: (row["matched_order_id"] as string | null) ?? null,
-        ...(soldAtByListing.has(row["id"] as string)
-          ? { soldAt: soldAtByListing.get(row["id"] as string)! }
-          : {}),
-        ...(thumbnailByAsk.has(row["id"] as string)
-          ? { thumbnailUrl: thumbnailByAsk.get(row["id"] as string)! }
-          : {}),
-        ...(summary
-          ? {
-              highestBidCents:
-                summary.highest_bid_cents == null ? null : Number(summary.highest_bid_cents),
-              activeBidCount: Number(summary.active_bid_count ?? 0),
-              authorizedBidCount: Number(summary.authorized_bid_count ?? 0),
-            }
-          : {}),
-        ...(metricsByListing.has(row["id"] as string)
-          ? {
-              impressions: Number(metricsByListing.get(row["id"] as string)?.impressions ?? 0),
-              views: Number(metricsByListing.get(row["id"] as string)?.views ?? 0),
-            }
-          : { impressions: 0, views: 0 }),
-        leadCount: leadsByListing.get(row["id"] as string) ?? 0,
-        upgradeStatus: upgradesByListing.get(row["id"] as string) ?? null,
-        ...(row["evidence_count"] != null
-          ? { evidenceCount: row["evidence_count"] as number }
-          : {}),
-        ...(row["public_media_count"] != null
-          ? { publicMediaCount: row["public_media_count"] as number }
-          : {}),
-        ...(row["payment_authorized"] != null
-          ? { paymentAuthorized: row["payment_authorized"] as boolean }
-          : {}),
-      };
-    };
+    const shape = (row: Record<string, unknown>): MyListing =>
+      accountListingModel(row, {
+        summary: summaryByVariant.get(row["variant_id"] as string),
+        soldAt: soldAtByListing.get(row["id"] as string),
+        thumbnailUrl: thumbnailByAsk.get(row["id"] as string),
+        metrics: metricsByListing.get(row["id"] as string),
+        leadCount: leadsByListing.get(row["id"] as string),
+        upgradeStatus: upgradesByListing.get(row["id"] as string),
+      });
 
     return {
       asks: (asks ?? []).map((r: unknown) => shape(r as Record<string, unknown>)),

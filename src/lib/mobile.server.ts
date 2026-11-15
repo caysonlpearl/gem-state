@@ -368,6 +368,10 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         accountOverview: true,
         accountSaved: true,
         accountReviews: true,
+        accountListings: true,
+        listingManagement: await (
+          await import("./mobile-listing-capability.server")
+        ).mobileListingManagementReady(),
         fullSearch: true,
         notificationCenter: true,
         listingDetails: true,
@@ -654,6 +658,111 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
   if (method === "GET" && path === "account") {
     const { getMyAccount } = await import("./account.functions");
     return { account: await domain(getMyAccount), consent: await consent(user.id) };
+  }
+  if (method === "GET" && path === "account/listings")
+    return (await import("./mobile-account-listings.server")).loadMobileAccountListings(
+      client,
+      user.id,
+    );
+  const ownedListing =
+    /^account\/listings\/([0-9a-f-]{36})\/(thumbnail|editor|version|manage)$/i.exec(path);
+  if (
+    ownedListing &&
+    ((method === "GET" && ownedListing[2] !== "manage") ||
+      (method === "POST" && ownedListing[2] === "manage"))
+  ) {
+    const listingId = z.string().guid().parse(ownedListing[1]),
+      kind = ownedListing[2];
+    const sign = async (paths: string[]) =>
+      (await import("./photo-storage.server")).signPrivatePhotoUrls(
+        "listing-media",
+        paths,
+        3600,
+        kind === "thumbnail",
+        AbortSignal.timeout(8000),
+      );
+    if (kind === "thumbnail")
+      return (await import("./mobile-account-listings.server")).loadMobileOwnedThumbnail(
+        client,
+        user.id,
+        listingId,
+        sign,
+      );
+    if (
+      !(await (await import("./mobile-listing-capability.server")).mobileListingManagementReady())
+    )
+      throw new MobileApiError(
+        503,
+        "listing_management_unavailable",
+        "Listing changes are temporarily unavailable. Your draft is still here.",
+      );
+    const f = await import("./mobile-listing-management.server");
+    if (kind === "manage") {
+      const contract = await import("./mobile-listing-contract");
+      const input = contract.mobileListingActionSchema.parse(await mobileJson(request));
+      const requestId = mobileWriteId(request.headers.get("Idempotency-Key"));
+      if (!requestId)
+        throw new MobileApiError(
+          400,
+          "request_id_required",
+          "Retry this action with its original request ID.",
+        );
+      let edit = input.input;
+      if (input.action === "edit") {
+        try {
+          edit = contract.mobileListingEditInput(edit, user.id);
+        } catch {
+          throw new MobileApiError(
+            400,
+            "invalid_listing",
+            "Check your listing details and photos before submitting.",
+          );
+        }
+      }
+      const result = await f.commitOwnedMobileListing(client, {
+        requestId,
+        listingId,
+        action: input.action,
+        version: input.version,
+        input: edit,
+      });
+      if (!result.replayed) {
+        try {
+          void import("./landing-pages.server")
+            .then((f) => f.pingListingChange(listingId))
+            .catch(() => undefined);
+        } catch {
+          /* The committed business action succeeds even if cache refresh fails. */
+        }
+      }
+      return result;
+    }
+    const owned = await f.readOwnedMobileListingSnapshot(client, user.id, listingId);
+    if (kind === "version")
+      return {
+        ownerId: user.id,
+        listingId,
+        version: owned.version,
+        status: owned.snapshot.status,
+        approvedAt: owned.snapshot.approved_at ?? null,
+      };
+    const paths = owned.snapshot.listing_media.map((m: { storage_path: string }) => m.storage_path);
+    const urls = await sign(paths);
+    const images = paths.map((p: string) => mobileMediaUrl(urls.get(p)));
+    if (images.some((url: string | null) => !url))
+      throw new MobileApiError(
+        503,
+        "listing_photos_unavailable",
+        "Your listing photos could not be loaded. Please retry.",
+      );
+    return {
+      ownerId: user.id,
+      version: owned.version,
+      editor: (await import("./classifieds.functions")).classifiedListingEditorFromRecord(
+        owned.snapshot,
+        images,
+      ),
+    };
   }
   if (method === "GET" && path === "account/reviews")
     return (await import("./mobile-account-reviews.server")).loadMobileAccountReviews(
