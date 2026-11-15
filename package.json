@@ -26,6 +26,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "build:mobile": "npm --prefix apps/mobile run build",
+    "check:mobile:auth-redirect": "node --experimental-strip-types scripts/mobile-auth-redirect-check.mjs",
     "test:mobile": "node --experimental-strip-types --test tests/mobile-*.test.mjs",
     "test:mobile:ui": "node scripts/mobile-ui-smoke.mjs",
     "test:mobile:shopping:ui": "node --experimental-strip-types scripts/mobile-shopping-ui-smoke.mjs",
