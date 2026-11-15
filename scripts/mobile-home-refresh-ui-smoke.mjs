@@ -156,7 +156,8 @@ try {
       .first()
       .waitFor();
     const headings = await page.locator(".mobile-home h2").allTextContents();
-    assert.deepEqual(headings.slice(0, 4), [
+    assert.deepEqual(headings.slice(0, 5), [
+      "For you",
       "Vehicles",
       "Fresh local finds",
       "Homes for sale",
