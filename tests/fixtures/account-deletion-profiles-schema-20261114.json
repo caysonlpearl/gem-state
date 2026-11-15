@@ -1,0 +1,582 @@
+{
+  "profiles": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "display_name",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "avatar_url",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "home_resort_code",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      },
+      {
+        "name": "primary_intent",
+        "type": "member_intent",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "onboarded_at",
+        "type": "timestamp with time zone",
+        "default": null,
+        "notNull": false
+      }
+    ],
+    "indexes": ["CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id)"],
+    "triggers": [
+      {
+        "name": "profiles_set_updated_at",
+        "enabled": "O",
+        "function": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$\n",
+        "definition": "CREATE TRIGGER profiles_set_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      }
+    ],
+    "constraints": [
+      {
+        "name": "profiles_id_fkey",
+        "table": "profiles",
+        "definition": "FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "profiles_pkey",
+        "table": "profiles",
+        "definition": "PRIMARY KEY (id)"
+      }
+    ]
+  },
+  "seller_profiles": {
+    "columns": [
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "slug",
+        "type": "text",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "bio",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "default": "'draft'::text",
+        "notNull": true
+      },
+      {
+        "name": "ship_from_name",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "ship_from_phone",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "ship_from_line1",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "ship_from_line2",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "ship_from_city",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "ship_from_region",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "ship_from_postal_code",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "ship_from_country",
+        "type": "character(2)",
+        "default": "'US'::bpchar",
+        "notNull": true
+      },
+      {
+        "name": "terms_version",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "terms_accepted_at",
+        "type": "timestamp with time zone",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "stripe_account_id",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "stripe_details_submitted",
+        "type": "boolean",
+        "default": "false",
+        "notNull": true
+      },
+      {
+        "name": "stripe_charges_enabled",
+        "type": "boolean",
+        "default": "false",
+        "notNull": true
+      },
+      {
+        "name": "stripe_payouts_enabled",
+        "type": "boolean",
+        "default": "false",
+        "notNull": true
+      },
+      {
+        "name": "stripe_status_checked_at",
+        "type": "timestamp with time zone",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      },
+      {
+        "name": "default_shipping_method",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "default_handling_days",
+        "type": "smallint",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "stripe_account_mode",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX seller_profiles_pkey ON public.seller_profiles USING btree (user_id)",
+      "CREATE UNIQUE INDEX seller_profiles_slug_unique ON public.seller_profiles USING btree (lower(slug))",
+      "CREATE UNIQUE INDEX seller_profiles_stripe_account_id_key ON public.seller_profiles USING btree (stripe_account_id)"
+    ],
+    "triggers": [
+      {
+        "name": "seller_profiles_set_updated_at",
+        "enabled": "O",
+        "function": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$\n",
+        "definition": "CREATE TRIGGER seller_profiles_set_updated_at BEFORE UPDATE ON seller_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      }
+    ],
+    "constraints": [
+      {
+        "name": "seller_profiles_bio_length",
+        "table": "seller_profiles",
+        "definition": "CHECK (bio IS NULL OR length(bio) <= 280)"
+      },
+      {
+        "name": "seller_profiles_country_format",
+        "table": "seller_profiles",
+        "definition": "CHECK (ship_from_country ~ '^[A-Z]{2}$'::text)"
+      },
+      {
+        "name": "seller_profiles_default_handling_days_check",
+        "table": "seller_profiles",
+        "definition": "CHECK (default_handling_days >= 1 AND default_handling_days <= 5)"
+      },
+      {
+        "name": "seller_profiles_default_shipping_method_check",
+        "table": "seller_profiles",
+        "definition": "CHECK (default_shipping_method = ANY (ARRAY['usps_ground_advantage'::text, 'usps_priority_mail'::text, 'ups_ground'::text, 'fedex_ground'::text]))"
+      },
+      {
+        "name": "seller_profiles_pkey",
+        "table": "seller_profiles",
+        "definition": "PRIMARY KEY (user_id)"
+      },
+      {
+        "name": "seller_profiles_slug_format",
+        "table": "seller_profiles",
+        "definition": "CHECK (slug ~ '^[a-z0-9][a-z0-9-]{2,29}$'::text)"
+      },
+      {
+        "name": "seller_profiles_status_check",
+        "table": "seller_profiles",
+        "definition": "CHECK (status = ANY (ARRAY['draft'::text, 'active'::text, 'restricted'::text]))"
+      },
+      {
+        "name": "seller_profiles_stripe_account_id_key",
+        "table": "seller_profiles",
+        "definition": "UNIQUE (stripe_account_id)"
+      },
+      {
+        "name": "seller_profiles_stripe_account_mode_check",
+        "table": "seller_profiles",
+        "definition": "CHECK (stripe_account_mode = ANY (ARRAY['test'::text, 'live'::text]))"
+      }
+    ]
+  },
+  "shopper_service_profiles": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "default": "gen_random_uuid()",
+        "notNull": true
+      },
+      {
+        "name": "shopper_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "flat_fee_cents",
+        "type": "integer",
+        "default": "1500",
+        "notNull": true
+      },
+      {
+        "name": "currency",
+        "type": "character(3)",
+        "default": "'USD'::bpchar",
+        "notNull": true
+      },
+      {
+        "name": "available",
+        "type": "boolean",
+        "default": "false",
+        "notNull": true
+      },
+      {
+        "name": "available_until",
+        "type": "timestamp with time zone",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "purchase_window_days",
+        "type": "integer",
+        "default": "7",
+        "notNull": true
+      },
+      {
+        "name": "max_active_orders",
+        "type": "integer",
+        "default": "3",
+        "notNull": true
+      },
+      {
+        "name": "offer_across_catalog",
+        "type": "boolean",
+        "default": "true",
+        "notNull": true
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      },
+      {
+        "name": "slug",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "bio",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "public_location",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "avatar_url",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "stripe_account_id",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "stripe_details_submitted",
+        "type": "boolean",
+        "default": "false",
+        "notNull": true
+      },
+      {
+        "name": "stripe_charges_enabled",
+        "type": "boolean",
+        "default": "false",
+        "notNull": true
+      },
+      {
+        "name": "stripe_payouts_enabled",
+        "type": "boolean",
+        "default": "false",
+        "notNull": true
+      },
+      {
+        "name": "stripe_status_checked_at",
+        "type": "timestamp with time zone",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "stripe_account_mode",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX shopper_service_profiles_pkey ON public.shopper_service_profiles USING btree (id)",
+      "CREATE UNIQUE INDEX shopper_service_profiles_shopper_id_key ON public.shopper_service_profiles USING btree (shopper_id)",
+      "CREATE UNIQUE INDEX shopper_service_profiles_slug_unique ON public.shopper_service_profiles USING btree (lower(slug)) WHERE (slug IS NOT NULL)"
+    ],
+    "triggers": [
+      {
+        "name": "guard_shopper_service_profiles",
+        "enabled": "O",
+        "function": "CREATE OR REPLACE FUNCTION public.guard_shopper_service_writes()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n  if not public.is_trusted_operation() then\n    raise exception 'This record is managed through ParkVault service functions only'\n      using errcode = '42501';\n  end if;\n  return case when tg_op = 'DELETE' then old else new end;\nend $function$\n",
+        "definition": "CREATE TRIGGER guard_shopper_service_profiles BEFORE INSERT OR DELETE OR UPDATE ON shopper_service_profiles FOR EACH ROW EXECUTE FUNCTION guard_shopper_service_writes()"
+      },
+      {
+        "name": "shopper_service_profiles_touch",
+        "enabled": "O",
+        "function": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$\n",
+        "definition": "CREATE TRIGGER shopper_service_profiles_touch BEFORE UPDATE ON shopper_service_profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      }
+    ],
+    "constraints": [
+      {
+        "name": "shopper_coverage_profile_id_fkey",
+        "table": "shopper_coverage",
+        "definition": "FOREIGN KEY (profile_id) REFERENCES shopper_service_profiles(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "shopper_profile_availability_window",
+        "table": "shopper_service_profiles",
+        "definition": "CHECK (NOT available OR available_until IS NOT NULL)"
+      },
+      {
+        "name": "shopper_service_profiles_bio_length",
+        "table": "shopper_service_profiles",
+        "definition": "CHECK (bio IS NULL OR length(bio) <= 280)"
+      },
+      {
+        "name": "shopper_service_profiles_flat_fee_cents_check",
+        "table": "shopper_service_profiles",
+        "definition": "CHECK (flat_fee_cents >= 1000 AND flat_fee_cents <= 2500)"
+      },
+      {
+        "name": "shopper_service_profiles_max_active_orders_check",
+        "table": "shopper_service_profiles",
+        "definition": "CHECK (max_active_orders >= 1 AND max_active_orders <= 25)"
+      },
+      {
+        "name": "shopper_service_profiles_pkey",
+        "table": "shopper_service_profiles",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "name": "shopper_service_profiles_public_location_length",
+        "table": "shopper_service_profiles",
+        "definition": "CHECK (public_location IS NULL OR length(public_location) <= 100)"
+      },
+      {
+        "name": "shopper_service_profiles_purchase_window_days_check",
+        "table": "shopper_service_profiles",
+        "definition": "CHECK (purchase_window_days >= 1 AND purchase_window_days <= 30)"
+      },
+      {
+        "name": "shopper_service_profiles_shopper_id_fkey",
+        "table": "shopper_service_profiles",
+        "definition": "FOREIGN KEY (shopper_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "shopper_service_profiles_shopper_id_key",
+        "table": "shopper_service_profiles",
+        "definition": "UNIQUE (shopper_id)"
+      },
+      {
+        "name": "shopper_service_profiles_slug_format",
+        "table": "shopper_service_profiles",
+        "definition": "CHECK (slug IS NULL OR slug ~ '^[a-z0-9][a-z0-9-]{2,29}$'::text)"
+      },
+      {
+        "name": "shopper_service_profiles_stripe_account_mode_check",
+        "table": "shopper_service_profiles",
+        "definition": "CHECK (stripe_account_mode = ANY (ARRAY['test'::text, 'live'::text]))"
+      },
+      {
+        "name": "sourcing_assignments_shopper_profile_id_fkey",
+        "table": "sourcing_assignments",
+        "definition": "FOREIGN KEY (shopper_profile_id) REFERENCES shopper_service_profiles(id)"
+      }
+    ]
+  },
+  "shopper_coverage": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "default": "gen_random_uuid()",
+        "notNull": true
+      },
+      {
+        "name": "profile_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "resort_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "park_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "location_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      }
+    ],
+    "triggers": [
+      {
+        "name": "guard_shopper_coverage",
+        "enabled": "O",
+        "function": "CREATE OR REPLACE FUNCTION public.guard_shopper_service_writes()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n  if not public.is_trusted_operation() then\n    raise exception 'This record is managed through ParkVault service functions only'\n      using errcode = '42501';\n  end if;\n  return case when tg_op = 'DELETE' then old else new end;\nend $function$\n",
+        "definition": "CREATE TRIGGER guard_shopper_coverage BEFORE INSERT OR DELETE OR UPDATE ON shopper_coverage FOR EACH ROW EXECUTE FUNCTION guard_shopper_service_writes()"
+      }
+    ],
+    "constraints": [
+      {
+        "name": "shopper_coverage_exactly_one_scope",
+        "table": "shopper_coverage",
+        "definition": "CHECK (((resort_id IS NOT NULL)::integer + (park_id IS NOT NULL)::integer + (location_id IS NOT NULL)::integer) = 1)"
+      },
+      {
+        "name": "shopper_coverage_pkey",
+        "table": "shopper_coverage",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "name": "shopper_coverage_location_id_fkey",
+        "table": "shopper_coverage",
+        "definition": "FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "shopper_coverage_park_id_fkey",
+        "table": "shopper_coverage",
+        "definition": "FOREIGN KEY (park_id) REFERENCES parks(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "shopper_coverage_profile_id_fkey",
+        "table": "shopper_coverage",
+        "definition": "FOREIGN KEY (profile_id) REFERENCES shopper_service_profiles(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "shopper_coverage_resort_id_fkey",
+        "table": "shopper_coverage",
+        "definition": "FOREIGN KEY (resort_id) REFERENCES resorts(id) ON DELETE CASCADE"
+      }
+    ]
+  },
+  "seller_storefronts": " SELECT sp.user_id,\n    sp.slug,\n    p.display_name,\n    p.avatar_url,\n    sp.bio,\n    sp.created_at AS member_since,\n    sp.stripe_details_submitted AND sp.stripe_payouts_enabled AS payout_verified,\n    ( SELECT count(*) AS count\n           FROM verified_sales vs\n             JOIN orders o ON o.id = vs.order_id\n          WHERE vs.is_live AND o.seller_id = sp.user_id) AS completed_sales_count,\n    ( SELECT count(*) AS count\n           FROM order_reviews r\n          WHERE r.subject_id = sp.user_id) AS review_count,\n    ( SELECT round(avg(r.rating), 2) AS round\n           FROM order_reviews r\n          WHERE r.subject_id = sp.user_id) AS rating_average,\n    ( SELECT count(*) AS count\n           FROM asks a\n          WHERE a.seller_id = sp.user_id AND a.status = 'active'::listing_status AND a.approved_at IS NOT NULL AND a.expires_at > now() AND NOT a.is_demo AND a.evidence_count > 0 AND a.public_media_count > 0) AS active_listing_count,\n    sp.ship_from_city,\n    sp.ship_from_region,\n    sp.ship_from_country,\n    sp.default_shipping_method,\n    sp.default_handling_days\n   FROM seller_profiles sp\n     JOIN profiles p ON p.id = sp.user_id\n  WHERE sp.status = 'active'::text;",
+  "is_trusted_operation": "CREATE OR REPLACE FUNCTION public.is_trusted_operation()\n RETURNS boolean\n LANGUAGE sql\n STABLE\n SET search_path TO 'public', 'pg_temp'\nAS $function$\n  SELECT coalesce(current_setting('parkvault.trusted_operation', true) = 'on', false)\n      -- Maintenance/administrative connections. These are NEVER treated as a\n      -- marketplace member: member functions still require auth.uid().\n      OR current_user IN ('postgres', 'supabase_admin', 'service_role');\n$function$\n",
+  "member_intent_values": ["buying", "selling", "shopping_in_park", "browsing"]
+}
