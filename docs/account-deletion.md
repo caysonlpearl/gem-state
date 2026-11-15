@@ -1017,3 +1017,55 @@ retention and Apple/manual revocation remain launch work. The broader account
 deletion requirement is described in
 [Apple's account-deletion guidance](https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion)
 and [Google Play's account-deletion guidance](https://support.google.com/googleplay/android-developer/answer/13327111?hl=en).
+
+### Listing inquiry cleanup component (source only, November 15)
+
+`20261115020000_account_deletion_inquiries.sql` and
+`account-deletion-inquiries.server.ts` extend the records/verification composition
+with older classified inquiries. An inquiry contains its buyer's name, email
+and text. Buyer deletion removes that authored row only after its copied
+conversation message has been removed by the conversation component. Any
+remaining source-message reference defers the operation; the component never
+edits another author's message or silently detaches a mismatched reference.
+Seller deletion removes only the seller reference and closes the inquiry,
+preserving the surviving buyer's contribution. Listing removal likewise closes
+the inquiry and nulls its listing reference rather than cascading its contents.
+The seller inbox renders an unavailable listing as plain text, without a broken
+listing link. The surviving buyer's existing participant-read policy remains in
+place. No original buyer name, email or text is copied into a deletion ledger.
+
+Each pass changes at most 100 physical inquiry rows under its matching records
+lease. Both member identities are serialized against deletion requests before
+new inquiries or ordinary updates. Buyer/author fields cannot be reassigned or
+rewritten, closed retired records cannot reopen, and the buyer Auth foreign key
+restricts an unsafe identity-delete shortcut. A legitimate imported-seller
+claim still transfers inbox ownership only with its live claim/token journal,
+transferred listing, service role, trusted operation and active identities.
+Actual managed inquiry replies still copy the original buyer's authorship.
+The trusted-operation flag alone cannot authorize either an ownership change
+or new collection after a deletion request.
+
+The schema prerequisite checks the captured column layout, expected parent and
+child relationships and exact shopping hook. Runtime catalog/function contracts
+reject changed columns/defaults, relationships, indexes, hooks or helper bodies.
+Independent verification requires the matching verification lease and absent
+Auth identity, with no repair writes. The completion guard checks residual buyer
+and seller references, but this component cannot finish records, authorize
+financial/moderation retention, remove provider bytes or delete Auth.
+
+Tests reconstruct captured production inquiry metadata with synthetic parent
+payloads and identities. They cover bounded/replayed erasure through the real
+Supabase client, preserved other-member content, deleted listings, actual
+managed-reply and seller-claim functions, invalid claim journals, permissions,
+stale leases, drift and malformed acknowledgements. A required real PostgreSQL
+gate observes separate-connection locks for inquiry-before-request and
+request-before-inquiry ordering, plus rollback after a lease expires while
+waiting for an inquiry row.
+
+**Installation hold:** this is stacked on the source-only conversation/profile
+components. It has not been installed, no real account was erased and it does
+not activate the production worker. Compose conversations before authored
+inquiry removal and retire their member seats before owned listings disappear.
+Authored listings/catalog, job applications, remaining analytics, provider media,
+explicit financial/moderation/consent/audit retention and Apple/manual revocation
+still require their full composition and end-to-end rehearsal before activation.
