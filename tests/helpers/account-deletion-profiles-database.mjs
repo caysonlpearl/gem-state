@@ -7,6 +7,12 @@ export const capturedProfileSchema = JSON.parse(
     "utf8",
   ),
 );
+export const capturedUpgradeSchema = JSON.parse(
+  readFileSync(
+    new URL("../fixtures/account-deletion-upgrade-schema-20261115.json", import.meta.url),
+    "utf8",
+  ),
+).schema;
 export const profileMigration = () =>
   readFileSync(
     new URL(
@@ -65,6 +71,25 @@ export async function profileDatabase({ install = true, provided } = {}) {
       );
     }
     await installInventorySources(db);
+    // Receipt columns, constraints, indexes and its existing touch hook are
+    // captured metadata. Only the Ask/catalog parents are synthetic fixtures.
+    await db.exec(`create unique index profile_fixture_ask_id on public.asks(id);
+    create table public.listing_upgrade_catalog(id uuid primary key);
+    create table public.listing_upgrade_purchases(${capturedUpgradeSchema.columns.map((c) => `${quote(c.name)} ${c.type}${c.default ? " default " + c.default : ""}${c.notNull ? " not null" : ""}`).join(",")})`);
+    for (const c of capturedUpgradeSchema.constraints.filter(
+      (c) => c.table === "listing_upgrade_purchases",
+    ))
+      await db.exec(
+        `alter table public.listing_upgrade_purchases add constraint ${quote(c.name)} ${c.definition}`,
+      );
+    for (const index of capturedUpgradeSchema.indexes) {
+      const name = index.match(/CREATE (?:UNIQUE )?INDEX (\S+)/)[1];
+      if (!(await db.query("select to_regclass($1) r", [name])).rows[0].r) await db.exec(index);
+    }
+    for (const hook of capturedUpgradeSchema.triggers) await db.exec(hook.definition);
+    await db.exec(`alter table public.listing_upgrade_purchases enable row level security;
+    revoke all on public.listing_upgrade_purchases from public,anon,authenticated;
+    grant all on public.listing_upgrade_purchases,public.listing_upgrade_catalog to service_role`);
     await db.exec(`alter table public.asks add column status public.listing_status default 'active',add column approved_at timestamptz,add column expires_at timestamptz,add column is_demo boolean default false,add column evidence_count int default 0,add column public_media_count int default 0;
     drop table public.seller_storefronts;create view public.seller_storefronts as ${capturedProfileSchema.seller_storefronts};
     select public.protect_account_access_boundaries();`);

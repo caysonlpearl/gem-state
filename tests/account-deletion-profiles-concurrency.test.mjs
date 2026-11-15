@@ -8,6 +8,136 @@ import { installPrivateRecordSources } from "./helpers/account-deletion-private-
 import { profileDatabase } from "./helpers/account-deletion-profiles-database.mjs";
 
 test(
+  "upgrade receipt creation serializes with deletion requests and profile cleanup in both orders",
+  {
+    skip: process.env.BLUEBIRD_DELETION_PG !== "1" ? "Run with BLUEBIRD_DELETION_PG=1" : false,
+    timeout: 60000,
+  },
+  async () =>
+    withListingTestPostgres(async (connect) => {
+      const a = await connect(),
+        b = await connect();
+      const db = { exec: (sql) => a.query(sql), query: (sql, args) => a.query(sql, args) };
+      await installDeletionPhotoWriterSchema(db);
+      await installPrivateRecordSources(db);
+      await profileDatabase({ provided: db });
+      const early = randomUUID(),
+        late = randomUUID(),
+        upgrade = randomUUID();
+      const earlyListing = randomUUID(),
+        lateListing = randomUUID();
+      await a.query("insert into auth.users(id)values($1),($2)", [early, late]);
+      await a.query(
+        "insert into profiles(id,display_name)values($1,'Early receipt'),($2,'Late receipt')",
+        [early, late],
+      );
+      await a.query("insert into asks(id,seller_id)values($1,$2),($3,$4)", [
+        earlyListing,
+        early,
+        lateListing,
+        late,
+      ]);
+      await a.query("insert into listing_upgrade_catalog(id)values($1)", [upgrade]);
+      const start = async (user) => {
+        await a.query("select public.mobile_request_deletion($1)", [user]);
+        await a.query("update account_deletion_controls set worker_enabled=true");
+        return (
+          await a.query(
+            "update account_deletion_jobs set phase='records',status='processing',lease_token=gen_random_uuid(),lease_until=clock_timestamp()+interval '5 minutes' where user_id=$1 returning *",
+            [user],
+          )
+        ).rows[0];
+      };
+      const purge = (job) =>
+        a.query("select public.purge_account_deletion_profiles($1,$2,$3,'records',100) result", [
+          job.id,
+          job.user_id,
+          job.lease_token,
+        ]);
+      const insert = (user, listing) =>
+        b.query(
+          "insert into listing_upgrade_purchases(user_id,listing_id,upgrade_id,amount_cents,status)values($1,$2,$3,1000,'pending')",
+          [user, listing, upgrade],
+        );
+      await b.query("set role service_role");
+
+      await b.query("begin");
+      await insert(early, earlyListing);
+      let requestDone = false;
+      const request = a.query("select public.mobile_request_deletion($1)", [early]);
+      request
+        .finally(() => {
+          requestDone = true;
+        })
+        .catch(() => {});
+      await pause(40);
+      assert.equal(requestDone, false, "Deletion waits for the earlier receipt writer");
+      await b.query("commit");
+      await request;
+      const held = await start(early);
+      await assert.rejects(purge(held), /financial records/);
+      assert.equal(
+        (await a.query("select count(*)::int n from profiles where id=$1", [early])).rows[0].n,
+        1,
+      );
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from listing_upgrade_purchases where user_id=$1", [
+            early,
+          ])
+        ).rows[0].n,
+        1,
+      );
+
+      const job = await start(late);
+      await a.query("begin");
+      assert.equal((await purge(job)).rows[0].result.deleted, 1);
+      const rejected = assert.rejects(
+        insert(late, lateListing),
+        /Private account records unavailable/,
+      );
+      let waited = false;
+      for (let i = 0; i < 30; i++) {
+        if (
+          (
+            await a.query("select wait_event_type from pg_stat_activity where pid=$1", [
+              b.processID,
+            ])
+          ).rows[0]?.wait_event_type === "Lock"
+        ) {
+          waited = true;
+          break;
+        }
+        await pause(10);
+      }
+      assert(waited, "The later receipt writer waits for cleanup's account lock");
+      await a.query("commit");
+      await rejected;
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from listing_upgrade_purchases where user_id=$1", [
+            late,
+          ])
+        ).rows[0].n,
+        0,
+      );
+      assert.equal(
+        (await a.query("select count(*)::int n from profiles where id=$1", [late])).rows[0].n,
+        0,
+      );
+      assert.equal(
+        (
+          await a.query("select count(*)::int n from listing_upgrade_purchases where user_id=$1", [
+            early,
+          ])
+        ).rows[0].n,
+        1,
+        "The earlier member's receipt stays intact",
+      );
+    }),
+);
+
+test(
   "profile cleanup serializes with new financial dependencies, retries and expired leases on real PostgreSQL",
   {
     skip: process.env.BLUEBIRD_DELETION_PG !== "1" ? "Run with BLUEBIRD_DELETION_PG=1" : false,

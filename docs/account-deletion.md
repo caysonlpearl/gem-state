@@ -889,8 +889,9 @@ operation requires Auth absence and checks all four sources without repairing
 them. A completion guard also checks residual profile rows using the job's
 original member identity, including seller profiles without an Auth foreign key.
 
-This component deliberately defers accounts with buyer/seller orders, a seller
-or service Stripe account reference, or a sourcing assignment. Those records and
+This component deliberately defers accounts with buyer/seller orders, listing
+upgrade purchase records in any status, a seller or service Stripe account
+reference, or a sourcing assignment. Those records and
 all profiles stay intact until financial retention and provider cleanup have
 explicit handling. This is a prerequisite check, not a complete financial-data
 inventory or retention policy. Before an avatar reference can disappear from a
@@ -906,6 +907,11 @@ A new order or changed buyer/seller also passes the pending-account check;
 settlement of an existing order with unchanged participants remains writable.
 The erasure transaction locks the Auth and service-profile parents so concurrent
 financial references cannot slip between the prerequisite check and deletion.
+New listing-upgrade receipts and owner changes use the same pending-account
+lock. Existing receipts may still settle without changing ownership. The receipt
+table's columns, relationships, indexes and hooks are pinned by the profile
+contract; unsupported pre-installation owner layout, hooks or a missing usable
+owner index require review. This component never removes a payment receipt.
 
 Installation requires an inactive worker, the unchanged private-record contract
 and complete account-access coverage. Existing profile hooks and incoming foreign
@@ -920,16 +926,24 @@ denied. The server adapter freezes scope, disables SDK retries, enforces a
 fifteen-second transport deadline and exposes only source, count and component
 pass status. It cannot advance the whole records phase.
 
-The metadata-only fixture `account-deletion-profiles-schema-20261114.json` was
+The metadata-only fixtures `account-deletion-profiles-schema-20261114.json` and
+`account-deletion-upgrade-schema-20261115.json` were
 captured from the owning production database. Tests recreate the actual profile
 columns, checks, indexes, existing hook bodies and storefront-view definition.
+The second fixture supplies the actual receipt columns, constraints, indexes
+and touch trigger against synthetic listing/catalog parents. It was captured
+through the existing dashboard after confirming the live app's database identity;
+no customer rows or payment identifiers were read.
 Financial/supporting records are synthetic; this is not a rehearsal of the full
 production payment domain. Tests cover bounded cleanup, other-account isolation,
-preserved avatar inventory, all four financial deferrals, late writes, missing
+preserved avatar inventory, all financial deferrals (including all five receipt
+statuses), continued settlement, refused receipt creation/owner changes,
+other-member isolation, late writes, missing
 Auth, independent verification, forged/expired leases, pauses, schema drift,
 permissions, cancellation and lost acknowledgements using the actual Supabase
 client. An explicit PostgreSQL gate uses separate connections for order/request
-ordering, concurrent purge calls and lease expiry while waiting on a lock.
+ordering, receipt/request ordering in both directions, concurrent purge calls
+and lease expiry while waiting on a lock.
 
 **Source-only; not installed or activated.** No real account was erased. Before
 installation, review the complete owning-database order/payment write paths and

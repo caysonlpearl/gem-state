@@ -1,0 +1,132 @@
+{
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "capturedAt": "2026-11-15T04:15:30.396Z",
+  "metadataOnly": true,
+  "source": "listing_upgrade_purchases",
+  "schema": {
+    "columns": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "default": "gen_random_uuid()",
+        "notNull": true
+      },
+      {
+        "name": "user_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "listing_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "upgrade_id",
+        "type": "uuid",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "amount_cents",
+        "type": "integer",
+        "default": null,
+        "notNull": true
+      },
+      {
+        "name": "status",
+        "type": "text",
+        "default": "'pending'::text",
+        "notNull": true
+      },
+      {
+        "name": "stripe_checkout_session_id",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "stripe_payment_intent_id",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "receipt_url",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "paid_at",
+        "type": "timestamp with time zone",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      }
+    ],
+    "indexes": [
+      "CREATE INDEX listing_upgrade_purchases_listing_idx ON public.listing_upgrade_purchases USING btree (listing_id, created_at DESC)",
+      "CREATE UNIQUE INDEX listing_upgrade_purchases_pkey ON public.listing_upgrade_purchases USING btree (id)",
+      "CREATE UNIQUE INDEX listing_upgrade_purchases_stripe_checkout_session_id_key ON public.listing_upgrade_purchases USING btree (stripe_checkout_session_id)",
+      "CREATE INDEX listing_upgrade_purchases_user_created_idx ON public.listing_upgrade_purchases USING btree (user_id, created_at DESC)"
+    ],
+    "triggers": [
+      {
+        "name": "listing_upgrade_purchases_touch",
+        "enabled": "O",
+        "definition": "CREATE TRIGGER listing_upgrade_purchases_touch BEFORE UPDATE ON listing_upgrade_purchases FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+      }
+    ],
+    "constraints": [
+      {
+        "name": "listing_upgrade_purchases_amount_cents_check",
+        "table": "listing_upgrade_purchases",
+        "definition": "CHECK (amount_cents >= 0)"
+      },
+      {
+        "name": "listing_upgrade_purchases_listing_id_fkey",
+        "table": "listing_upgrade_purchases",
+        "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE CASCADE"
+      },
+      {
+        "name": "listing_upgrade_purchases_pkey",
+        "table": "listing_upgrade_purchases",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "name": "listing_upgrade_purchases_status_check",
+        "table": "listing_upgrade_purchases",
+        "definition": "CHECK (status = ANY (ARRAY['pending'::text, 'paid'::text, 'canceled'::text, 'failed'::text, 'refunded'::text]))"
+      },
+      {
+        "name": "listing_upgrade_purchases_stripe_checkout_session_id_key",
+        "table": "listing_upgrade_purchases",
+        "definition": "UNIQUE (stripe_checkout_session_id)"
+      },
+      {
+        "name": "listing_upgrade_purchases_upgrade_id_fkey",
+        "table": "listing_upgrade_purchases",
+        "definition": "FOREIGN KEY (upgrade_id) REFERENCES listing_upgrade_catalog(id)"
+      },
+      {
+        "name": "listing_upgrade_purchases_user_id_fkey",
+        "table": "listing_upgrade_purchases",
+        "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+      }
+    ]
+  }
+}

@@ -9,12 +9,20 @@ DO $$ DECLARE relation text; BEGIN
  OR to_regclass('public.account_deletion_media_observations') IS NULL
  OR public.account_access_coverage() IS DISTINCT FROM jsonb_build_object('unguarded_functions',0,'unguarded_tables',0,'helper_privilege_gaps',0)
  THEN RAISE EXCEPTION 'Review disabled profile-erasure prerequisites'; END IF;
- FOREACH relation IN ARRAY ARRAY['profiles','seller_profiles','shopper_service_profiles','shopper_coverage'] LOOP
+ FOREACH relation IN ARRAY ARRAY['profiles','seller_profiles','shopper_service_profiles','shopper_coverage','listing_upgrade_purchases'] LOOP
   IF NOT EXISTS(SELECT 1 FROM pg_class WHERE oid=format('public.%I',relation)::regclass AND relkind='r' AND NOT relispartition)
   OR EXISTS(SELECT 1 FROM pg_inherits WHERE inhparent=format('public.%I',relation)::regclass OR inhrelid=format('public.%I',relation)::regclass)
   OR EXISTS(SELECT 1 FROM pg_rewrite WHERE ev_class=format('public.%I',relation)::regclass)
   THEN RAISE EXCEPTION 'Review profile table layout'; END IF;
  END LOOP;
+ IF NOT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid='public.listing_upgrade_purchases'::regclass AND attname='user_id' AND atttypid='uuid'::regtype AND attnotnull AND NOT attisdropped)
+ OR NOT EXISTS(SELECT 1 FROM pg_constraint c WHERE c.conrelid='public.listing_upgrade_purchases'::regclass AND c.confrelid='auth.users'::regclass AND c.contype='f' AND c.convalidated AND NOT c.condeferrable AND c.confdeltype='c'
+  AND c.conkey=ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid=c.conrelid AND attname='user_id')]::smallint[]
+  AND c.confkey=ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid=c.confrelid AND attname='id')]::smallint[])
+ OR NOT EXISTS(SELECT 1 FROM pg_index i WHERE i.indrelid='public.listing_upgrade_purchases'::regclass AND i.indisvalid AND i.indisready AND i.indpred IS NULL AND i.indexprs IS NULL AND i.indkey[0]=(SELECT attnum FROM pg_attribute WHERE attrelid=i.indrelid AND attname='user_id'))
+ OR (SELECT count(*) FROM pg_trigger WHERE tgrelid='public.listing_upgrade_purchases'::regclass AND NOT tgisinternal)<>1
+ OR NOT EXISTS(SELECT 1 FROM pg_trigger t JOIN pg_proc p ON p.oid=t.tgfoid WHERE t.tgrelid='public.listing_upgrade_purchases'::regclass AND t.tgname='listing_upgrade_purchases_touch' AND t.tgtype=19 AND t.tgenabled='O' AND t.tgnargs=0 AND t.tgqual IS NULL AND t.tgattr=''::int2vector AND NOT t.tgdeferrable AND t.tgfoid='public.set_updated_at()'::regprocedure AND NOT p.prosecdef AND md5(p.prosrc)='9b1889f56258bf9d6554213c05019c76')
+ THEN RAISE EXCEPTION 'Review listing-upgrade financial prerequisites'; END IF;
  IF (SELECT count(*) FROM pg_trigger t WHERE NOT t.tgisinternal AND t.tgrelid IN('public.profiles'::regclass,'public.seller_profiles'::regclass,'public.shopper_service_profiles'::regclass,'public.shopper_coverage'::regclass))<>5
  OR (SELECT count(*) FROM (VALUES
  ('profiles','profiles_set_updated_at','set_updated_at','9b1889f56258bf9d6554213c05019c76',19),
@@ -45,6 +53,7 @@ $$;
 CREATE FUNCTION public.account_deletion_profile_financial_remaining(_user uuid)
 RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path='' AS $$
  SELECT EXISTS(SELECT 1 FROM public.orders WHERE buyer_id=_user OR seller_id=_user)
+ OR EXISTS(SELECT 1 FROM public.listing_upgrade_purchases WHERE user_id=_user)
  OR EXISTS(SELECT 1 FROM public.seller_profiles WHERE user_id=_user AND stripe_account_id IS NOT NULL)
  OR EXISTS(SELECT 1 FROM public.shopper_service_profiles WHERE shopper_id=_user AND stripe_account_id IS NOT NULL)
  OR EXISTS(SELECT 1 FROM public.sourcing_assignments a JOIN public.shopper_service_profiles p ON p.id=a.shopper_profile_id WHERE p.shopper_id=_user);
@@ -99,15 +108,33 @@ END $$;
 CREATE TRIGGER guard_account_deletion_new_order AFTER INSERT OR UPDATE ON public.orders
 FOR EACH ROW EXECUTE FUNCTION public.guard_account_deletion_new_order();
 
+CREATE FUNCTION public.guard_account_deletion_new_upgrade()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET lock_timeout='1s' AS $$
+DECLARE member uuid;
+BEGIN
+ -- A provider can settle an existing receipt after a deletion request. New
+ -- receipts and owner changes must serialize with that account's request.
+ IF TG_OP='UPDATE' AND NEW.user_id IS NOT DISTINCT FROM OLD.user_id THEN RETURN NEW; END IF;
+ FOR member IN SELECT DISTINCT u FROM unnest(CASE WHEN TG_OP='UPDATE'
+  THEN ARRAY[OLD.user_id,NEW.user_id] ELSE ARRAY[NEW.user_id] END) u WHERE u IS NOT NULL ORDER BY u LOOP
+  PERFORM public.assert_member_private_record_writer(member);
+ END LOOP;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER guard_account_deletion_new_upgrade AFTER INSERT OR UPDATE ON public.listing_upgrade_purchases
+FOR EACH ROW EXECUTE FUNCTION public.guard_account_deletion_new_upgrade();
+
 CREATE FUNCTION public.account_deletion_profile_catalog()
 RETURNS jsonb LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path='' AS $$
+ WITH sources AS (SELECT unnest(ARRAY['public.profiles'::regclass,'public.seller_profiles'::regclass,'public.shopper_service_profiles'::regclass,'public.shopper_coverage'::regclass,'public.listing_upgrade_purchases'::regclass]) oid)
  SELECT jsonb_build_object(
- 'relations',(SELECT jsonb_agg(jsonb_build_object('name',c.relname,'kind',c.relkind,'partition',c.relispartition) ORDER BY c.relname) FROM pg_class c WHERE c.oid IN('public.profiles'::regclass,'public.seller_profiles'::regclass,'public.shopper_service_profiles'::regclass,'public.shopper_coverage'::regclass)),
- 'columns',(SELECT jsonb_agg(jsonb_build_array(a.attrelid::regclass::text,a.attname,a.atttypid::regtype::text,a.atttypmod,a.attnotnull,a.attgenerated) ORDER BY a.attrelid::regclass::text,a.attnum) FROM pg_attribute a WHERE a.attrelid IN('public.profiles'::regclass,'public.seller_profiles'::regclass,'public.shopper_service_profiles'::regclass,'public.shopper_coverage'::regclass) AND a.attnum>0 AND NOT a.attisdropped),
- 'constraints',(SELECT coalesce(jsonb_agg(jsonb_build_array(c.conrelid::regclass::text,c.conname,pg_get_constraintdef(c.oid,true),c.convalidated,c.condeferrable,c.condeferred) ORDER BY c.conrelid::regclass::text,c.conname),'[]') FROM pg_constraint c WHERE c.conrelid IN('public.profiles'::regclass,'public.seller_profiles'::regclass,'public.shopper_service_profiles'::regclass,'public.shopper_coverage'::regclass) OR c.confrelid IN('public.profiles'::regclass,'public.seller_profiles'::regclass,'public.shopper_service_profiles'::regclass,'public.shopper_coverage'::regclass)),
- 'hooks',(SELECT coalesce(jsonb_object_agg(t.tgrelid::regclass::text||'.'||t.tgname,jsonb_build_array(pg_get_triggerdef(t.oid,true),md5(pg_get_functiondef(t.tgfoid)),t.tgenabled)),'{}') FROM pg_trigger t WHERE NOT t.tgisinternal AND (t.tgrelid IN('public.profiles'::regclass,'public.seller_profiles'::regclass,'public.shopper_service_profiles'::regclass,'public.shopper_coverage'::regclass) OR(t.tgrelid='public.orders'::regclass AND t.tgname='guard_account_deletion_new_order'))),
- 'rules',(SELECT coalesce(jsonb_agg(pg_get_ruledef(r.oid,true) ORDER BY r.oid),'[]') FROM pg_rewrite r WHERE r.ev_class IN('public.profiles'::regclass,'public.seller_profiles'::regclass,'public.shopper_service_profiles'::regclass,'public.shopper_coverage'::regclass)),
- 'inheritance',(SELECT count(*) FROM pg_inherits WHERE inhparent IN('public.profiles'::regclass,'public.seller_profiles'::regclass,'public.shopper_service_profiles'::regclass,'public.shopper_coverage'::regclass) OR inhrelid IN('public.profiles'::regclass,'public.seller_profiles'::regclass,'public.shopper_service_profiles'::regclass,'public.shopper_coverage'::regclass)));
+ 'relations',(SELECT jsonb_agg(jsonb_build_object('name',c.relname,'kind',c.relkind,'partition',c.relispartition) ORDER BY c.relname) FROM pg_class c WHERE c.oid IN(SELECT oid FROM sources)),
+ 'columns',(SELECT jsonb_agg(jsonb_build_array(a.attrelid::regclass::text,a.attname,a.atttypid::regtype::text,a.atttypmod,a.attnotnull,a.attgenerated) ORDER BY a.attrelid::regclass::text,a.attnum) FROM pg_attribute a WHERE a.attrelid IN(SELECT oid FROM sources) AND a.attnum>0 AND NOT a.attisdropped),
+ 'constraints',(SELECT coalesce(jsonb_agg(jsonb_build_array(c.conrelid::regclass::text,c.conname,pg_get_constraintdef(c.oid,true),c.convalidated,c.condeferrable,c.condeferred) ORDER BY c.conrelid::regclass::text,c.conname),'[]') FROM pg_constraint c WHERE c.conrelid IN(SELECT oid FROM sources) OR c.confrelid IN(SELECT oid FROM sources)),
+ 'indexes',(SELECT coalesce(jsonb_agg(pg_get_indexdef(indexrelid) ORDER BY indexrelid::regclass::text),'[]') FROM pg_index WHERE indrelid='public.listing_upgrade_purchases'::regclass),
+ 'hooks',(SELECT coalesce(jsonb_object_agg(t.tgrelid::regclass::text||'.'||t.tgname,jsonb_build_array(pg_get_triggerdef(t.oid,true),md5(pg_get_functiondef(t.tgfoid)),t.tgenabled)),'{}') FROM pg_trigger t WHERE NOT t.tgisinternal AND (t.tgrelid IN(SELECT oid FROM sources) OR(t.tgrelid='public.orders'::regclass AND t.tgname='guard_account_deletion_new_order'))),
+ 'rules',(SELECT coalesce(jsonb_agg(pg_get_ruledef(r.oid,true) ORDER BY r.oid),'[]') FROM pg_rewrite r WHERE r.ev_class IN(SELECT oid FROM sources)),
+ 'inheritance',(SELECT count(*) FROM pg_inherits WHERE inhparent IN(SELECT oid FROM sources) OR inhrelid IN(SELECT oid FROM sources)));
 $$;
 CREATE TABLE public.account_deletion_profile_contract(id boolean PRIMARY KEY DEFAULT true CHECK(id),catalog jsonb NOT NULL,functions jsonb NOT NULL);
 ALTER TABLE public.account_deletion_profile_contract ENABLE ROW LEVEL SECURITY;
@@ -118,7 +145,7 @@ CREATE FUNCTION public.account_deletion_profile_scope(_id uuid,_user uuid,_lease
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path='' SET lock_timeout='1s' AS $$
 BEGIN
  PERFORM public.account_deletion_private_scope(_id,_user,_lease,_phase);
- LOCK TABLE public.orders,public.profiles,public.seller_profiles,public.shopper_coverage,public.shopper_service_profiles IN ROW EXCLUSIVE MODE;
+ LOCK TABLE public.orders,public.listing_upgrade_purchases,public.profiles,public.seller_profiles,public.shopper_coverage,public.shopper_service_profiles IN ROW EXCLUSIVE MODE;
  IF NOT public.account_deletion_profile_barrier_current() THEN RAISE EXCEPTION 'Profile erasure requires schema review'; END IF;
  -- Auth/profile FK writers cannot introduce a financial dependency between the
  -- prerequisite read and the bounded deletes. Pending-account guards stop
@@ -194,7 +221,7 @@ RETURNS boolean LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path='' AS $$
  AND c.functions=(SELECT jsonb_object_agg(p.oid::regprocedure::text,md5(pg_get_functiondef(p.oid))) FROM pg_proc p WHERE p.oid IN (
  'public.account_deletion_profile_catalog()'::regprocedure,'public.account_deletion_profile_remaining(uuid)'::regprocedure,
  'public.account_deletion_profile_financial_remaining(uuid)'::regprocedure,
- 'public.guard_account_deletion_new_order()'::regprocedure,
+ 'public.guard_account_deletion_new_order()'::regprocedure,'public.guard_account_deletion_new_upgrade()'::regprocedure,
  'public.guard_account_deletion_profile_writer()'::regprocedure,'public.guard_account_deletion_profile_completion()'::regprocedure,
  'public.account_deletion_profile_scope(uuid,uuid,uuid,text)'::regprocedure,
  'public.purge_account_deletion_profiles(uuid,uuid,uuid,text,integer)'::regprocedure,
@@ -208,14 +235,14 @@ INSERT INTO public.account_deletion_profile_contract
 SELECT true,public.account_deletion_profile_catalog(),jsonb_object_agg(p.oid::regprocedure::text,md5(pg_get_functiondef(p.oid))) FROM pg_proc p WHERE p.oid IN (
  'public.account_deletion_profile_catalog()'::regprocedure,'public.account_deletion_profile_remaining(uuid)'::regprocedure,
  'public.account_deletion_profile_financial_remaining(uuid)'::regprocedure,
- 'public.guard_account_deletion_new_order()'::regprocedure,
+ 'public.guard_account_deletion_new_order()'::regprocedure,'public.guard_account_deletion_new_upgrade()'::regprocedure,
  'public.guard_account_deletion_profile_writer()'::regprocedure,'public.guard_account_deletion_profile_completion()'::regprocedure,
  'public.account_deletion_profile_scope(uuid,uuid,uuid,text)'::regprocedure,
  'public.purge_account_deletion_profiles(uuid,uuid,uuid,text,integer)'::regprocedure,
  'public.verify_account_deletion_profiles(uuid,uuid,uuid)'::regprocedure);
 REVOKE ALL ON FUNCTION public.account_deletion_profile_catalog(),public.account_deletion_profile_remaining(uuid),
  public.account_deletion_profile_financial_remaining(uuid),
- public.guard_account_deletion_new_order(),
+ public.guard_account_deletion_new_order(),public.guard_account_deletion_new_upgrade(),
  public.guard_account_deletion_profile_writer(),public.guard_account_deletion_profile_completion(),public.account_deletion_profile_barrier_current(),
  public.account_deletion_profile_scope(uuid,uuid,uuid,text),public.purge_account_deletion_profiles(uuid,uuid,uuid,text,integer),public.verify_account_deletion_profiles(uuid,uuid,uuid)
  FROM PUBLIC,anon,authenticated,service_role;

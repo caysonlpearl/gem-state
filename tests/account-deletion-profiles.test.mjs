@@ -121,6 +121,18 @@ async function setup(t, { many = 1, avatars = true, install = true } = {}) {
   (select jsonb_agg(to_jsonb(p)order by id) from shopper_coverage p) coverage`)
       ).rows,
     );
+  const upgradeReceipt = async (owner = user, status = "paid") => {
+    const listing = randomUUID(),
+      upgrade = randomUUID(),
+      receipt = randomUUID();
+    await db.query("insert into asks(id,seller_id)values($1,$2)", [listing, owner]);
+    await db.query("insert into listing_upgrade_catalog(id)values($1)", [upgrade]);
+    await db.query(
+      "insert into listing_upgrade_purchases(id,user_id,listing_id,upgrade_id,amount_cents,status)values($1,$2,$3,$4,1000,$5)",
+      [receipt, owner, listing, upgrade, status],
+    );
+    return receipt;
+  };
   return {
     db,
     user,
@@ -130,6 +142,7 @@ async function setup(t, { many = 1, avatars = true, install = true } = {}) {
     start,
     snapshot,
     calls,
+    upgradeReceipt,
     component: createAccountDeletionProfileErasure(client),
     loseNextAck: () => {
       loseAck = true;
@@ -243,6 +256,91 @@ for (const kind of ["seller_payment", "service_payment", "order", "assignment"])
       "records",
     );
   });
+
+for (const status of ["pending", "paid", "canceled", "failed", "refunded"])
+  test(`listing upgrade ${status} defers profile cleanup without discarding the receipt`, async (t) => {
+    const f = await setup(t, { avatars: false });
+    const id = await f.upgradeReceipt(f.user, status);
+    const job = await f.start(),
+      before = await f.snapshot();
+    await assert.rejects(f.component.step(job, signal()), failed);
+    assert.equal(await f.snapshot(), before);
+    const receipt = (
+      await f.db.query(
+        "select user_id,status,amount_cents from listing_upgrade_purchases where id=$1",
+        [id],
+      )
+    ).rows[0];
+    assert.deepEqual(receipt, { user_id: f.user, status, amount_cents: 1000 });
+  });
+
+test("upgrade settlement continues after a request while receipt creation and ownership changes are refused", async (t) => {
+  const f = await setup(t, { avatars: false });
+  const id = await f.upgradeReceipt(f.user, "pending");
+  const foreign = await f.upgradeReceipt(f.other, "paid");
+  const job = await f.start();
+  await f.db.query("update listing_upgrade_purchases set status='paid',paid_at=now() where id=$1", [
+    id,
+  ]);
+  assert.equal(
+    (await f.db.query("select status from listing_upgrade_purchases where id=$1", [id])).rows[0]
+      .status,
+    "paid",
+  );
+  for (const [sql, args] of [
+    [
+      "insert into listing_upgrade_purchases(user_id,listing_id,upgrade_id,amount_cents)select $1,listing_id,upgrade_id,1000 from listing_upgrade_purchases where id=$2",
+      [f.user, foreign],
+    ],
+    ["update listing_upgrade_purchases set user_id=$1 where id=$2", [f.other, id]],
+    ["update listing_upgrade_purchases set user_id=$1 where id=$2", [f.user, foreign]],
+  ])
+    await assert.rejects(f.db.query(sql, args), /Private account records unavailable/);
+  const before = await f.snapshot();
+  await assert.rejects(f.component.step(job, signal()), failed);
+  assert.equal(await f.snapshot(), before);
+  assert.equal(
+    (await f.db.query("select count(*)::int n from listing_upgrade_purchases")).rows[0].n,
+    2,
+  );
+});
+
+test("receipt guard and owner-index drift stop profile cleanup even for a nonpaying account", async (t) => {
+  const f = await setup(t, { avatars: false }),
+    job = await f.start(),
+    before = await f.snapshot();
+  await f.db.exec(
+    "alter table listing_upgrade_purchases disable trigger guard_account_deletion_new_upgrade",
+  );
+  await assert.rejects(f.component.step(job, signal()), failed);
+  assert.equal(await f.snapshot(), before);
+  await f.db.exec(
+    "alter table listing_upgrade_purchases enable trigger guard_account_deletion_new_upgrade",
+  );
+  await f.db.exec("drop index listing_upgrade_purchases_user_created_idx");
+  await assert.rejects(f.component.step(job, signal()), failed);
+  assert.equal(await f.snapshot(), before);
+});
+
+test("another member's upgrade does not hold this cleanup and cannot be reassigned to a removed identity", async (t) => {
+  const f = await setup(t, { avatars: false });
+  const id = await f.upgradeReceipt(f.other, "paid"),
+    job = await f.start();
+  await purgeAll(f, job);
+  await f.db.query("delete from auth.users where id=$1", [f.user]);
+  await assert.rejects(
+    f.db.query("update listing_upgrade_purchases set user_id=$1 where id=$2", [f.user, id]),
+  );
+  assert.deepEqual(
+    (
+      await f.db.query(
+        "select user_id,status,amount_cents from listing_upgrade_purchases where id=$1",
+        [id],
+      )
+    ).rows[0],
+    { user_id: f.other, status: "paid", amount_cents: 1000 },
+  );
+});
 
 test("pending and removed members cannot regain profile data, change ownership or gain a new financial dependency", async (t) => {
   const f = await setup(t, { avatars: false }),
