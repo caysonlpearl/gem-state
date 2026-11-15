@@ -1,0 +1,1442 @@
+{
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "capturedAt": "2026-11-15T10:11:52.379913+00:00",
+  "metadataOnly": true,
+  "enumTypes": {
+    "app_role": ["user", "shopper", "moderator", "admin"],
+    "park_kind": ["park", "district"],
+    "match_status": ["active", "released", "completed", "cancelled"],
+    "order_origin": [
+      "buy_now",
+      "sell_now",
+      "sourcing_quote",
+      "admin_validation",
+      "sourcing_ask",
+      "sourcing_shopper"
+    ],
+    "order_status": [
+      "inquiry",
+      "awaiting_payment",
+      "paid",
+      "sourcing",
+      "ready_to_ship",
+      "shipped",
+      "delivered",
+      "completed",
+      "cancelled",
+      "refunded",
+      "disputed",
+      "awaiting_authorization",
+      "authorized",
+      "shopper_assigned",
+      "purchase_confirmed",
+      "unavailable",
+      "payment_captured"
+    ],
+    "release_type": [
+      "open_edition",
+      "limited_edition",
+      "seasonal",
+      "event_exclusive",
+      "annual_passholder",
+      "unknown",
+      "limited_release"
+    ],
+    "member_intent": ["buying", "selling", "shopping_in_park", "browsing"],
+    "payout_status": ["pending", "processing", "completed", "failed", "reversed"],
+    "dispute_status": ["open", "under_review", "resolved_buyer", "resolved_seller", "withdrawn"],
+    "item_condition": [
+      "new_with_tags",
+      "new_without_tags",
+      "used_excellent",
+      "used_good",
+      "not_applicable"
+    ],
+    "listing_status": ["active", "matched", "cancelled", "expired"],
+    "product_status": ["draft", "pending_review", "published", "rejected", "archived"],
+    "shipment_status": [
+      "pending",
+      "label_created",
+      "shipped",
+      "in_transit",
+      "delivered",
+      "exception"
+    ],
+    "suggestion_status": ["submitted", "in_review", "approved", "rejected", "merged_duplicate"],
+    "listing_event_type": [
+      "created",
+      "price_changed",
+      "cancelled",
+      "expired",
+      "matched",
+      "released",
+      "evidence_added"
+    ],
+    "product_image_kind": ["canonical", "seller_evidence"],
+    "order_evidence_kind": ["purchase_receipt", "item_photo", "delivery_proof", "dispute_evidence"],
+    "payment_record_kind": ["authorization", "capture", "payment", "refund"],
+    "listing_offer_status": [
+      "pending",
+      "countered",
+      "accepted",
+      "declined",
+      "withdrawn",
+      "expired"
+    ],
+    "location_granularity": ["store", "district", "park"],
+    "shopper_quote_status": ["submitted", "accepted", "declined", "expired", "withdrawn"],
+    "payment_record_status": ["succeeded", "pending", "failed", "voided"],
+    "price_evidence_source": [
+      "member_report",
+      "approved_shopper",
+      "receipt_verified",
+      "admin_verified"
+    ],
+    "sighting_availability": ["in_stock", "limited", "sold_out"],
+    "sourcing_request_status": ["open", "quote_accepted", "cancelled", "expired"],
+    "shopper_application_status": ["submitted", "in_review", "approved", "rejected"],
+    "sourcing_assignment_status": [
+      "assigned",
+      "purchase_confirmed",
+      "unavailable",
+      "completed",
+      "cancelled"
+    ]
+  },
+  "functions": [
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": ["search_path=public"],
+      "bodyMd5": "d2ea08ed5ab0317609d4cae8d9e1f81f",
+      "signature": "variant_watch_baseline(uuid)",
+      "definition": "CREATE OR REPLACE FUNCTION public.variant_watch_baseline(_variant_id uuid)\n RETURNS smallint\n LANGUAGE sql\n IMMUTABLE\n SET search_path TO 'public'\nAS $function$\n  SELECT (5 + (('x' || substr(md5(_variant_id::text), 1, 8))::bit(32)::bigint % 36))::smallint\n$function$\n",
+      "securityDefiner": false
+    }
+  ],
+  "rows": [
+    {
+      "source": "price_snapshots",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "variant_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "captured_on",
+            "type": "date",
+            "default": "CURRENT_DATE",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "currency",
+            "type": "character(3)",
+            "default": "'USD'::bpchar",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "lowest_ask_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "highest_bid_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "lowest_sourcing_ask_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "last_sale_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "active_ask_count",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "active_bid_count",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "last_verified_sale_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "last_verified_sale_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX price_snapshots_pkey ON public.price_snapshots USING btree (id)",
+          "CREATE UNIQUE INDEX price_snapshots_variant_id_captured_on_key ON public.price_snapshots USING btree (variant_id, captured_on)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "price history is public",
+            "check": null,
+            "roles": ["anon", "authenticated"],
+            "using": "true",
+            "command": "r",
+            "permissive": true
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "price_snapshots_pkey",
+            "table": "price_snapshots",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "price_snapshots_variant_id_captured_on_key",
+            "table": "price_snapshots",
+            "definition": "UNIQUE (variant_id, captured_on)"
+          },
+          {
+            "name": "price_snapshots_variant_id_fkey",
+            "table": "price_snapshots",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    },
+    {
+      "source": "product_facts",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "product_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "label",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "value",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "position",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX product_facts_pkey ON public.product_facts USING btree (id)",
+          "CREATE UNIQUE INDEX product_facts_product_id_label_key ON public.product_facts USING btree (product_id, label)",
+          "CREATE INDEX idx_product_facts_product ON public.product_facts USING btree (product_id, \"position\")"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "moderators write product facts",
+            "check": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "*",
+            "permissive": true
+          },
+          {
+            "name": "published product facts readable",
+            "check": null,
+            "roles": ["anon", "authenticated"],
+            "using": "(EXISTS ( SELECT 1\n   FROM products p\n  WHERE ((p.id = product_facts.product_id) AND (p.status = 'published'::product_status))))",
+            "command": "r",
+            "permissive": true
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "product_facts_label_check",
+            "table": "product_facts",
+            "definition": "CHECK (length(btrim(label)) >= 1 AND length(btrim(label)) <= 80)"
+          },
+          {
+            "name": "product_facts_pkey",
+            "table": "product_facts",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "product_facts_product_id_fkey",
+            "table": "product_facts",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_facts_product_id_label_key",
+            "table": "product_facts",
+            "definition": "UNIQUE (product_id, label)"
+          },
+          {
+            "name": "product_facts_value_check",
+            "table": "product_facts",
+            "definition": "CHECK (length(btrim(value)) >= 1 AND length(btrim(value)) <= 1200)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "product_images",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "product_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "variant_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "storage_path",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "alt",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "kind",
+            "type": "product_image_kind",
+            "default": "'canonical'::product_image_kind",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "position",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "approved_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "approved_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "approval_source",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "view_role",
+            "type": "text",
+            "default": "'gallery'::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "angle_degrees",
+            "type": "smallint",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX product_images_pkey ON public.product_images USING btree (id)",
+          "CREATE INDEX idx_product_images_product ON public.product_images USING btree (product_id)",
+          "CREATE UNIQUE INDEX product_images_product_path_key ON public.product_images USING btree (product_id, storage_path)",
+          "CREATE UNIQUE INDEX product_images_unique_spin_angle ON public.product_images USING btree (product_id, angle_degrees) WHERE (view_role = 'spin'::text)",
+          "CREATE INDEX product_images_view_sequence ON public.product_images USING btree (product_id, view_role, angle_degrees, \"position\")"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "canonical images readable",
+            "check": null,
+            "roles": ["anon", "authenticated"],
+            "using": "((kind = 'canonical'::product_image_kind) AND (approved_at IS NOT NULL) AND (EXISTS ( SELECT 1\n   FROM products p\n  WHERE ((p.id = product_images.product_id) AND (p.status = 'published'::product_status)))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "moderators write product images",
+            "check": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "*",
+            "permissive": true
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "product_images_approved_by_fkey",
+            "table": "product_images",
+            "definition": "FOREIGN KEY (approved_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "product_images_canonical_only",
+            "table": "product_images",
+            "definition": "CHECK (kind = 'canonical'::product_image_kind)"
+          },
+          {
+            "name": "product_images_pkey",
+            "table": "product_images",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "product_images_product_id_fkey",
+            "table": "product_images",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_images_requires_approval",
+            "table": "product_images",
+            "definition": "CHECK (approved_at IS NULL AND approved_by IS NULL AND approval_source IS NULL OR approved_at IS NOT NULL AND (approved_by IS NOT NULL AND approval_source IS NULL OR approved_by IS NOT NULL AND approval_source = 'admin_console'::text OR approved_by IS NULL AND (approval_source = ANY (ARRAY['catalog_seed'::text, 'owned_photography'::text]))))"
+          },
+          {
+            "name": "product_images_spin_angle_check",
+            "table": "product_images",
+            "definition": "CHECK (view_role = 'gallery'::text AND angle_degrees IS NULL OR view_role = 'spin'::text AND angle_degrees >= 0 AND angle_degrees <= 359)"
+          },
+          {
+            "name": "product_images_variant_id_fkey",
+            "table": "product_images",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "product_images_view_role_check",
+            "table": "product_images",
+            "definition": "CHECK (view_role = ANY (ARRAY['gallery'::text, 'spin'::text]))"
+          },
+          {
+            "name": "product_models_source_image_id_fkey",
+            "table": "product_models",
+            "definition": "FOREIGN KEY (source_image_id) REFERENCES product_images(id) ON DELETE SET NULL"
+          }
+        ]
+      }
+    },
+    {
+      "source": "product_models",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "product_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "source_image_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "storage_path",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "poster_path",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "generation_method",
+            "type": "text",
+            "default": "'stable_fast_3d'::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "default": "'draft'::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "disclosure",
+            "type": "text",
+            "default": "'AI-generated canonical 3D visualization'::text",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "approved_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "approved_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "approval_source",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX product_models_pkey ON public.product_models USING btree (id)",
+          "CREATE UNIQUE INDEX product_models_one_approved_per_product ON public.product_models USING btree (product_id) WHERE (status = 'approved'::text)",
+          "CREATE INDEX product_models_product_status ON public.product_models USING btree (product_id, status, updated_at DESC)"
+        ],
+        "policies": [
+          {
+            "name": "approved product models readable",
+            "check": null,
+            "roles": ["anon", "authenticated"],
+            "using": "((status = 'approved'::text) AND (approved_at IS NOT NULL) AND (EXISTS ( SELECT 1\n   FROM products p\n  WHERE ((p.id = product_models.product_id) AND (p.status = 'published'::product_status)))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "moderators write product models",
+            "check": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "*",
+            "permissive": true
+          }
+        ],
+        "triggers": [
+          {
+            "name": "trg_product_models_touch",
+            "bodyMd5": "9baf00d43cdeb2cd0e55c1de045be21b",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.touch_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nBEGIN NEW.updated_at = now(); RETURN NEW; END; $function$\n",
+            "definition": "CREATE TRIGGER trg_product_models_touch BEFORE UPDATE ON product_models FOR EACH ROW EXECUTE FUNCTION touch_updated_at()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "product_models_approved_by_fkey",
+            "table": "product_models",
+            "definition": "FOREIGN KEY (approved_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "product_models_pkey",
+            "table": "product_models",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "product_models_poster_path_check",
+            "table": "product_models",
+            "definition": "CHECK (poster_path IS NULL OR poster_path ~ '^/images/products/'::text)"
+          },
+          {
+            "name": "product_models_product_id_fkey",
+            "table": "product_models",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_models_requires_approval",
+            "table": "product_models",
+            "definition": "CHECK (status <> 'approved'::text AND approved_at IS NULL AND approved_by IS NULL AND approval_source IS NULL OR status = 'approved'::text AND approved_at IS NOT NULL AND (approved_by IS NOT NULL AND approval_source IS NULL OR approved_by IS NULL AND approval_source = 'catalog_seed'::text))"
+          },
+          {
+            "name": "product_models_source_image_id_fkey",
+            "table": "product_models",
+            "definition": "FOREIGN KEY (source_image_id) REFERENCES product_images(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "product_models_status_check",
+            "table": "product_models",
+            "definition": "CHECK (status = ANY (ARRAY['draft'::text, 'approved'::text, 'rejected'::text]))"
+          },
+          {
+            "name": "product_models_storage_path_check",
+            "table": "product_models",
+            "definition": "CHECK (storage_path ~ '^/models/products/.+\\.glb$'::text)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "product_resorts",
+      "metadata": {
+        "columns": [
+          {
+            "name": "product_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "resort_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX product_resorts_pkey ON public.product_resorts USING btree (product_id, resort_id)",
+          "CREATE INDEX idx_product_resorts_resort ON public.product_resorts USING btree (resort_id)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "moderators write product resorts",
+            "check": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "*",
+            "permissive": true
+          },
+          {
+            "name": "product resorts readable",
+            "check": null,
+            "roles": ["anon", "authenticated"],
+            "using": "(EXISTS ( SELECT 1\n   FROM products p\n  WHERE ((p.id = product_resorts.product_id) AND (p.status = 'published'::product_status))))",
+            "command": "r",
+            "permissive": true
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "product_resorts_pkey",
+            "table": "product_resorts",
+            "definition": "PRIMARY KEY (product_id, resort_id)"
+          },
+          {
+            "name": "product_resorts_product_id_fkey",
+            "table": "product_resorts",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_resorts_resort_id_fkey",
+            "table": "product_resorts",
+            "definition": "FOREIGN KEY (resort_id) REFERENCES resorts(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    },
+    {
+      "source": "product_sources",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "product_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "label",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "url",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "source_kind",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "observed_on",
+            "type": "date",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "position",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX product_sources_pkey ON public.product_sources USING btree (id)",
+          "CREATE UNIQUE INDEX product_sources_product_id_url_key ON public.product_sources USING btree (product_id, url)",
+          "CREATE INDEX idx_product_sources_product ON public.product_sources USING btree (product_id, \"position\")"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "moderators write product sources",
+            "check": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "*",
+            "permissive": true
+          },
+          {
+            "name": "published product sources readable",
+            "check": null,
+            "roles": ["anon", "authenticated"],
+            "using": "(EXISTS ( SELECT 1\n   FROM products p\n  WHERE ((p.id = product_sources.product_id) AND (p.status = 'published'::product_status))))",
+            "command": "r",
+            "permissive": true
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "product_sources_label_check",
+            "table": "product_sources",
+            "definition": "CHECK (length(btrim(label)) >= 1 AND length(btrim(label)) <= 160)"
+          },
+          {
+            "name": "product_sources_pkey",
+            "table": "product_sources",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "product_sources_product_id_fkey",
+            "table": "product_sources",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_sources_product_id_url_key",
+            "table": "product_sources",
+            "definition": "UNIQUE (product_id, url)"
+          },
+          {
+            "name": "product_sources_source_kind_check",
+            "table": "product_sources",
+            "definition": "CHECK (source_kind = ANY (ARRAY['official_announcement'::text, 'official_product_page'::text, 'official_menu'::text, 'independent_report'::text]))"
+          },
+          {
+            "name": "product_sources_url_check",
+            "table": "product_sources",
+            "definition": "CHECK (url ~ '^https://'::text)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "product_variants",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "product_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "size",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "color",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "edition",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "sku_label",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "position",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "active",
+            "type": "boolean",
+            "default": "true",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "variation_key",
+            "type": "text",
+            "default": "((((lower(btrim(COALESCE(size, '~'::text))) || '|'::text) || lower(btrim(COALESCE(color, '~'::text)))) || '|'::text) || lower(btrim(COALESCE(edition, '~'::text))))",
+            "notNull": false,
+            "generated": "s"
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "watch_baseline",
+            "type": "smallint",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX product_variants_pkey ON public.product_variants USING btree (id)",
+          "CREATE UNIQUE INDEX product_variants_product_id_variation_key_key ON public.product_variants USING btree (product_id, variation_key)",
+          "CREATE INDEX idx_variants_product ON public.product_variants USING btree (product_id)"
+        ],
+        "policies": [
+          {
+            "name": "Sellers read variants for own listings",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.variant_id = product_variants.id) AND (a.seller_id = auth.uid()))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "moderators write variants",
+            "check": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "*",
+            "permissive": true
+          },
+          {
+            "name": "variants readable",
+            "check": null,
+            "roles": ["anon", "authenticated"],
+            "using": "(active AND (EXISTS ( SELECT 1\n   FROM products p\n  WHERE ((p.id = product_variants.product_id) AND (p.status = 'published'::product_status)))))",
+            "command": "r",
+            "permissive": true
+          }
+        ],
+        "triggers": [
+          {
+            "name": "product_variants_watch_baseline",
+            "bodyMd5": "6fa96ec79c192fe9697b9a1a1eca4001",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.set_variant_watch_baseline()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nBEGIN\n  IF NEW.watch_baseline IS NULL OR NEW.watch_baseline = 0 THEN\n    NEW.watch_baseline := public.variant_watch_baseline(NEW.id);\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+            "definition": "CREATE TRIGGER product_variants_watch_baseline BEFORE INSERT ON product_variants FOR EACH ROW EXECUTE FUNCTION set_variant_watch_baseline()"
+          },
+          {
+            "name": "trg_variants_touch",
+            "bodyMd5": "9baf00d43cdeb2cd0e55c1de045be21b",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.touch_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nBEGIN NEW.updated_at = now(); RETURN NEW; END; $function$\n",
+            "definition": "CREATE TRIGGER trg_variants_touch BEFORE UPDATE ON product_variants FOR EACH ROW EXECUTE FUNCTION touch_updated_at()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "asks_variant_id_fkey",
+            "table": "asks",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "bids_variant_id_fkey",
+            "table": "bids",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "checkout_shipping_quotes_variant_id_fkey",
+            "table": "checkout_shipping_quotes",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "market_matches_variant_id_fkey",
+            "table": "market_matches",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id)"
+          },
+          {
+            "name": "orders_variant_id_fkey",
+            "table": "orders",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id)"
+          },
+          {
+            "name": "price_snapshots_variant_id_fkey",
+            "table": "price_snapshots",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_images_variant_id_fkey",
+            "table": "product_images",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "product_variants_pkey",
+            "table": "product_variants",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "product_variants_product_id_fkey",
+            "table": "product_variants",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_variants_product_id_variation_key_key",
+            "table": "product_variants",
+            "definition": "UNIQUE (product_id, variation_key)"
+          },
+          {
+            "name": "verified_sales_variant_id_fkey",
+            "table": "verified_sales",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id)"
+          },
+          {
+            "name": "sightings_variant_id_fkey",
+            "table": "sightings",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sourcing_assignments_variant_id_fkey",
+            "table": "sourcing_assignments",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id)"
+          },
+          {
+            "name": "sourcing_requests_variant_id_fkey",
+            "table": "sourcing_requests",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "watchlist_variant_id_fkey",
+            "table": "watchlist",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    },
+    {
+      "source": "products",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "slug",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "name",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "brand_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "collection_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "category_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "description",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "release_date",
+            "type": "date",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "release_type",
+            "type": "release_type",
+            "default": "'unknown'::release_type",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "retail_price_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "retail_price_currency",
+            "type": "character(3)",
+            "default": "'USD'::bpchar",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "retail_price_source",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "retail_price_observed_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "status",
+            "type": "product_status",
+            "default": "'draft'::product_status",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "is_demo",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX products_pkey ON public.products USING btree (id)",
+          "CREATE UNIQUE INDEX products_slug_key ON public.products USING btree (slug)",
+          "CREATE INDEX idx_products_category ON public.products USING btree (category_id)",
+          "CREATE INDEX idx_products_search ON public.products USING gin (to_tsvector('english'::regconfig, ((name || ' '::text) || COALESCE(description, ''::text))))",
+          "CREATE INDEX idx_products_status ON public.products USING btree (status)"
+        ],
+        "policies": [
+          {
+            "name": "Sellers read products for own listings",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "((created_by = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM asks a\n  WHERE ((a.product_id = products.id) AND (a.seller_id = auth.uid())))))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": ["authenticated"],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "moderators read all products",
+            "check": null,
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "moderators write products",
+            "check": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "roles": ["authenticated"],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "*",
+            "permissive": true
+          },
+          {
+            "name": "published products readable",
+            "check": null,
+            "roles": ["anon", "authenticated"],
+            "using": "(status = 'published'::product_status)",
+            "command": "r",
+            "permissive": true
+          }
+        ],
+        "triggers": [
+          {
+            "name": "managed_product_edit",
+            "bodyMd5": "8c5604dae1b6a79e06b7b0d5ee1397ce",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.flag_import_seller_edit()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n IF auth.uid() IS NOT NULL THEN\n UPDATE public.fb_marketplace_import_items i SET seller_edited=true\n FROM public.asks a WHERE i.listing_id=a.id AND a.seller_id=auth.uid()\n AND ((TG_TABLE_NAME='asks' AND a.id=(to_jsonb(NEW)->>'id')::uuid) OR (TG_TABLE_NAME='products' AND a.product_id=(to_jsonb(NEW)->>'id')::uuid) OR (TG_TABLE_NAME='classified_listing_details' AND a.id=(to_jsonb(NEW)->>'listing_id')::uuid));\n END IF;\n RETURN NEW;\nEND $function$\n",
+            "definition": "CREATE TRIGGER managed_product_edit AFTER UPDATE ON products FOR EACH ROW EXECUTE FUNCTION flag_import_seller_edit()"
+          },
+          {
+            "name": "trg_products_touch",
+            "bodyMd5": "9baf00d43cdeb2cd0e55c1de045be21b",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.touch_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public'\nAS $function$\nBEGIN NEW.updated_at = now(); RETURN NEW; END; $function$\n",
+            "definition": "CREATE TRIGGER trg_products_touch BEFORE UPDATE ON products FOR EACH ROW EXECUTE FUNCTION touch_updated_at()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "asks_product_id_fkey",
+            "table": "asks",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "bids_product_id_fkey",
+            "table": "bids",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "orders_product_id_fkey",
+            "table": "orders",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id)"
+          },
+          {
+            "name": "product_facts_product_id_fkey",
+            "table": "product_facts",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_images_product_id_fkey",
+            "table": "product_images",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_models_product_id_fkey",
+            "table": "product_models",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_resorts_product_id_fkey",
+            "table": "product_resorts",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_sources_product_id_fkey",
+            "table": "product_sources",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "product_suggestions_created_product_id_fkey",
+            "table": "product_suggestions",
+            "definition": "FOREIGN KEY (created_product_id) REFERENCES products(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "product_suggestions_merged_product_id_fkey",
+            "table": "product_suggestions",
+            "definition": "FOREIGN KEY (merged_product_id) REFERENCES products(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "product_variants_product_id_fkey",
+            "table": "product_variants",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "products_brand_id_fkey",
+            "table": "products",
+            "definition": "FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "products_category_id_fkey",
+            "table": "products",
+            "definition": "FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "products_collection_id_fkey",
+            "table": "products",
+            "definition": "FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "products_created_by_fkey",
+            "table": "products",
+            "definition": "FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "products_pkey",
+            "table": "products",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "products_retail_price_cents_check",
+            "table": "products",
+            "definition": "CHECK (retail_price_cents IS NULL OR retail_price_cents >= 0)"
+          },
+          {
+            "name": "products_slug_key",
+            "table": "products",
+            "definition": "UNIQUE (slug)"
+          },
+          {
+            "name": "verified_sales_product_id_fkey",
+            "table": "verified_sales",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id)"
+          },
+          {
+            "name": "sourcing_requests_product_id_fkey",
+            "table": "sourcing_requests",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    }
+  ]
+}
