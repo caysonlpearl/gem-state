@@ -1,0 +1,87 @@
+{
+  "owners": {
+    "admin_audit_log": ["actor_id"],
+    "checkout_shipping_quotes": ["buyer_id"],
+    "dealer_audit_events": ["actor_user_id"],
+    "editorial_audit_events": ["actor_user_id"],
+    "employer_claims": ["reviewed_by", "user_id"],
+    "import_seller_audit": ["actor_id"],
+    "order_events": ["actor_id"],
+    "orders": ["buyer_id", "seller_id"],
+    "seller_claim_tokens": ["created_by"],
+    "seller_claim_transfers": ["claimant_id"],
+    "service_directory_claims": ["reviewed_by", "user_id"],
+    "sourcing_assignments": ["buyer_id", "shopper_id"],
+    "sourcing_balance_checkouts": ["buyer_id"],
+    "sourcing_tips": ["buyer_id", "shopper_id"]
+  },
+  "columns": {
+    "admin_audit_log": {
+      "actor_id": ["uuid", false]
+    },
+    "checkout_shipping_quotes": {
+      "buyer_id": ["uuid", true]
+    },
+    "dealer_audit_events": {
+      "actor_user_id": ["uuid", false]
+    },
+    "editorial_audit_events": {
+      "actor_user_id": ["uuid", false]
+    },
+    "employer_claims": {
+      "user_id": ["uuid", true],
+      "reviewed_by": ["uuid", false]
+    },
+    "import_seller_audit": {
+      "actor_id": ["uuid", true]
+    },
+    "order_events": {
+      "actor_id": ["uuid", false]
+    },
+    "orders": {
+      "buyer_id": ["uuid", true],
+      "seller_id": ["uuid", false]
+    },
+    "seller_claim_tokens": {
+      "created_by": ["uuid", true]
+    },
+    "seller_claim_transfers": {
+      "claimant_id": ["uuid", true]
+    },
+    "service_directory_claims": {
+      "user_id": ["uuid", true],
+      "reviewed_by": ["uuid", false]
+    },
+    "sourcing_assignments": {
+      "buyer_id": ["uuid", true],
+      "shopper_id": ["uuid", true]
+    },
+    "sourcing_balance_checkouts": {
+      "buyer_id": ["uuid", true]
+    },
+    "sourcing_tips": {
+      "buyer_id": ["uuid", true],
+      "shopper_id": ["uuid", true]
+    }
+  },
+  "relationships": {
+    "admin_audit_log.admin_audit_log_actor_id_fkey": "FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL",
+    "checkout_shipping_quotes.checkout_shipping_quotes_buyer_id_fkey": "FOREIGN KEY (buyer_id) REFERENCES auth.users(id) ON DELETE RESTRICT",
+    "dealer_audit_events.dealer_audit_events_actor_user_id_fkey": "FOREIGN KEY (actor_user_id) REFERENCES auth.users(id) ON DELETE SET NULL",
+    "employer_claims.employer_claims_reviewed_by_fkey": "FOREIGN KEY (reviewed_by) REFERENCES auth.users(id) ON DELETE SET NULL",
+    "employer_claims.employer_claims_user_id_fkey": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+    "import_seller_audit.import_seller_audit_actor_id_fkey": "FOREIGN KEY (actor_id) REFERENCES auth.users(id)",
+    "order_events.order_events_actor_id_fkey": "FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL",
+    "orders.orders_buyer_id_fkey": "FOREIGN KEY (buyer_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+    "orders.orders_seller_id_fkey": "FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE SET NULL",
+    "seller_claim_tokens.seller_claim_tokens_created_by_fkey": "FOREIGN KEY (created_by) REFERENCES auth.users(id)",
+    "seller_claim_transfers.seller_claim_transfers_claimant_id_fkey": "FOREIGN KEY (claimant_id) REFERENCES auth.users(id)",
+    "service_directory_claims.service_directory_claims_reviewed_by_fkey": "FOREIGN KEY (reviewed_by) REFERENCES auth.users(id) ON DELETE SET NULL",
+    "service_directory_claims.service_directory_claims_user_id_fkey": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+    "sourcing_assignments.sourcing_assignments_buyer_id_fkey": "FOREIGN KEY (buyer_id) REFERENCES auth.users(id)",
+    "sourcing_assignments.sourcing_assignments_shopper_id_fkey": "FOREIGN KEY (shopper_id) REFERENCES auth.users(id)",
+    "sourcing_balance_checkouts.sourcing_balance_checkouts_buyer_id_fkey": "FOREIGN KEY (buyer_id) REFERENCES auth.users(id)",
+    "sourcing_tips.sourcing_tips_buyer_id_fkey": "FOREIGN KEY (buyer_id) REFERENCES auth.users(id)",
+    "sourcing_tips.sourcing_tips_shopper_id_fkey": "FOREIGN KEY (shopper_id) REFERENCES auth.users(id)"
+  }
+}

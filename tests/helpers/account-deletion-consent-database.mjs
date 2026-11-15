@@ -45,8 +45,7 @@ export async function consentDeletionDatabase({ provided } = {}) {
       await db.exec(
         `revoke all on function public.${f.signature}from public,anon,authenticated,service_role`,
       );
-      if (f.signature !== "register_shopping_signup()")
-        await db.exec(`grant execute on function public.${f.signature}to service_role`);
+      await db.exec(`grant execute on function public.${f.signature}to service_role`);
       await db.exec(`alter function public.${f.signature}owner to postgres`);
     }
     await db.exec(
