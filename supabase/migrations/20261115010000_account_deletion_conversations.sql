@@ -239,7 +239,7 @@ BEGIN
      INSERT INTO public.account_deletion_conversation_catalog_refs(conversation_id,category_slug) VALUES(row.id,category) ON CONFLICT(conversation_id) DO NOTHING;
      GET DIAGNOSTICS related=ROW_COUNT; changed:=changed+related;
     END IF;
-    UPDATE public.conversations SET buyer_id=CASE WHEN buyer_id=_user THEN NULL ELSE buyer_id END,seller_id=CASE WHEN seller_id=_user THEN NULL ELSE seller_id END,closed_at=coalesce(closed_at,now()) WHERE id=row.id;
+    UPDATE public.conversations SET buyer_id=CASE WHEN buyer_id=_user THEN NULL ELSE buyer_id END,seller_id=CASE WHEN seller_id=_user THEN NULL ELSE seller_id END,dealer_context_title=CASE WHEN seller_id=_user THEN NULL ELSE dealer_context_title END,closed_at=coalesce(closed_at,now()) WHERE id=row.id;
     GET DIAGNOSTICS related=ROW_COUNT; changed:=changed+related;
     UPDATE public.mobile_dealer_conversations SET buyer_id=CASE WHEN buyer_id=_user THEN NULL ELSE buyer_id END,seller_id=CASE WHEN seller_id=_user THEN NULL ELSE seller_id END WHERE conversation_id=row.id;
     GET DIAGNOSTICS related=ROW_COUNT; changed:=changed+related;

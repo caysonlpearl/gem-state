@@ -633,6 +633,15 @@ test("the existing native dealer starter and message retries survive the deletio
   );
   const job = await f.start(f.other);
   await purge(f, job);
+  assert.equal(
+    (
+      await f.db.query("select dealer_context_title from conversations where id=$1", [
+        first.conversationId,
+      ])
+    ).rows[0].dealer_context_title,
+    null,
+    "Retirement clears the departing seller’s copied dealer label",
+  );
   assert.deepEqual(
     (
       await f.db.query(
