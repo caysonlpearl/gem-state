@@ -952,3 +952,68 @@ rehearse the full media/retention/identity flow. Authored listings, conversation
 remaining analytics, provider media, financial/consent/audit retention and
 Apple/manual revocation still need their complete handling. The deletion worker
 remains disabled; this component does not close the store's deletion gate.
+
+### Conversation cleanup component (source only, November 15)
+
+`20261115010000_account_deletion_conversations.sql` and
+`account-deletion-conversations.server.ts` add bounded cleanup for the deleting
+member's authored messages and participant rows. They retire only that member's
+buyer/seller seat, close the conversation and preserve the other member's
+messages. A final member's empty conversation can then disappear. Each call
+changes at most 100 physical rows, including dealer mappings and category-proof
+rows, under the matching records lease. A component pass cannot advance the
+whole deletion job. Independent verification requires Auth already absent and
+checks for remaining references without repairing them.
+
+The old Auth cascades could remove a shared thread, including someone else's
+messages. Conversation seats instead become nullable, closed references;
+authored-message and reporter foreign keys restrict an unsafe Auth shortcut.
+New messages and participant recreation stop once either member requests
+deletion. The existing imported-seller claim still transfers its seller seat:
+the guard requires the service role, the existing transaction flag, a live
+matching claim/token journal, the transferred listing and active old/new
+identities. The flag alone is insufficient. Authorized operator replies for
+unclaimed imported sellers retain their existing administrator and ownership
+checks. Native general dealership conversations retain the production layout,
+where the dealer id lives in the trusted mapping rather than the parent thread.
+Committed message retries remain replays; they do not authorize new messages.
+
+An attachment's exact current reference must be in the durable media inventory
+before its message row disappears. This is not evidence of provider erasure.
+Moderation records in any status defer this component until explicit retention
+handling exists; the implementation does not invent a permanent retention
+policy. Parent locks serialize cleanup with concurrent reports, and the lease
+is rechecked before commit so expired work rolls back provisional changes.
+
+Shared web/app conversation screens display “Former Bluebird member,” preserve
+surviving messages and reporting, and replace the reply form with a read-only
+notice. Both upload preparers refuse new attachments to retired threads. The
+native catalog boundary remains enforced: an eligible listing may leave a
+private canonical category/version proof, with no title, message or removed
+identity copied. That proof preserves authorized history after the listing is
+gone; firearms, prohibited listing text and demo inventory cannot establish it.
+The private lookup accepts only the surviving member and at most 100 ids. Old
+databases without this lookup stay closed; other lookup errors fail explicitly.
+Changing app catalog eligibility requires reviewing and bumping
+`MOBILE_CATALOG_VERSION`; old proofs then fail closed.
+
+Tests use captured conversation columns, relationships, indexes and the exact
+existing shopping hook, with synthetic identities and supporting domain data.
+They exercise the actual claim, managed reply, native dealer starter and shared
+message functions, not a production-domain clone. Focused cases cover bounded
+changes, account isolation, media inventory, moderation, catalog restrictions,
+late writers, permissions, schema drift, SDK cancellation, malformed results and
+lost acknowledgements. A required PostgreSQL gate uses separate connections for
+report/cleanup ordering and lease expiry during a parent lock. Bundled browser
+checks cover read-only history and reporting at 320, 390 and 768 pixels.
+
+**Installation hold:** this is stacked on the source-only profile component.
+The conversation migration is not installed, no real records were erased and
+the production worker remains disabled. Review the complete prerequisite order,
+live claim/message paths and query costs, then rehearse the full media,
+retention, identity and verification composition before activation. Authored
+listings, remaining analytics, provider erasure, financial/consent/audit
+retention and Apple/manual revocation remain launch work. The broader account
+deletion requirement is described in
+[Apple's account-deletion guidance](https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion)
+and [Google Play's account-deletion guidance](https://support.google.com/googleplay/android-developer/answer/13327111?hl=en).

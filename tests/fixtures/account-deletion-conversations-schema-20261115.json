@@ -1,0 +1,536 @@
+{
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "capturedAt": "2026-11-15T04:15:30.396Z",
+  "metadataOnly": true,
+  "rows": [
+    {
+      "source": "conversation_messages",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true
+          },
+          {
+            "name": "conversation_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "sender_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "body",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "attachment_path",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "attachment_content_type",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "attachment_size",
+            "type": "integer",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "managed_seller_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "sender_label",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "source_inquiry_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX conversation_messages_pkey ON public.conversation_messages USING btree (id)",
+          "CREATE INDEX conversation_messages_recent_idx ON public.conversation_messages USING btree (conversation_id, created_at)",
+          "CREATE UNIQUE INDEX conversation_messages_source_inquiry_id_key ON public.conversation_messages USING btree (source_inquiry_id)"
+        ],
+        "triggers": [],
+        "constraints": [
+          {
+            "name": "conversation_messages_attachment_size",
+            "table": "conversation_messages",
+            "definition": "CHECK (attachment_size IS NULL OR attachment_size >= 1 AND attachment_size <= 10485760)"
+          },
+          {
+            "name": "conversation_messages_body_length",
+            "table": "conversation_messages",
+            "definition": "CHECK (char_length(btrim(body)) >= 1 AND char_length(btrim(body)) <= 5000)"
+          },
+          {
+            "name": "conversation_messages_conversation_id_fkey",
+            "table": "conversation_messages",
+            "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "conversation_messages_managed_seller_id_fkey",
+            "table": "conversation_messages",
+            "definition": "FOREIGN KEY (managed_seller_id) REFERENCES managed_import_sellers(id)"
+          },
+          {
+            "name": "conversation_messages_pkey",
+            "table": "conversation_messages",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "conversation_messages_sender_id_fkey",
+            "table": "conversation_messages",
+            "definition": "FOREIGN KEY (sender_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "conversation_messages_source_inquiry_id_fkey",
+            "table": "conversation_messages",
+            "definition": "FOREIGN KEY (source_inquiry_id) REFERENCES listing_inquiries(id)"
+          },
+          {
+            "name": "conversation_messages_source_inquiry_id_key",
+            "table": "conversation_messages",
+            "definition": "UNIQUE (source_inquiry_id)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "conversation_participants",
+      "metadata": {
+        "columns": [
+          {
+            "name": "conversation_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "user_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "role",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "last_read_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "blocked_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX conversation_participants_pkey ON public.conversation_participants USING btree (conversation_id, user_id)",
+          "CREATE INDEX conversation_participants_user_idx ON public.conversation_participants USING btree (user_id, conversation_id)"
+        ],
+        "triggers": [],
+        "constraints": [
+          {
+            "name": "conversation_participants_conversation_id_fkey",
+            "table": "conversation_participants",
+            "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "conversation_participants_pkey",
+            "table": "conversation_participants",
+            "definition": "PRIMARY KEY (conversation_id, user_id)"
+          },
+          {
+            "name": "conversation_participants_role_check",
+            "table": "conversation_participants",
+            "definition": "CHECK (role = ANY (ARRAY['buyer'::text, 'seller'::text]))"
+          },
+          {
+            "name": "conversation_participants_user_id_fkey",
+            "table": "conversation_participants",
+            "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    },
+    {
+      "source": "conversation_reports",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true
+          },
+          {
+            "name": "conversation_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "reporter_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "reason",
+            "type": "text",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "default": "'open'::text",
+            "notNull": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "admin_note",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "assigned_to",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "resolved_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "resolved_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX conversation_reports_conversation_id_reporter_id_key ON public.conversation_reports USING btree (conversation_id, reporter_id)",
+          "CREATE UNIQUE INDEX conversation_reports_pkey ON public.conversation_reports USING btree (id)",
+          "CREATE INDEX conversation_reports_status_created_idx ON public.conversation_reports USING btree (status, created_at DESC)"
+        ],
+        "triggers": [],
+        "constraints": [
+          {
+            "name": "conversation_reports_admin_note_length",
+            "table": "conversation_reports",
+            "definition": "CHECK (admin_note IS NULL OR char_length(admin_note) <= 1000)"
+          },
+          {
+            "name": "conversation_reports_assigned_to_fkey",
+            "table": "conversation_reports",
+            "definition": "FOREIGN KEY (assigned_to) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "conversation_reports_conversation_id_fkey",
+            "table": "conversation_reports",
+            "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "conversation_reports_conversation_id_reporter_id_key",
+            "table": "conversation_reports",
+            "definition": "UNIQUE (conversation_id, reporter_id)"
+          },
+          {
+            "name": "conversation_reports_pkey",
+            "table": "conversation_reports",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "conversation_reports_reporter_id_fkey",
+            "table": "conversation_reports",
+            "definition": "FOREIGN KEY (reporter_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "conversation_reports_resolved_by_fkey",
+            "table": "conversation_reports",
+            "definition": "FOREIGN KEY (resolved_by) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "conversation_reports_status_check",
+            "table": "conversation_reports",
+            "definition": "CHECK (status = ANY (ARRAY['open'::text, 'under_review'::text, 'reviewed'::text, 'dismissed'::text]))"
+          }
+        ]
+      }
+    },
+    {
+      "source": "conversations",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true
+          },
+          {
+            "name": "listing_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "buyer_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "seller_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "last_message_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "closed_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          },
+          {
+            "name": "dealer_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "dealer_inventory_record_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false
+          },
+          {
+            "name": "dealer_context_title",
+            "type": "text",
+            "default": null,
+            "notNull": false
+          }
+        ],
+        "indexes": [
+          "CREATE INDEX conversations_buyer_recent_idx ON public.conversations USING btree (buyer_id, last_message_at DESC)",
+          "CREATE UNIQUE INDEX conversations_dealer_general_pair ON public.conversations USING btree (dealer_id, buyer_id, seller_id) WHERE ((dealer_id IS NOT NULL) AND (dealer_inventory_record_id IS NULL) AND (listing_id IS NULL))",
+          "CREATE UNIQUE INDEX conversations_dealer_vehicle_pair ON public.conversations USING btree (dealer_inventory_record_id, buyer_id, seller_id) WHERE (dealer_inventory_record_id IS NOT NULL)",
+          "CREATE UNIQUE INDEX conversations_listing_pair_unique ON public.conversations USING btree (listing_id, buyer_id, seller_id)",
+          "CREATE UNIQUE INDEX conversations_pkey ON public.conversations USING btree (id)",
+          "CREATE INDEX conversations_seller_recent_idx ON public.conversations USING btree (seller_id, last_message_at DESC)"
+        ],
+        "triggers": [
+          {
+            "name": "shopping_conversation",
+            "enabled": "O",
+            "definition": "CREATE TRIGGER shopping_conversation AFTER INSERT ON conversations FOR EACH ROW EXECUTE FUNCTION record_shopping_outcome()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "conversation_messages_conversation_id_fkey",
+            "table": "conversation_messages",
+            "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "conversation_participants_conversation_id_fkey",
+            "table": "conversation_participants",
+            "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "conversation_reports_conversation_id_fkey",
+            "table": "conversation_reports",
+            "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "conversations_buyer_id_fkey",
+            "table": "conversations",
+            "definition": "FOREIGN KEY (buyer_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "conversations_dealer_id_fkey",
+            "table": "conversations",
+            "definition": "FOREIGN KEY (dealer_id) REFERENCES dealer_profiles(id)"
+          },
+          {
+            "name": "conversations_dealer_inventory_record_id_fkey",
+            "table": "conversations",
+            "definition": "FOREIGN KEY (dealer_inventory_record_id) REFERENCES dealer_inventory_records(id)"
+          },
+          {
+            "name": "conversations_distinct_members",
+            "table": "conversations",
+            "definition": "CHECK (buyer_id <> seller_id)"
+          },
+          {
+            "name": "conversations_listing_id_fkey",
+            "table": "conversations",
+            "definition": "FOREIGN KEY (listing_id) REFERENCES asks(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "conversations_listing_pair_unique",
+            "table": "conversations",
+            "definition": "UNIQUE (listing_id, buyer_id, seller_id)"
+          },
+          {
+            "name": "conversations_pkey",
+            "table": "conversations",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "conversations_seller_id_fkey",
+            "table": "conversations",
+            "definition": "FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "mobile_dealer_conversations_conversation_id_fkey",
+            "table": "mobile_dealer_conversations",
+            "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    },
+    {
+      "source": "mobile_dealer_conversations",
+      "metadata": {
+        "columns": [
+          {
+            "name": "conversation_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "dealer_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "buyer_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "seller_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX mobile_dealer_conversations_dealer_id_buyer_id_seller_id_key ON public.mobile_dealer_conversations USING btree (dealer_id, buyer_id, seller_id)",
+          "CREATE UNIQUE INDEX mobile_dealer_conversations_pkey ON public.mobile_dealer_conversations USING btree (conversation_id)"
+        ],
+        "triggers": [],
+        "constraints": [
+          {
+            "name": "mobile_dealer_conversations_buyer_id_fkey",
+            "table": "mobile_dealer_conversations",
+            "definition": "FOREIGN KEY (buyer_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "mobile_dealer_conversations_conversation_id_fkey",
+            "table": "mobile_dealer_conversations",
+            "definition": "FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "mobile_dealer_conversations_dealer_id_buyer_id_seller_id_key",
+            "table": "mobile_dealer_conversations",
+            "definition": "UNIQUE (dealer_id, buyer_id, seller_id)"
+          },
+          {
+            "name": "mobile_dealer_conversations_dealer_id_fkey",
+            "table": "mobile_dealer_conversations",
+            "definition": "FOREIGN KEY (dealer_id) REFERENCES dealer_profiles(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "mobile_dealer_conversations_pkey",
+            "table": "mobile_dealer_conversations",
+            "definition": "PRIMARY KEY (conversation_id)"
+          },
+          {
+            "name": "mobile_dealer_conversations_seller_id_fkey",
+            "table": "mobile_dealer_conversations",
+            "definition": "FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    }
+  ],
+  "conversationHook": {
+    "name": "record_shopping_outcome",
+    "bodyHash": "83d460037621c55167924f896c42eb2a",
+    "definition": "CREATE OR REPLACE FUNCTION public.record_shopping_outcome()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare member uuid; item text; event_kind text; event_id uuid:=new.id; happened timestamptz:=now(); amount numeric; currency_code text;\nbegin\n if tg_table_name='listing_inquiries' then member=new.buyer_id; item=new.listing_id::text; event_kind='inquiry';\n elsif tg_table_name='conversations' then member=new.buyer_id; item=coalesce(new.listing_id::text,case when new.dealer_inventory_record_id is not null then 'dealerfeed-'||new.dealer_inventory_record_id::text end); event_kind='inquiry';\n elsif tg_table_name='orders' then\n  if new.is_demo or new.stripe_payment_status is distinct from 'succeeded' or new.stripe_captured_at is null or new.ask_id is null then return new; end if;\n  member=new.buyer_id;item=new.ask_id::text;event_kind='purchase';happened=new.stripe_captured_at;amount=new.merchandise_cents/100.0;currency_code=new.currency;\n elsif tg_table_name='verified_sales' then\n  if not new.is_live then return new; end if;\n  select o.buyer_id,o.ask_id::text,o.id,o.merchandise_cents/100.0,o.currency into member,item,event_id,amount,currency_code from orders o where o.id=new.order_id and not o.is_demo;\n  event_kind='purchase';happened=new.sold_at;\n end if;\n if item is not null and exists(select 1 from shopping_privacy where subject='u:'||member::text and personalization)\n and exists(select 1 from shopping_controls where tracking) then\n  insert into shopping_events(id,subject,user_id,session_id,kind,listing_id,context,occurred_at)\n  values(event_id,'u:'||member::text,member,event_id,event_kind,item,jsonb_strip_nulls(jsonb_build_object('source','verified_'||tg_table_name,'value',amount,'currency',currency_code)),happened) on conflict(id) do nothing;\n end if;\n return new;\nend $function$\n"
+  }
+}

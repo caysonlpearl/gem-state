@@ -3,6 +3,9 @@ import { classifiedCategories } from "../config/classifieds.ts";
 import type { ListingCardSummary } from "./listing-card-summary";
 
 export const MOBILE_API_VERSION = 1;
+/** Bump with native catalog eligibility changes; old anonymous history proofs
+ * then fail closed without retaining deleted listing titles or descriptions. */
+export const MOBILE_CATALOG_VERSION = 1;
 export const MOBILE_POLICY_VERSION = "2026-11-12";
 export const MOBILE_APP_ID = "com.onbluebird.marketplace";
 export const MOBILE_AUTH_REDIRECT = "com.onbluebird.marketplace://auth/callback";

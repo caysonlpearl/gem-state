@@ -147,6 +147,28 @@ test("general native dealer contexts require trusted mapping and exact already-a
   assert.equal(calls, 0);
   assert.deepEqual([...(await mobileGeneralDealerContexts(db, a, rows, true))], [id]);
   assert.deepEqual(
+    [
+      ...(await mobileGeneralDealerContexts(
+        {
+          from: () =>
+            query([
+              {
+                conversation_id: id,
+                dealer_id: storefrontActors.dealer,
+                buyer_id: a,
+                seller_id: null,
+              },
+            ]),
+        },
+        a,
+        [{ id, listingId: null, buyerId: a, sellerId: null, seller_id: b }],
+        true,
+      )),
+    ],
+    [id],
+    "An explicit retired member stays null rather than falling back to a stale legacy identity",
+  );
+  assert.deepEqual(
     [...(await mobileGeneralDealerContexts(db, storefrontActors.other, rows, true))],
     [],
   );

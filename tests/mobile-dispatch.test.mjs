@@ -8,6 +8,7 @@ import * as detailProjection from "../src/lib/mobile-listing-detail.ts";
 import * as detailReads from "../src/lib/mobile-listing-detail.server.ts";
 import * as applicationHandlers from "../src/lib/mobile-job-application.server.ts";
 import * as messageContext from "../src/lib/mobile-message-context.server.ts";
+import * as retiredContext from "../src/lib/mobile-retired-conversations.server.ts";
 import * as notificationHandlers from "../src/lib/mobile-notifications.server.ts";
 import * as savedSearchWrites from "../src/lib/mobile-saved-search.server.ts";
 import * as savedSearchContracts from "../src/lib/mobile-saved-search-contract.ts";
@@ -51,6 +52,9 @@ function harness({
   scopedDealerConversation = false,
   legacySavedCount = 0,
   listingManagement = false,
+  retiredConversation = false,
+  retiredProofError = false,
+  retiredCatalogVersion = contract.MOBILE_CATALOG_VERSION,
 } = {}) {
   const user = "11111111-1111-4111-8111-111111111111",
     nativeListing = "22222222-2222-4222-8222-222222222222",
@@ -154,7 +158,26 @@ function harness({
       };
       return q;
     },
-    rpc: async (name, args) => {
+    rpc: (name, args) => {
+      if (name === "mobile_retired_conversation_contexts") {
+        reads.push({ table: name, args });
+        const result = {
+          data: missingContext
+            ? []
+            : args._ids.map((id) => ({
+                conversation_id: id,
+                category_slug: restricted ? "firearms" : "home-garden",
+                catalog_version: retiredCatalogVersion,
+              })),
+          error: retiredProofError ? { code: "XX000" } : null,
+        };
+        const q = {
+          abortSignal: () => q,
+          retry: () => q,
+          then: (resolve) => Promise.resolve(result).then(resolve),
+        };
+        return q;
+      }
       if (name === "account_session_state") {
         assert.equal(args._user, user);
         assert.equal(args._session, "44444444-4444-4444-8444-444444444444");
@@ -211,6 +234,7 @@ function harness({
     "./mobile-listing-detail.server": detailReads,
     "./mobile-job-application.server": applicationHandlers,
     "./mobile-message-context.server": messageContext,
+    "./mobile-retired-conversations.server": retiredContext,
     "./mobile-write": mobileWrite,
     "./mobile-account-contract": accountContracts,
     "./mobile-shopping-consent": shoppingConsent,
@@ -320,15 +344,21 @@ function harness({
       getMyConversations: async () => [
         {
           id: user,
-          listingId: scopedDealerConversation ? null : nativeListing,
-          ...(scopedDealerConversation ? { buyerId: user, sellerId: storefrontActors.seller } : {}),
+          listingId: scopedDealerConversation || retiredConversation ? null : nativeListing,
+          buyerId: user,
+          sellerId: retiredConversation ? null : storefrontActors.seller,
+          otherMemberId: retiredConversation ? null : storefrontActors.seller,
+          closedAt: retiredConversation ? "2026-11-15T00:00:00Z" : null,
         },
       ],
       getConversation: async ({ data }) => ({
         id: data.id,
-        ...(scopedDealerConversation ? { buyerId: user, sellerId: storefrontActors.seller } : {}),
+        buyerId: user,
+        sellerId: retiredConversation ? null : storefrontActors.seller,
+        otherMemberId: retiredConversation ? null : storefrontActors.seller,
+        closedAt: retiredConversation ? "2026-11-15T00:00:00Z" : null,
         listingId:
-          generalConversation || scopedDealerConversation
+          generalConversation || scopedDealerConversation || retiredConversation
             ? null
             : nativeConversation
               ? nativeListing
@@ -605,6 +635,38 @@ test("private retained native conversations do not depend on public availability
     assert.equal((await h.request(`conversations/${h.user}`, "GET", undefined, null)).status, 401);
   }
 });
+test("retired conversation routes require a current eligible private proof and refuse new attachment preparation", async () => {
+  for (const options of [
+    {},
+    { restricted: true },
+    { missingContext: true },
+    { retiredCatalogVersion: contract.MOBILE_CATALOG_VERSION + 1 },
+    { retiredProofError: true },
+  ]) {
+    const h = harness({ retiredConversation: true, attachments: true, ...options }),
+      allowed = Object.keys(options).length === 0;
+    assert.equal(
+      (await h.request(`conversations/${h.user}`)).status,
+      options.retiredProofError ? 503 : allowed ? 200 : 404,
+    );
+    const list = await h.request("conversations");
+    assert.equal(list.status, options.retiredProofError ? 503 : 200);
+    if (list.status === 200) assert.equal((await list.json()).data.length, allowed ? 1 : 0);
+    const response = await h.request(`conversations/${h.user}/attachments`, "POST", {
+      fileName: "fixture.pdf",
+      contentType: "application/pdf",
+      size: 42,
+    });
+    assert.equal(response.status, options.retiredProofError ? 503 : allowed ? 409 : 404);
+    assert.deepEqual(h.writes, []);
+    assert(
+      h.reads
+        .filter((r) => r.table === "mobile_retired_conversation_contexts")
+        .every((r) => r.args._actor === h.user && r.args._ids.every((id) => id === h.user)),
+    );
+  }
+});
+
 test("mobile consent and device registration derive the caller, ignoring forged user ids", async () => {
   const h = harness();
   let r = await h.request("consent", "PUT", {

@@ -83,11 +83,13 @@ export async function mobileGeneralDealerContexts(
   conversations: any[],
   ready: boolean,
 ) {
+  const member = (row: any, key: "buyerId" | "sellerId", legacy: "buyer_id" | "seller_id") =>
+    Object.hasOwn(row, key) ? row[key] : row[legacy];
   const candidates = conversations.filter(
     (c) =>
       !(c.listingId ?? c.listing_id) &&
       !c.dealer_inventory_record_id &&
-      [c.buyerId ?? c.buyer_id, c.sellerId ?? c.seller_id].includes(user),
+      [member(c, "buyerId", "buyer_id"), member(c, "sellerId", "seller_id")].includes(user),
   );
   if (!ready || !candidates.length) return new Set<string>();
   const ids = new Map(candidates.map((c) => [c.id, c]));
@@ -110,8 +112,8 @@ export async function mobileGeneralDealerContexts(
       const c = ids.get(row.conversation_id);
       return c &&
         row.dealer_id &&
-        row.buyer_id === (c.buyerId ?? c.buyer_id) &&
-        row.seller_id === (c.sellerId ?? c.seller_id)
+        row.buyer_id === member(c, "buyerId", "buyer_id") &&
+        row.seller_id === member(c, "sellerId", "seller_id")
         ? [row.conversation_id]
         : [];
     }),
