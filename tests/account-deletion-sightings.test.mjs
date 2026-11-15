@@ -6,6 +6,10 @@ import {
   sightingsMigration,
 } from "./helpers/account-deletion-sightings-database.mjs";
 import { seedCatalog } from "./helpers/account-deletion-catalog-database.mjs";
+import {
+  submissionRecordsDatabase,
+  submissionRecordsMigration,
+} from "./helpers/account-deletion-submission-records-database.mjs";
 import { fixtureMemberSession } from "./helpers/account-deletion-owned-listings-database.mjs";
 import { createAccountDeletionSightingErasure } from "../src/lib/account-deletion-sightings.server.ts";
 async function setup(t) {
@@ -360,4 +364,27 @@ test("installation rejects an unreviewed incoming cascade", async (t) => {
   );
   await assert.rejects(db.exec(sightingsMigration()), /relationships/);
   await db.exec("rollback");
+});
+test("installers reject an unexpected existing completion callback before refreshing its contract", async (t) => {
+  for (const [name, factory, migration] of [
+    ["submissions", submissionRecordsDatabase, submissionRecordsMigration],
+    ["sightings", sightingsDatabase, sightingsMigration],
+  ])
+    await t.test(name, async (t) => {
+      const db = await factory({ install: false });
+      t.after(() => db.close());
+      const before = (
+        await db.query("select hooks from account_deletion_private_contract where id")
+      ).rows[0].hooks;
+      await db.exec(
+        "create function unexpected_job_observer()returns trigger language plpgsql as $$begin return new;end$$;create trigger unexpected_job_observer after update on account_deletion_jobs for each row execute function unexpected_job_observer()",
+      );
+      await assert.rejects(db.exec(migration()), /disabled .* prerequisites/);
+      await db.exec("rollback");
+      assert.deepEqual(
+        (await db.query("select hooks from account_deletion_private_contract where id")).rows[0]
+          .hooks,
+        before,
+      );
+    });
 });

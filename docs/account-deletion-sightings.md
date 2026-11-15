@@ -45,6 +45,10 @@ does not invent a storage bucket. Removing a reference preserves its durable
 observation for later provider ownership and byte-erasure handling.
 
 The migration requires a disabled worker and unchanged reviewed prerequisites.
+Both this installer and its private-submission predecessor check the existing
+private completion boundary before adding and recording their reviewed callback.
+An unexpected pre-existing job callback is rejected rather than adopted into the
+updated contract.
 It checks captured columns, incoming/outgoing constraints, hooks and the actual
 member report/respond functions and public view before changing sources. Its
 runtime contract checks source columns, constraints, policies, indexes, hooks,
