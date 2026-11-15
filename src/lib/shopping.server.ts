@@ -240,13 +240,13 @@ export async function shoppingRecommendations(
         .sort((a, b) => Date.parse(b.at ?? "") - Date.parse(a.at ?? ""))
         .map((e) => e.listingId!),
     ),
-  ].slice(0, 8);
+  ];
   const continuingIds = [...profile.values()]
     .filter((i) => !i.dismissed && !i.purchased && (i.favorite || i.recentSessions.size >= 2))
     .sort((a, b) => b.score - a.score)
     .slice(0, 8)
     .map((i) => i.listingId);
-  const referenceIds = [...new Set([...seedIds, ...recentIds, ...continuingIds])];
+  const referenceIds = [...new Set([...seedIds, ...recentIds.slice(0, 8), ...continuingIds])];
   const [references, visualRows] = await Promise.all([
     referenceIds.length
       ? db
@@ -294,7 +294,9 @@ export async function shoppingRecommendations(
       ].map((c) => [c.id, c]),
     ).values(),
   ];
-  const recent = recentIds.flatMap((id) => (current.has(id) ? [current.get(id)!] : []));
+  // Apply the display limit after current-state filtering so an older eligible
+  // view already in the public pool can replace a removed recent listing.
+  const recent = recentIds.flatMap((id) => (current.has(id) ? [current.get(id)!] : [])).slice(0, 8);
   const continuing = [...profile.values()]
     .filter((x) => !x.dismissed && !x.purchased && (x.favorite || x.recentSessions.size >= 2))
     .sort((a, b) => b.score - a.score)

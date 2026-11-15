@@ -316,6 +316,36 @@ test("Recently viewed resolves an older newly revisited listing independently of
   );
 });
 
+test("an older eligible public listing backfills Recently viewed after eight newer views expire", async () => {
+  const f = fixture({ onVisual: () => ({ data: [] }) });
+  f.tables.shopping_events = [];
+  f.tables.shopping_inventory = [];
+  for (let i = 0; i < 8; i++) {
+    const card = { ...f.car, id: `dealerfeed-expired-${i}` };
+    f.tables.shopping_inventory.push({
+      ...inventoryRow(card),
+      valid_until: new Date(Date.now() - 1000).toISOString(),
+    });
+    f.tables.shopping_events.push(
+      view(f.subject, card.id, new Date(Date.now() - i * 60000).toISOString()),
+    );
+  }
+  const older = { ...f.car, id: "dealerfeed-older-active" };
+  f.tables.shopping_inventory.push(inventoryRow(older));
+  f.tables.shopping_events.push(
+    view(f.subject, older.id, new Date(Date.now() - 86400000).toISOString()),
+  );
+  const rows = await shared.shoppingRecommendations(f.db, f.subject);
+  assert.deepEqual(
+    rows.recent.map((card) => card.id),
+    [older.id],
+  );
+  assert(
+    !f.rpc.find((r) => r.name === "shopping_visual_candidates").args.seed_ids.includes(older.id),
+    "The eligible replacement is not a top-eight visual seed",
+  );
+});
+
 test("withdrawal or history clearing after the activity snapshot cannot return the old personalized rows", async () => {
   for (const action of ["withdraw", "clear"]) {
     const f = fixture({
