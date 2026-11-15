@@ -47,7 +47,7 @@ body {
 /* Dense native results retain the website's cards and filter behavior. */
 .native-browse-page :is(ul, div):has(> li > [data-native-browse-tile]),
 .native-browse-page div:has(> [data-native-browse-tile]) {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 8px;
   row-gap: 16px;
 }

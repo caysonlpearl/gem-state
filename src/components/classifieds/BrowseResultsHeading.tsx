@@ -117,7 +117,11 @@ export function BrowseResultsHeading({
           <BrowsePill
             renderLink={BrowseLink}
             active={!search.group && !search.category}
-            search={scopedWithoutVehicleFilters({ group: undefined, category: undefined })}
+            search={scopedWithoutVehicleFilters({
+              group: undefined,
+              category: undefined,
+              ...(compact ? { sort: undefined } : {}),
+            })}
           >
             All listings
           </BrowsePill>

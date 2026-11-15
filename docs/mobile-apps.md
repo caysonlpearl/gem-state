@@ -1184,3 +1184,13 @@ repeated beneath homepage rails. Job/logo attribution stays with displayed job
 inventory. This supersedes the older four-card shopping-row layout/credit
 placement described above; provider native-distribution approval remains a
 separate launch gate.
+
+## Two-column phone results — November 14, 2026
+
+Native browse results return to two columns on phones, with four on tablets and
+five on wide screens. The native All listings shortcut explicitly reopens the
+mixed For you feed instead of retaining a category's date/price sort. Location,
+query and other non-vehicle conditions remain intact; the shopper can choose a
+sort again from the menu. The shared website shortcut keeps its existing sort
+behavior. Three-size browser checks verify column counts, feed selection,
+filter preservation, navigation and automatic paging.

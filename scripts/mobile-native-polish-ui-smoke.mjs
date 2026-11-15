@@ -420,7 +420,7 @@ try {
         return { x: b.x, y: b.y, width: b.width, height: b.height };
       }),
     );
-    const columns = width >= 768 ? 4 : 3;
+    const columns = width >= 768 ? 4 : 2;
     assert.equal(positions.filter((p) => Math.abs(p.y - positions[0].y) < 2).length, columns);
     assert(positions[0].height < 260, "Native preview cards are compact");
     assert.equal(await tiles.getByRole("link", { name: "Apply now", exact: true }).count(), 0);
@@ -538,6 +538,17 @@ try {
     await page.getByRole("heading", { name: "All classifieds", exact: true }).waitFor();
     assert.equal(await page.getByText("Bluebird classifieds", { exact: true }).count(), 0);
     assert.equal(await page.getByLabel("Sort", { exact: true }).inputValue(), "for_you");
+    await page.getByLabel("Sort", { exact: true }).selectOption("newest");
+    await page
+      .getByRole("region", { name: "Browse listings", exact: true })
+      .getByRole("link", { name: "All listings", exact: true })
+      .click();
+    await page.waitForFunction(() => !new URLSearchParams(location.hash.split("?")[1]).has("sort"));
+    assert.equal(await page.getByLabel("Sort", { exact: true }).inputValue(), "for_you");
+    assert(
+      new URLSearchParams(new URL(page.url()).hash.split("?")[1]).get("state") === "ID",
+      "Reopening the mixed feed preserves selected location",
+    );
     assert.equal(await page.getByText(/^48 listings$/).count(), 0);
     const genericFilter = await page.getByRole("button", { name: /^Filters/ }).boundingBox();
     const genericSort = await page.getByLabel("Sort", { exact: true }).boundingBox();
@@ -594,7 +605,7 @@ try {
       fullRefreshIndicator: true,
       compactFacts: true,
       centeredInformation: true,
-      threePhoneColumns: true,
+      twoPhoneColumns: true,
       shortPreviewCards: true,
       cityDateSameLine: true,
       filterSortSameRow: true,
