@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { mixMobileSaleFeed, mobileSaleItem } from "../src/lib/mobile-sale-feed.ts";
 import { mobileCachedSearch, mobileSearchPage } from "../src/lib/mobile-catalog.ts";
+import { mobileSearchInput } from "../src/lib/mobile-search.ts";
 const card = (id, categorySlug, priceCents = 1000, discoverySellerKey = id) => ({
   id,
   title: id,
@@ -22,6 +23,16 @@ const things = [
   card("bike", "outdoor-sporting", 5000),
   card("drill", "tools-equipment", 3000),
 ];
+test("the real mobile parser keeps For you distinct from an explicitly selected newest sort", () => {
+  const discovery = mobileSearchInput(new URLSearchParams("state=ID"));
+  const newest = mobileSearchInput(new URLSearchParams("state=ID&sort=newest"));
+  assert.equal(discovery.sort, undefined);
+  assert.equal(newest.sort, "newest");
+  const now = Date.now();
+  const snapshot = { sections: { all: { updatedAt: now, cards: [...cars, ...things] } } };
+  const mixed = mobileCachedSearch(snapshot, discovery, now);
+  assert.equal(new Set(mixed.listings.slice(0, 4).map((c) => c.categorySlug)).size, 4);
+});
 test("a vehicle-heavy feed alternates categories and sellers, excludes work and stays deterministic across pages", () => {
   const input = [
     ...cars,

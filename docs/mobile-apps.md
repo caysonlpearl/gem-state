@@ -1177,3 +1177,10 @@ shopping service as the website; guests use resettable install identifiers.
 Advertising remains separately gated and unconfigured native SDKs stay off.
 The existing policy/consent implementation is not a claim that all planned
 embedding jobs, model evaluation, notifications or account erasure are ready.
+
+Home rail attribution follows the owner's earlier placement decision: home,
+vehicle and rescue source links remain on the actual listing pages rather than
+repeated beneath homepage rails. Job/logo attribution stays with displayed job
+inventory. This supersedes the older four-card shopping-row layout/credit
+placement described above; provider native-distribution approval remains a
+separate launch gate.

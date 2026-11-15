@@ -177,13 +177,14 @@ export function ShoppingRows({
   const rows = loaded?.scope === scope && (learning || similarId) ? loaded.rows : null;
   if (similarId && !rows) return null;
   const current = rows ?? { recent: [], continuing: [], recommended: [], model: "category-mix-v1" };
+  const recommended = current.recommended.filter(mobileSaleItem);
   const groups: [string, string, MobileListing[]][] = similarId
     ? [["More like this", "similar", current.recommended]]
     : [
         [
           "For you",
-          current.recommended.length ? "recommended" : "home:for-you-fallback",
-          current.recommended.length ? current.recommended : fallback,
+          recommended.length ? "recommended" : "home:for-you-fallback",
+          recommended.length ? recommended : fallback,
         ],
         ["Recently viewed", "recent", current.recent],
         ["Continue shopping", "continuing", current.continuing],

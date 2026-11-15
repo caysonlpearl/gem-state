@@ -47,7 +47,8 @@ try {
       events = [],
       choices = new Map(),
       dismissed = new Map();
-    let consentUnavailable = false;
+    let consentUnavailable = false,
+      onlyWorkRecommendations = false;
     const cards = [
       {
         id: "dealerfeed-fixture-car",
@@ -197,7 +198,11 @@ try {
             ? cards.filter((card) => !dismissed.get(id)?.has(card.id))
             : [],
           recommended: choices.get(id)
-            ? cards.filter((card) => !dismissed.get(id)?.has(card.id))
+            ? cards.filter(
+                (card) =>
+                  !dismissed.get(id)?.has(card.id) &&
+                  (!onlyWorkRecommendations || card.categorySlug === "jobs"),
+              )
             : [],
           model: "fixture-v1",
         };
@@ -370,6 +375,28 @@ try {
       geometry.push({ title, columns, boxes });
     }
     await page.screenshot({ path: resolve(output, "recommendations-" + viewport.width + ".png") });
+    onlyWorkRecommendations = true;
+    await page.reload();
+    await page.waitForFunction(
+      () =>
+        document.getElementById("for-you-heading")?.closest("section")?.querySelectorAll("article")
+          .length === 2,
+    );
+    assert.equal(
+      await page
+        .getByRole("region", { name: "For you", exact: true })
+        .getByText("Fifth hidden job", { exact: true })
+        .count(),
+      0,
+      "A work-only recommendation response uses public shopping fallback",
+    );
+    onlyWorkRecommendations = false;
+    await page.reload();
+    await page.waitForFunction(
+      () =>
+        document.getElementById("for-you-heading")?.closest("section")?.querySelectorAll("article")
+          .length === 4,
+    );
     // Preserve older acknowledged choices without bringing the removed control back.
     const currentInstall = await page.evaluate(() =>
       localStorage.getItem("bluebird-mobile-install-v1"),
