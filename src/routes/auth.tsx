@@ -239,7 +239,11 @@ function AuthPage() {
   return (
     <AuthPageView
       mode={mode}
-      setMode={setMode}
+      setMode={(next) => {
+        setMode(next);
+        setPendingConfirm(false);
+        setEmailLinkSent(false);
+      }}
       intent={intent}
       email={email}
       setEmail={setEmail}
@@ -262,6 +266,35 @@ function AuthPage() {
       handleForgotPassword={handleForgotPassword}
       handleResetPassword={handleResetPassword}
       handleEmailLink={handleEmailLink}
+      handleResendConfirmation={() =>
+        void (async () => {
+          if (busy) return;
+          setBusy(true);
+          try {
+            const { error } = await supabase.auth.resend({
+              type: "signup",
+              email: email.trim(),
+              options: {
+                emailRedirectTo: getAuthRedirectUrl(
+                  `/auth?redirect=${encodeURIComponent(redirect)}`,
+                ),
+              },
+            });
+            if (error) throw error;
+            toast.success(
+              "If confirmation is still needed, a new link has been requested. Check your inbox or Spam.",
+            );
+          } catch (error) {
+            toast.error(
+              error instanceof Error
+                ? error.message
+                : "Could not request a confirmation link. Try again.",
+            );
+          } finally {
+            setBusy(false);
+          }
+        })()
+      }
       onOAuth={() => void handleOAuth()}
     />
   );

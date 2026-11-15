@@ -44,6 +44,7 @@ try {
     const page = await browser.newPage({ viewport });
     page.on("pageerror", (e) => errors.push(e.message));
     const calls = [];
+    let failResend = true;
     await page.route("https://fixture.supabase.co/**", async (route) => {
       const request = route.request();
       const headers = {
@@ -55,9 +56,27 @@ try {
       if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
       const path = new URL(request.url()).pathname,
         body = request.postDataJSON();
-      calls.push({ path, body });
+      calls.push({
+        path,
+        body,
+        redirectTo: new URL(request.url()).searchParams.get("redirect_to"),
+      });
       // This fixture never reaches Supabase or sends an email.
-      assert(["/auth/v1/otp", "/auth/v1/recover", "/auth/v1/signup"].includes(path), path);
+      assert(
+        ["/auth/v1/otp", "/auth/v1/recover", "/auth/v1/signup", "/auth/v1/resend"].includes(path),
+        path,
+      );
+      if (path.endsWith("resend") && failResend) {
+        failResend = false;
+        return route.fulfill({
+          status: 429,
+          headers,
+          body: JSON.stringify({
+            code: "over_email_send_rate_limit",
+            msg: "Please wait before requesting another confirmation link.",
+          }),
+        });
+      }
       return route.fulfill({
         status: 200,
         headers,
@@ -338,6 +357,41 @@ try {
     assert.equal(calls[2].body.data.shopping_terms_version, "2026-11-12");
     assert.equal(calls[2].body.data.shopping_signup_source, "mobile");
     assert.equal(calls[2].body.data.shopping_alerts, false);
+    assert.equal(await page.getByText(/We sent a confirmation link/).count(), 0);
+    await page.getByRole("button", { name: "Resend confirmation", exact: true }).click();
+    await page
+      .getByRole("alert")
+      .filter({ hasText: "Please wait before requesting another confirmation link." })
+      .waitFor();
+    assert.equal(
+      await page.getByRole("button", { name: "Back to sign in", exact: true }).isVisible(),
+      true,
+    );
+    await page.getByRole("button", { name: "Resend confirmation", exact: true }).click();
+    await page.getByRole("status").filter({ hasText: "a new link has been requested" }).waitFor();
+    assert.equal(calls[3].path, "/auth/v1/resend");
+    assert.equal(calls[3].body.type, "signup");
+    assert.equal(calls[3].body.email, "qa@example.invalid");
+    assert.equal(
+      calls[3].redirectTo,
+      calls[2].redirectTo,
+      "Resending keeps the same platform callback as signup",
+    );
+    assert.equal(calls[4].path, "/auth/v1/resend");
+    assert.equal(calls[4].redirectTo, calls[2].redirectTo);
+    await page.screenshot({ path: resolve(output, `confirmation-recovery-${viewport.width}.png`) });
+    await page.getByRole("button", { name: "Back to sign in", exact: true }).click();
+    await page.getByRole("button", { name: "Sign in", exact: true }).waitFor();
+    assert.equal(
+      await page.getByLabel("Email", { exact: true }).inputValue(),
+      "qa@example.invalid",
+    );
+    await page.getByRole("button", { name: "Need an account? Create one", exact: true }).click();
+    await page.getByRole("button", { name: "Create account", exact: true }).click();
+    await page.getByRole("button", { name: "Use a different email", exact: true }).click();
+    await page.getByRole("button", { name: "Create account", exact: true }).waitFor();
+    assert.equal(await page.getByLabel("Email", { exact: true }).inputValue(), "");
+    assert.equal(await page.getByLabel("Password", { exact: true }).inputValue(), "");
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
@@ -365,6 +419,11 @@ try {
       optionalAlertsUnchecked: true,
       explicitSignupMetadata: true,
       confirmationRequired: true,
+      confirmationResend: true,
+      confirmationRateLimitRecovery: true,
+      confirmationRedirectPreserved: true,
+      confirmationCanReturnToSignIn: true,
+      confirmationCanChangeEmail: true,
       horizontalOverflow: false,
     });
     await page.close();
