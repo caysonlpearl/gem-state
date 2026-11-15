@@ -9,6 +9,11 @@ import {
   type ShoppingCard,
   type ShoppingEvent,
 } from "./shopping-contract.ts";
+import {
+  loadShoppingSeedContexts,
+  shoppingRecommendationSeeds,
+  type ShoppingSeedContext,
+} from "./shopping-recommendation-context.server.ts";
 
 export async function shoppingDb(): Promise<any> {
   return (await import("@/integrations/supabase/client.server")).supabaseAdmin;
@@ -150,6 +155,10 @@ export async function shoppingRecommendations(
   const permission = await shoppingPermission(db, subject);
   if (!permission?.personalization || !controls.recommendations)
     return { recent: [], continuing: [], recommended: [], model: controls.model_version };
+  const historyAfter = permission.history_after;
+  if (typeof historyAfter !== "string" || !Number.isFinite(Date.parse(historyAfter)))
+    throw Error("Privacy preferences unavailable.");
+  const model = `${controls.model_version}:category-seeds-v1`;
   const [allActivity, inventory, experiment] = await Promise.all([
     shoppingActivity(db, subject),
     db
@@ -162,6 +171,17 @@ export async function shoppingRecommendations(
   ]);
   if (inventory.error) throw Error("Recommendations could not be loaded.");
   const holdout = experiment;
+  const contexts = new Map<string, ShoppingSeedContext>();
+  const rememberContext = (card: ShoppingCard) => {
+    const mode = (card.home as { mode?: unknown } | null)?.mode ?? null;
+    if (
+      typeof card.categorySlug === "string" &&
+      /^[a-z0-9-]{1,80}$/.test(card.categorySlug) &&
+      (mode === null || (typeof mode === "string" && mode.length <= 40))
+    )
+      contexts.set(card.id, { category: card.categorySlug, mode });
+  };
+  for (const row of inventory.data ?? []) rememberContext(row.card);
   let activity = allActivity;
   if (options.eligible) {
     // Store clients cannot learn from or seed recommendations with restricted
@@ -175,7 +195,10 @@ export async function shoppingRecommendations(
         .in("listing_id", ids.slice(offset, offset + 200));
       if (rows.error) throw Error("Recommendation references unavailable.");
       for (const row of rows.data ?? [])
-        if (options.eligible(row.card)) permitted.add(row.listing_id);
+        if (options.eligible(row.card)) {
+          permitted.add(row.listing_id);
+          rememberContext(row.card);
+        }
     }
     activity = allActivity.filter((e) =>
       e.listingId
@@ -190,18 +213,46 @@ export async function shoppingRecommendations(
           }),
     );
   }
-  const profile = interests(activity),
-    seedIds = [...profile.values()]
-      .filter((i) => !i.dismissed)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8)
+  const profile = interests(activity);
+  // Native catalog checks and the latest public pool already supply most
+  // contexts. Read minimal metadata only for references absent from those reads.
+  if (!holdout) {
+    const missing = [...profile.values()]
+      .filter((i) => !i.dismissed && i.score > 0 && !contexts.has(i.listingId))
       .map((i) => i.listingId);
+    for (const [id, context] of await loadShoppingSeedContexts(db, missing))
+      contexts.set(id, context);
+  }
+  const seedIds = holdout ? [] : shoppingRecommendationSeeds(profile, contexts);
+  // History rows use their own chronology/continuation rules, independent of
+  // the eight visual seeds and the latest 200 public inventory rows.
+  const recentIds = [
+    ...new Set(
+      activity
+        .filter(
+          (e) =>
+            e.kind === "view" &&
+            e.listingId &&
+            Date.parse(e.at ?? "") >= Date.now() - 30 * 86400000 &&
+            !profile.get(e.listingId)?.dismissed &&
+            !profile.get(e.listingId)?.purchased,
+        )
+        .sort((a, b) => Date.parse(b.at ?? "") - Date.parse(a.at ?? ""))
+        .map((e) => e.listingId!),
+    ),
+  ].slice(0, 8);
+  const continuingIds = [...profile.values()]
+    .filter((i) => !i.dismissed && !i.purchased && (i.favorite || i.recentSessions.size >= 2))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8)
+    .map((i) => i.listingId);
+  const referenceIds = [...new Set([...seedIds, ...recentIds, ...continuingIds])];
   const [references, visualRows] = await Promise.all([
-    seedIds.length
+    referenceIds.length
       ? db
           .from("shopping_inventory")
           .select("card,content_hash,valid_until")
-          .in("listing_id", seedIds)
+          .in("listing_id", referenceIds)
       : { data: [] },
     seedIds.length && !holdout
       ? db.rpc("shopping_visual_candidates", { seed_ids: seedIds })
@@ -243,11 +294,7 @@ export async function shoppingRecommendations(
       ].map((c) => [c.id, c]),
     ).values(),
   ];
-  const recent = [...profile.values()]
-    .filter((x) => !x.dismissed && !x.purchased && x.lastAt)
-    .sort((a, b) => b.lastAt - a.lastAt)
-    .flatMap((x) => (current.has(x.listingId) ? [current.get(x.listingId)!] : []))
-    .slice(0, 8);
+  const recent = recentIds.flatMap((id) => (current.has(id) ? [current.get(id)!] : []));
   const continuing = [...profile.values()]
     .filter((x) => !x.dismissed && !x.purchased && (x.favorite || x.recentSessions.size >= 2))
     .sort((a, b) => b.score - a.score)
@@ -280,11 +327,14 @@ export async function shoppingRecommendations(
   const allowed = await shoppingExternalEligibility(db, [
     ...new Set([...recent, ...continuing, ...recommended].map((c) => c.id)),
   ]);
+  const latestPermission = await shoppingPermission(db, subject);
+  if (!latestPermission?.personalization || latestPermission.history_after !== historyAfter)
+    return { recent: [], continuing: [], recommended: [], model, holdout };
   return {
     recent: recent.filter((c) => allowed.has(c.id)),
     continuing: continuing.filter((c) => allowed.has(c.id)),
     recommended: recommended.filter((c) => allowed.has(c.id)),
-    model: controls.model_version,
+    model,
     holdout,
   };
 }
