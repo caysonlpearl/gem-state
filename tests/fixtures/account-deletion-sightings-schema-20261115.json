@@ -1,0 +1,405 @@
+{
+  "rows": [
+    {
+      "source": "sighting_confirmations",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "sighting_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "user_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "kind",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX sighting_confirmations_pkey ON public.sighting_confirmations USING btree (id)",
+          "CREATE UNIQUE INDEX sighting_confirmations_sighting_id_user_id_key ON public.sighting_confirmations USING btree (sighting_id, user_id)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "members read their own sighting responses",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(user_id = auth.uid())",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "moderators read all sighting responses",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "sighting_confirmation_kind",
+            "table": "sighting_confirmations",
+            "definition": "CHECK (kind = ANY (ARRAY['confirm'::text, 'flag'::text]))"
+          },
+          {
+            "name": "sighting_confirmations_pkey",
+            "table": "sighting_confirmations",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "sighting_confirmations_sighting_id_fkey",
+            "table": "sighting_confirmations",
+            "definition": "FOREIGN KEY (sighting_id) REFERENCES sightings(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sighting_confirmations_sighting_id_user_id_key",
+            "table": "sighting_confirmations",
+            "definition": "UNIQUE (sighting_id, user_id)"
+          },
+          {
+            "name": "sighting_confirmations_user_id_fkey",
+            "table": "sighting_confirmations",
+            "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    },
+    {
+      "source": "sightings",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "variant_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "location_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "reporter_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "seen_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "availability",
+            "type": "sighting_availability",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "price_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "currency",
+            "type": "character(3)",
+            "default": "'USD'::bpchar",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "note",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "confirmation_count",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "flag_count",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "hidden",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "is_demo",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "source_type",
+            "type": "price_evidence_source",
+            "default": "'member_report'::price_evidence_source",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "evidence_path",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "verified_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "verified_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX sightings_pkey ON public.sightings USING btree (id)",
+          "CREATE INDEX sightings_variant_seen_idx ON public.sightings USING btree (variant_id, seen_at DESC)"
+        ],
+        "policies": [
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*",
+            "permissive": false
+          },
+          {
+            "name": "moderators hide sightings",
+            "check": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "w",
+            "permissive": true
+          },
+          {
+            "name": "moderators read all sightings",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(has_role(auth.uid(), 'moderator'::app_role) OR has_role(auth.uid(), 'admin'::app_role))",
+            "command": "r",
+            "permissive": true
+          },
+          {
+            "name": "reporters read their own sightings",
+            "check": null,
+            "roles": [
+              "authenticated"
+            ],
+            "using": "(reporter_id = auth.uid())",
+            "command": "r",
+            "permissive": true
+          }
+        ],
+        "triggers": [
+          {
+            "name": "sightings_touch_updated_at",
+            "bodyMd5": "9b1889f56258bf9d6554213c05019c76",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.set_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nbegin\n  new.updated_at = now();\n  return new;\nend;\n$function$\n",
+            "definition": "CREATE TRIGGER sightings_touch_updated_at BEFORE UPDATE ON sightings FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "sighting_confirmations_sighting_id_fkey",
+            "table": "sighting_confirmations",
+            "definition": "FOREIGN KEY (sighting_id) REFERENCES sightings(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sightings_counts_non_negative",
+            "table": "sightings",
+            "definition": "CHECK (confirmation_count >= 0 AND flag_count >= 0)"
+          },
+          {
+            "name": "sightings_location_id_fkey",
+            "table": "sightings",
+            "definition": "FOREIGN KEY (location_id) REFERENCES locations(id)"
+          },
+          {
+            "name": "sightings_note_length",
+            "table": "sightings",
+            "definition": "CHECK (note IS NULL OR char_length(note) <= 280)"
+          },
+          {
+            "name": "sightings_pkey",
+            "table": "sightings",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "sightings_price_range",
+            "table": "sightings",
+            "definition": "CHECK (price_cents IS NULL OR price_cents > 0 AND price_cents <= 500000)"
+          },
+          {
+            "name": "sightings_reporter_id_fkey",
+            "table": "sightings",
+            "definition": "FOREIGN KEY (reporter_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sightings_variant_id_fkey",
+            "table": "sightings",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sightings_verified_by_fkey",
+            "table": "sightings",
+            "definition": "FOREIGN KEY (verified_by) REFERENCES auth.users(id)"
+          }
+        ]
+      }
+    }
+  ],
+  "views": {
+    "variant_sightings_public": " SELECT s.id AS sighting_id,\n    s.variant_id,\n    s.location_id,\n    l.name AS location_name,\n    l.area AS location_area,\n    l.granularity AS location_granularity,\n    p.name AS park_name,\n    r.code AS resort_code,\n    r.name AS resort_name,\n    s.seen_at,\n    s.availability,\n    s.price_cents,\n    s.currency,\n    s.note,\n    s.confirmation_count\n   FROM sightings s\n     JOIN locations l ON l.id = s.location_id\n     JOIN parks p ON p.id = l.park_id\n     JOIN resorts r ON r.id = p.resort_id\n  WHERE NOT s.hidden AND NOT s.is_demo AND s.flag_count < 3 AND s.seen_at > (now() - '90 days'::interval);"
+  },
+  "enumTypes": {
+    "price_evidence_source": [
+      "member_report",
+      "approved_shopper",
+      "receipt_verified",
+      "admin_verified"
+    ],
+    "sighting_availability": [
+      "in_stock",
+      "limited",
+      "sold_out"
+    ]
+  },
+  "functions": [
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=public"
+      ],
+      "bodyMd5": "6cb6b2e6b68235d6d85f238fcc7533d8",
+      "signature": "report_sighting(uuid,uuid,sighting_availability,integer,text,timestamp with time zone)",
+      "definition": "CREATE OR REPLACE FUNCTION public.report_sighting(_variant_id uuid, _location_id uuid, _availability sighting_availability, _price_cents integer DEFAULT NULL::integer, _note text DEFAULT NULL::text, _seen_at timestamp with time zone DEFAULT now())\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\ndeclare\n  _caller uuid := auth.uid();\n  _id uuid;\nbegin\n  if _caller is null then\n    raise exception 'Sign in to report a sighting.' using errcode = '42501';\n  end if;\n  perform public.enforce_rate_limit('report_sighting', 10, interval '1 day');\n\n  if not exists (select 1 from public.product_variants v where v.id = _variant_id and v.active) then\n    raise exception 'That variation is not available for sightings.';\n  end if;\n  if not exists (select 1 from public.locations l where l.id = _location_id and l.active) then\n    raise exception 'Choose an active park location.';\n  end if;\n  if _seen_at > now() + interval '1 hour' then\n    raise exception 'A sighting cannot be in the future.';\n  end if;\n  if _seen_at < now() - interval '30 days' then\n    raise exception 'Sightings older than 30 days are not useful during the pilot.';\n  end if;\n  if _price_cents is not null and (_price_cents <= 0 or _price_cents > 500000) then\n    raise exception 'Observed price is out of range.';\n  end if;\n\n  insert into public.sightings (variant_id, location_id, reporter_id, seen_at, availability, price_cents, note)\n  values (_variant_id, _location_id, _caller, _seen_at, _availability, _price_cents,\n          nullif(btrim(coalesce(_note, '')), ''))\n  returning id into _id;\n\n  return _id;\nend;\nEND;$function$\n",
+      "securityDefiner": true
+    },
+    {
+      "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+      "config": [
+        "search_path=public"
+      ],
+      "bodyMd5": "304235ef5b6f3ecb6d078f0ea07f4e23",
+      "signature": "respond_to_sighting(uuid,text)",
+      "definition": "CREATE OR REPLACE FUNCTION public.respond_to_sighting(_sighting_id uuid, _kind text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\ndeclare\n  _caller uuid := auth.uid();\n  _reporter uuid;\nbegin\n  if _caller is null then\n    raise exception 'Sign in to respond to a sighting.' using errcode = '42501';\n  end if;\n  if _kind not in ('confirm', 'flag') then\n    raise exception 'Unsupported response.';\n  end if;\n  perform public.enforce_rate_limit('respond_to_sighting', 40, interval '1 day');\n\n  select reporter_id into _reporter\n  from public.sightings\n  where id = _sighting_id and not hidden\n  for update;\n\n  if _reporter is null then\n    raise exception 'That sighting is no longer available.';\n  end if;\n  if _reporter = _caller then\n    raise exception 'You cannot confirm or flag your own sighting.';\n  end if;\n\n  insert into public.sighting_confirmations (sighting_id, user_id, kind)\n  values (_sighting_id, _caller, _kind)\n  on conflict (sighting_id, user_id) do nothing;\n\n  if not found then\n    raise exception 'You have already responded to this sighting.';\n  end if;\n\n  update public.sightings s\n  set confirmation_count = (select count(*) from public.sighting_confirmations c\n                            where c.sighting_id = s.id and c.kind = 'confirm'),\n      flag_count = (select count(*) from public.sighting_confirmations c\n                    where c.sighting_id = s.id and c.kind = 'flag')\n  where s.id = _sighting_id;\nend;\nEND;$function$\n",
+      "securityDefiner": true
+    }
+  ],
+  "capturedAt": "2026-11-15T11:44:07.525422+00:00",
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "metadataOnly": true,
+  "serverVersion": "17.6",
+  "workerEnabled": false,
+  "accessCoverage": {
+    "unguarded_tables": 0,
+    "unguarded_functions": 0,
+    "helper_privilege_gaps": 0
+  },
+  "inquiryMigrationInstalled": false,
+  "rateLimitFunction": {
+    "signature": "enforce_rate_limit(text,integer,interval)",
+    "definition": "CREATE OR REPLACE FUNCTION public.enforce_rate_limit(_action text, _max integer, _window interval)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE uid uuid := auth.uid(); used integer;\nBEGIN\n  IF uid IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  SELECT count(*) INTO used FROM public.rate_limit_events\n   WHERE user_id = uid AND action = _action AND created_at > now() - _window;\n  IF used >= _max THEN\n    RAISE EXCEPTION 'You have reached the limit for this action. Please try again later.';\n  END IF;\n  INSERT INTO public.rate_limit_events (user_id, action) VALUES (uid, _action);\nEND;\nEND;$function$\n"
+  }
+}
