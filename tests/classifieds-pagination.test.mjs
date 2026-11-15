@@ -1,3 +1,4 @@
+import { mobileSaleScope, mixMobileSaleFeed } from "../src/lib/mobile-sale-feed.ts";
 import { canIncludeDirectory } from "../src/lib/service-directory-contract.ts";
 import { parseBrowseSearch } from "../src/lib/browse-search.ts";
 import { normalizeClassifiedBrowseInput } from "../src/lib/classified-browse-contract.ts";
@@ -256,6 +257,8 @@ function harness({
             handler({ data: validate(data) }),
       }),
     }),
+    mobileSaleScope,
+    mixMobileSaleFeed,
     isOutOfRangePage,
     notFound: () => Object.assign(new Error("notFound"), { isNotFound: true }),
     classifiedQuery: (input) => input,
@@ -852,6 +855,43 @@ test("SEO city radius never counts nearby out-of-state partner inventory as Idah
   const result = await h.internal({ pageSize: 192, readOnlyProviders: true, readOnlyHome: true });
   assert.equal(result.total, 1);
   assert.equal(result.listings[0].state, "ID");
+});
+
+test("native mixed shopping excludes work before pagination and rotates categories without provider refreshes", async () => {
+  const now = new Date().toISOString();
+  const records = [
+    ...Array.from({ length: 48 }, (_, i) => ({
+      id: `car-${i}`,
+      title: `Car ${i}`,
+      categorySlug: "cars-trucks",
+      createdAt: now,
+      discoverySellerKey: `dealer-${i}`,
+    })),
+    { id: "chair", title: "Chair", categorySlug: "furniture", createdAt: now },
+    { id: "drill", title: "Drill", categorySlug: "tools-equipment", createdAt: now },
+    { id: "job", title: "Job", categorySlug: "jobs", createdAt: now },
+    { id: "service", title: "Service", categorySlug: "services", createdAt: now },
+  ];
+  const h = harness({
+    records,
+    filters: { mobileCatalog: true },
+    enabled: ["adzuna", "directory"],
+  });
+  const page = await h.internal({
+    readOnlyProviders: true,
+    mobileDiscovery: true,
+    preferredIds: ["chair"],
+  });
+  assert.equal(page.listings.length, 24);
+  assert.equal(page.listings[0].id, "chair");
+  assert.equal(new Set(Array.from(page.listings.slice(0, 3), (c) => c.categorySlug)).size, 3);
+  assert.equal(page.total, 50);
+  assert(!page.listings.some((c) => ["jobs", "services"].includes(c.categorySlug)));
+  assert.deepEqual(h.adapterCalls, []);
+  assert.deepEqual(h.providerReads, []);
+  assert.equal(h.directoryCalls.length, 0);
+  const allowed = h.nativeFilters.find(([key]) => key === "products.categories.slug")[1];
+  assert(!allowed.includes("jobs") && !allowed.includes("services"));
 });
 
 test("native catalog metadata retains eligible cached services and service outages reach the safe fallback", async () => {

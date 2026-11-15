@@ -187,6 +187,21 @@ try {
           .map((a) => a.finished.catch(() => {})),
       );
     });
+    const rail = page.locator(".homepage-lead-vehicles .native-listing-rail");
+    const railSize = await rail.evaluate((node) => ({
+      width: node.clientWidth,
+      card: node.firstElementChild.getBoundingClientRect().width,
+    }));
+    assert(
+      railSize.width / railSize.card > (width < 640 ? 2.5 : 3.5),
+      "Next card remains partially visible",
+    );
+    const bodyOrder = await rail
+      .locator(".listing-card > a")
+      .first()
+      .evaluate((node) => [...node.children].map((child) => child.tagName));
+    assert(bodyOrder.indexOf("H3") < bodyOrder.indexOf("DIV"), "Card title precedes its price");
+    assert.equal(await page.getByRole("heading", { name: "For you", exact: true }).count(), 1);
     await page.screenshot({ path: resolve(output, `home-${width}.png`) });
     const primary = page.getByRole("navigation", { name: "Primary", exact: true });
     await primary.getByRole("button", { name: "Open categories", exact: true }).click();
@@ -522,6 +537,8 @@ try {
     await page.goto(`${origin}/#/search?state=ID`);
     await page.getByRole("heading", { name: "All classifieds", exact: true }).waitFor();
     assert.equal(await page.getByText("Bluebird classifieds", { exact: true }).count(), 0);
+    assert.equal(await page.getByLabel("Sort", { exact: true }).inputValue(), "for_you");
+    assert.equal(await page.getByText(/^48 listings$/).count(), 0);
     const genericFilter = await page.getByRole("button", { name: /^Filters/ }).boundingBox();
     const genericSort = await page.getByLabel("Sort", { exact: true }).boundingBox();
     assert(

@@ -5,6 +5,7 @@ import {
 } from "./account-deletion-access.server";
 import { mobileSavedSearchAllowed } from "./mobile-saved-search-contract";
 import { mobileSearchInput } from "./mobile-search";
+import { mobileSaleScope } from "./mobile-sale-feed.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- existing domain handlers retain their own runtime validators. */
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -421,10 +422,28 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         page: filters.page,
         pageSize: 24,
       };
+    let preferredIds: string[] = [];
+    if (
+      !filters.sort &&
+      mobileSaleScope(filters) &&
+      (request.headers.has("authorization") || request.headers.has("X-Bluebird-Install"))
+    ) {
+      try {
+        const user = request.headers.has("authorization") ? (await actor(request)).user : null;
+        const rows = await (
+          await import("./mobile-shopping.server")
+        ).handleMobileShopping(request, "recommendations", await database(), user);
+        if ("recommended" in rows) preferredIds = rows.recommended.map((card: any) => card.id);
+      } catch {
+        // Public shopping remains available when history/permissions are unavailable.
+      }
+    }
     let page;
     try {
       page = mobileSearchPage(
-        await (await import("./classifieds.functions")).loadMobileBrowseInventory(filters),
+        await (
+          await import("./classifieds.functions")
+        ).loadMobileBrowseInventory(filters, preferredIds),
         filters,
       );
     } catch {

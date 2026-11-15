@@ -12,6 +12,7 @@ import * as notificationHandlers from "../src/lib/mobile-notifications.server.ts
 import * as savedSearchWrites from "../src/lib/mobile-saved-search.server.ts";
 import * as savedSearchContracts from "../src/lib/mobile-saved-search-contract.ts";
 import * as mobileSearch from "../src/lib/mobile-search.ts";
+import * as saleFeed from "../src/lib/mobile-sale-feed.ts";
 import * as accountContracts from "../src/lib/mobile-account-contract.ts";
 import * as shoppingConsent from "../src/lib/mobile-shopping-consent.ts";
 import test from "node:test";
@@ -202,6 +203,7 @@ function harness({
     "./runtime-env.server": { serverEnv: () => undefined },
     "./mobile-api": protocol,
     "./mobile-search": mobileSearch,
+    "./mobile-sale-feed.ts": saleFeed,
     "./mobile-saved-search-contract": savedSearchContracts,
     "./mobile-saved-search.server": savedSearchWrites,
     "./mobile-notifications.server": notificationHandlers,

@@ -6,9 +6,10 @@ import {
 } from "../../../src/components/classifieds/ListingCardView";
 import { listingPresentation } from "./listing-presentation";
 import { ListingSourceCredits } from "./ListingSourceCredits";
-import { ShoppingListingRowView } from "../../../src/components/community/ShoppingListingRowView";
+import { MarketplaceListingSection } from "../../../src/components/classifieds/MarketplaceListingSection";
+import { mobileSaleItem, mixMobileSaleFeed } from "../../../src/lib/mobile-sale-feed";
 import { CardSaveButton } from "./SavedCards";
-import type { MobileListing } from "../../../src/lib/mobile-contract";
+import { mobileListingAllowed, type MobileListing } from "../../../src/lib/mobile-contract";
 import { api, apiOrigin } from "./client";
 import { isShoppingForeground, shoppingOverlayOpen } from "./shopping-activity";
 import {
@@ -138,13 +139,16 @@ export function ShoppingRows({
   onOpen,
   revision,
   similarId,
+  fallbackCards = [],
 }: {
   learning: boolean;
   onOpen: (id: string) => void;
   revision: number;
   similarId?: string;
+  fallbackCards?: MobileListing[];
 }) {
-  const [rows, setRows] = useState<RecommendationRows | null>(null);
+  const scope = `${revision}:${learning}:${similarId ?? ""}`;
+  const [loaded, setRows] = useState<{ scope: string; rows: RecommendationRows } | null>(null);
   useEffect(() => {
     setRows(null);
     if (!learning && !similarId) return;
@@ -157,39 +161,67 @@ export function ShoppingRows({
           controller.signal,
         ).then((r) => ({ recent: [], continuing: [], recommended: r.cards, model: r.model }))
       : api<RecommendationRows>("recommendations", "GET", undefined, controller.signal);
-    load.then(setRows).catch(() => {
-      /* Browsing remains the useful fallback. */
-    });
+    load
+      .then((rows) => {
+        if (!controller.signal.aborted) setRows({ scope, rows });
+      })
+      .catch(() => {
+        /* Browsing remains the useful fallback. */
+      });
     return () => controller.abort();
   }, [learning, revision, similarId]);
-  if (!rows || (!learning && !similarId)) return null;
+  const byId = new Map(fallbackCards.map((card) => [card.id, card]));
+  const fallback = mixMobileSaleFeed(fallbackCards.map(listingPresentation))
+    .slice(0, 8)
+    .map((card) => byId.get(card.id)!);
+  const rows = loaded?.scope === scope && (learning || similarId) ? loaded.rows : null;
+  if (similarId && !rows) return null;
+  const current = rows ?? { recent: [], continuing: [], recommended: [], model: "category-mix-v1" };
   const groups: [string, string, MobileListing[]][] = similarId
-    ? [["More like this", "similar", rows.recommended]]
+    ? [["More like this", "similar", current.recommended]]
     : [
-        ["Recently viewed", "recent", rows.recent],
-        ["Continue shopping", "continuing", rows.continuing],
-        ["Recommended for you", "recommended", rows.recommended],
+        [
+          "For you",
+          current.recommended.length ? "recommended" : "home:for-you-fallback",
+          current.recommended.length ? current.recommended : fallback,
+        ],
+        ["Recently viewed", "recent", current.recent],
+        ["Continue shopping", "continuing", current.continuing],
       ];
   return (
-    <div className="mt-8 space-y-8 recommendations">
-      {groups.map(([label, placement, items]) => (
-        <ShoppingListingRowView
-          key={placement}
-          title={label}
-          items={items}
-          renderCard={(card, position) => (
-            <ListingTile
-              card={card}
-              position={position}
-              placement={placement}
-              model={rows.model}
-              learning={learning}
-              onOpen={onOpen}
-            />
-          )}
-          renderFooter={(visible) => <ListingSourceCredits cards={visible} />}
-        />
-      ))}
+    <div className="native-recommendations recommendations">
+      {groups.map(([label, placement, allItems]) => {
+        const items = allItems.filter(similarId ? mobileListingAllowed : mobileSaleItem);
+        return items.length ? (
+          <MarketplaceListingSection
+            key={placement}
+            className="native-home-section"
+            density="compact"
+            eyebrow=""
+            title={label}
+            action={null}
+          >
+            <div className="native-listing-rail no-scrollbar mt-2 flex gap-2.5 overflow-x-auto pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible">
+              {items.map((card, position) => (
+                <div className="native-rail-card min-w-0 shrink-0" key={card.id}>
+                  <ListingTile
+                    density="compact"
+                    card={card}
+                    position={position}
+                    placement={placement}
+                    model={
+                      placement === "home:for-you-fallback" ? "category-mix-v1" : current.model
+                    }
+                    learning={learning}
+                    onOpen={onOpen}
+                  />
+                </div>
+              ))}
+            </div>
+            {similarId && <ListingSourceCredits cards={items} />}
+          </MarketplaceListingSection>
+        ) : null;
+      })}
     </div>
   );
 }

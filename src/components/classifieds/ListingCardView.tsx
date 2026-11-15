@@ -569,20 +569,20 @@ export function ListingCardView({
       </div>
       {density !== "standard" ? (
         <ListingLink listing={listing} className="block px-2.5 pb-2.5 pt-2">
-          <div className="numeric text-[17px] font-bold leading-5 text-primary">
-            {listing.directory ? (
-              "Call for a quote"
-            ) : (
-              <Price listing={listing} showRetail={false} />
-            )}
-          </div>
-          <h3 className="mt-1 line-clamp-2 text-[12.5px] font-semibold leading-4 group-hover:text-primary">
+          <h3 className="line-clamp-2 text-[12.5px] font-semibold leading-4 group-hover:text-primary">
             {listing.vehicle
               ? [listing.vehicle.year, listing.vehicle.make, listing.vehicle.model]
                   .filter(Boolean)
                   .join(" ") || listing.title
               : listing.title}
           </h3>
+          <div className="mt-1 numeric text-[17px] font-bold leading-5 text-primary">
+            {listing.directory ? (
+              "Call for a quote"
+            ) : (
+              <Price listing={listing} showRetail={false} />
+            )}
+          </div>
           {density === "browse" ? (
             <div className="native-browse-card-meta mt-1 flex min-w-0 items-baseline justify-between gap-1 text-muted-foreground">
               <span className="min-w-0 truncate" title={placeLabel(listing.city, listing.state)}>

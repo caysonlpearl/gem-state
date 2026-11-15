@@ -11,6 +11,7 @@ export type BrowseLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "hre
 };
 export type BrowseResultsProps = {
   compact?: boolean;
+  sortControl?: ReactNode;
   search: Search;
   motors: boolean;
   homes: boolean;
@@ -44,6 +45,7 @@ export type BrowseResultsProps = {
 /** Website results shell, including controls, empty states, cards and alert actions. */
 export function BrowseResultsView({
   compact = false,
+  sortControl,
   search,
   motors,
   homes,
@@ -97,18 +99,20 @@ export function BrowseResultsView({
               <label className="sr-only" htmlFor="sort">
                 Sort
               </label>
-              <select
-                id="sort"
-                value={search.sort ?? "newest"}
-                onChange={(event) => onApply({ sort: event.target.value as Sort })}
-                className="select-chevron h-11 rounded-full border border-input bg-card pl-4 pr-8 text-[13px] font-medium shadow-sm"
-              >
-                {sortOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              {sortControl ?? (
+                <select
+                  id="sort"
+                  value={search.sort ?? "newest"}
+                  onChange={(event) => onApply({ sort: event.target.value as Sort })}
+                  className="select-chevron h-11 rounded-full border border-input bg-card pl-4 pr-8 text-[13px] font-medium shadow-sm"
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              )}
               <BrowseLink
                 to="/browse"
                 search={scoped({ view: "grid" })}
@@ -147,32 +151,36 @@ export function BrowseResultsView({
           <h2 id="browse-results-heading" className="sr-only">
             Search results
           </h2>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={motors ? "hidden" : "text-[12.5px] text-muted-foreground"}>
-              <span className="numeric">{result.total}</span>{" "}
-              {result.total === 1 ? "listing" : "listings"}
-              {search.q ? <span> matching “{search.q}”</span> : null}
-            </p>
-            {activeFilterCount > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {filterLabels.map((label) => (
-                  <span
-                    key={label}
-                    className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10.5px] text-muted-foreground"
+          {(!compact || activeFilterCount > 0) && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {!compact && (
+                <p className={motors ? "hidden" : "text-[12.5px] text-muted-foreground"}>
+                  <span className="numeric">{result.total}</span>{" "}
+                  {result.total === 1 ? "listing" : "listings"}
+                  {search.q ? <span> matching “{search.q}”</span> : null}
+                </p>
+              )}
+              {activeFilterCount > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {filterLabels.map((label) => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10.5px] text-muted-foreground"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => void clearFilters()}
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-medium text-primary hover:bg-accent"
                   >
-                    {label}
-                  </span>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => void clearFilters()}
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-medium text-primary hover:bg-accent"
-                >
-                  <X size={11} /> Clear
-                </button>
-              </div>
-            )}
-          </div>
+                    <X size={11} /> Clear
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {result.listings.length === 0 ? (
             <BluebirdEmptyState
@@ -205,9 +213,11 @@ export function BrowseResultsView({
 
           {result.listings.length > 0 && (
             <div className="mt-8 flex flex-col items-center gap-2">
-              <p className="numeric text-[12.5px] text-muted-foreground">
-                Showing {shownListings.length.toLocaleString()} of {result.total.toLocaleString()}
-              </p>
+              {!compact && (
+                <p className="numeric text-[12.5px] text-muted-foreground">
+                  Showing {shownListings.length.toLocaleString()} of {result.total.toLocaleString()}
+                </p>
+              )}
               {canLoadMore ? (
                 <BrowseLink
                   to="/browse"
