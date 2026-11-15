@@ -1226,3 +1226,66 @@ workflows and the full erasure composition remain launch requirements.
 
 **Installation hold:** source-only and stacked on the owned-listing component.
 No production function was replaced and no member/payment record was modified.
+
+### Authored catalog cleanup (source only, November 15)
+
+Classified creation stores the seller's title and description in `products`,
+separately from its Ask. Removing the Ask or merely nulling `created_by` on Auth
+deletion leaves that public text and associated catalog records behind.
+`20261115060000_account_deletion_catalog.sql` and
+`account-deletion-catalog.server.ts` add leased cleanup after the owned-listing
+component, without authorizing whole-phase completion or Auth/provider erasure.
+
+For an exclusively authored product with no retained relationships, cleanup
+unpublishes it and drains catalog image references, facts, sources, resort
+associations, price snapshots and variants before deleting its title/description
+root. A pass changes at most 100 physical rows, including the real product touch
+hook. The image reference must match resolved discovery from the exact latest
+inventory generation and completed source scan. Durable observations remain
+after reference removal. This is not media ownership/erasure authorization: the
+full media phase must establish and erase eligible provider objects first.
+
+Shared listings, bids, saved variants, sightings, suggestions, cross-product
+image/model references and financial/verified-sale/sourcing relationships hold
+for explicit shared-content or retention handling. They cannot be silently
+cascaded away. Moderation approval references on another author's product also
+hold; Auth foreign keys now restrict shortcut removal of creators/approvers.
+This is not a permanent retention policy or permission to keep personal data
+indefinitely. Those cases remain part of the unfinished full composition.
+
+Catalog storage uses product/business namespaces. A folder UUID is not assumed
+to be a member, and being an approver does not confer ownership of the bytes.
+Current 3D model and poster constraints use `/models/products/...` and
+`/images/products/...` public asset paths. Their inventory remains unresolved
+and stops record removal until the separate public-artifact ownership and
+erasure/retention handling exists; the component does not guess a bucket or
+erase repository files. No model erasure completion is claimed by this batch.
+
+New product/child writes and author changes check deleting identities. Children
+hold a shared parent lock so concurrent non-key author updates cannot move new
+data under a deletion-pending account after the check. Optional price snapshots
+skip unavailable authors. Cleanup locks a selected variant before its final
+relationship check, preventing a concurrent variant-only bid/order/sighting
+reference from slipping past the product lock. Expired leases roll back work.
+Independent verification requires absent Auth and no relevant authored or
+approval references; it performs no repairs. Runtime contracts pin columns,
+defaults/generated expressions, relationships, hooks, indexes, policies and
+helper definitions, including media-reference resolution. Unsupported drift
+stops cleanup. The source installation checks captured layouts and hook
+privileges before changing any ownership boundary.
+
+Disposable tests reconstruct captured core catalog metadata and the complete
+source-only prerequisite sequence, including settlement notices. Supporting
+financial/business/member parents and identities are synthetic. Tests exercise
+the real Supabase client, lost acknowledgements without automatic retry,
+before/after physical write counts, preserved other-member/shared references,
+durable image discovery, unresolved static assets, pending-writer rejection,
+moderation holds, client privileges, drift and independent verification. A
+required real PostgreSQL gate observes both request/write orders, concurrent
+parent-author transfer and rollback after lease expiry during a variant lock.
+
+**Installation hold:** this remains a source-only draft. No production migration,
+catalog record removal, provider-byte erasure or worker activation occurred.
+Public model/poster handling, shared catalog retention, remaining authored
+requests/suggestions/sightings and analytics, financial/moderation/consent/audit
+retention, identity/revocation and full end-to-end rehearsal remain required.
