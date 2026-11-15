@@ -818,6 +818,144 @@ mechanical design check reported no findings. These are synthetic source/browser
 checks; physical iPhone/Android journeys and actual OS share sheets remain separate
 release gates. Publication and native installation require their own evidence.
 
+## Native Listings workspace and transactions — November 14, 2026
+
+The draft native Listings workspace reuses the website presenter and listing
+model, with owned listing reads, edit/duplicate forms and account-scoped retries.
+Stable API routes are source-complete behind a separate versioned management
+capability. Migration 150000 was installed on November 14 and independently
+verified against the six reviewed function bodies/grants, exact source history
+and zero-gap account boundaries. The matching application backend is not yet
+published, and no real seller mutation was used for verification. Signed iPhone
+build 9 and the Android debug artifact are prepared; the owner phone still has
+the earlier build.
+
+Migration `20261114150000_mobile_listing_management.sql` adds private owned
+editor snapshots and one atomic edit/archive/relist operation. An exact request
+ID and normalized input hash share the existing private mobile receipt table.
+A committed retry returns its original receipt; changed inputs cannot reuse it.
+Category details, replacement photo references, moderation state and the receipt
+commit together. Failed domain/detail/media writes roll back every change.
+Existing website domain RPCs remain unchanged. Relisting and editing in this new
+native operation always remove approval and return the listing to review.
+
+The snapshot version covers editable text, category details, price, status,
+expiry, approval and ordered photo references. Views and impressions do not
+invalidate an open draft. Writes reject changed snapshots before touching content.
+The permanent app catalog predicate covers all 28 current eligible categories and
+misplaced prohibited text; unknown, restricted, demo and foreign-owned listings
+are inaccessible. A taxonomy/predicate parity test must remain green when the
+app catalog changes.
+
+Every operation locks the member's live session and identity and verifies pending
+deletion, suspension and current terms. Session revocation during deletion thus
+serializes with the entire operation and receipt. Both race orders are exercised
+against a real temporary PostgreSQL server. Helpers and receipt rows deny guest
+and member access; only the guarded owned-snapshot and mutation RPCs are member
+callable. Installation reruns account-boundary protection and requires zero gaps.
+The service-only capability is versioned separately from existing messaging flags.
+
+The private server adapters use explicit caller/operation IDs, ownership and
+result validation, disabled automatic retries and eight/15-second client read/write
+budgets. The SQL requests statement limits and a one-second lock-wait timeout.
+The November 14 owner-dashboard inspection found an eight-second statement
+timeout for both `authenticated` and `authenticator`; the write's requested
+15-second function limit does not promise a longer effective HTTP/database budget.
+A timeout remains uncertain: the app must retain the same original request and
+payload. A stale snapshot receives a reload conflict, and private database/provider
+diagnostics are never exposed. The editor API projects the shared domain editor from a single versioned
+snapshot and signs scoped media; raw snapshots and storage paths stay private.
+Version-only reads do not sign images. Visible rows request one thumbnail each,
+separately from the metadata read. Native seller-thumbnail/editor signing now
+supplies one eight-second operation signal to a request-local storage client.
+That signal reaches Supabase receipt/signing transport and the R2 health/object
+checks, preserving shorter SDK and per-object deadlines. It also aborts response
+body reads and prevents subsequent photo batches after expiry. A final signal
+check rejects cancellation even when a lower fallback layer returned an empty map.
+Request-local clients/stores never replace the shared website/background cache.
+The scoped path has its own health/object caches, so real owner-thumbnail/editor
+latency and storage usage still need measuring before activation. No upload,
+deletion, bucket, privilege or provider-configuration behavior is changed.
+
+Before app activation: complete the current hosted release checks, publish the
+matching application backend, measure authenticated seller-read latency/storage
+usage, and complete owner-device journeys. Physical Android testing remains a
+store-release gate. Schema drift checks, the exact installation/history rehearsal
+and independent source/capability agreement are now verified. The currently
+published bootstrap still keeps the native seller workspace unavailable.
+The original transaction fixtures retain explicit domain stand-ins to isolate
+rollback, receipt/ownership/session behavior and concurrency.
+
+A separate November 14 metadata-only capture now supplies the actual affected
+domain function definitions and effective execution grants, enum values, exact
+column types/defaults (including generated columns), core constraints and triggers.
+Its two internal-helper execution records were updated from independent live
+readback after permission repair 180000; their bodies/guard records are unchanged.
+`mobile-listing-production-domain.test.mjs` installs migration 150000 over those
+definitions in a disposable database. It verifies normal edits and photo counts,
+the corrected high-price vehicle/home helper, job/service arrays and pricing,
+required pet details and free pets, imported-seller edit flags, private/public
+photo requirements on relist, return to moderation, late validation rollback,
+stale revisions, foreign ownership and revoked sessions. An archived import
+source rejects the edit under its existing rule, with no partial listing, event,
+flag or receipt write. It does not bypass that source guard.
+
+The server translates the exact archived-source and missing-relist-photo domain
+errors into safe, actionable conflicts. Both occur after the receipt lookup, so
+they prove no commit even when confirming an earlier uncertain attempt. The app
+clears that pending action while preserving the edit draft and offering reload.
+Actual-domain SDK tests verify these rejections and that an already committed
+relist still replays successfully after photos are later removed. Browser tests
+exercise uncertainty, reload, definitive rejection and preserved draft for both
+codes. Unknown SQL, session and transport failures keep their original receipt.
+
+`mobile-listing-production-concurrency.test.mjs` additionally runs the captured
+domain on an isolated PostgreSQL server with two real connections. A simultaneous
+retry waits for the original commit and replays one receipt without repeating
+the actual domain event; account-boundary coverage remains zero-gap. It runs in
+the dedicated PostgreSQL CI gate alongside the existing concurrency cases.
+Accounts, sessions and unrelated FK parents are synthetic; seed construction
+temporarily disables insert triggers in this local fixture only, restoring them
+before every tested operation. This is neither a full production clone nor proof
+of create/upload flows, production RLS, authenticated live operations, provider
+capacity, or physical-device seller journeys. No member records are in the capture.
+
+The metadata read uses the verified member client, stable 500-row pages, exact
+counts and a 5,000-row safety bound; incomplete/capped results are unavailable.
+It avoids reservation writes, bulk photo signing, buyer content and billing reads.
+Views/impressions, leads and offer counts are optional and explicitly unavailable
+when their scoped reads fail, rather than displaying a false zero. Restricted,
+unknown, demo and foreign-owned inventory never reaches the presenter.
+
+The native menu opens above its row to stay clear of the floating navigation.
+Paid promotion/billing links and the website import module are excluded. The
+website keeps its original presenter behavior, paid links and import panel;
+pre-extraction empty/no-seller/populated markup and the original model mapping
+were compared separately. Class order/whitespace is the only website markup
+normalization. The shared vehicle SQL compatibility mapping is reused by both
+website and mobile edits.
+
+Edit drafts keep their original content version. A stale response preserves the
+form and offers an explicit confirmed reload; it never silently rebases an old
+draft onto newer data. Uncertain writes retain their exact request ID, payload
+and uploaded paths through reload. Retrying from the Listings screen can confirm
+an edit even when its editor can no longer load. An original receipt is never
+used to patch current UI status; successful actions reload authoritative metadata.
+Fresh policy rejections can unlock correction, while uncertain prior attempts
+remain pending until confirmed or an explicit post-receipt conflict proves no
+commit. Duplicate copies fields and requires new photos/rights, using the existing
+durable creation flow. Editing without new files retains existing photos.
+
+`test:mobile:listings:ui` covers the full workspace, archive/relist, committed
+response-loss retries, edit draft recovery, stale edits, duplication with new
+photos, unavailable metrics, owner mismatch and delayed account switches at
+320/390/1280 pixels. It also checks no paid/import actions, no horizontal overflow,
+failed reads, independent feature readiness and exclusion of private activity.
+These use synthetic browser accounts; real devices and production remain gates.
+This full listing journey also runs with the newer AbortSignal static methods
+removed; metadata, thumbnails and editor reads use the shared API cancellation
+scope and its 20-second deadline without changing durable write recovery.
+
 ## Native runtime compatibility — November 14, 2026
 
 The app's former default iOS 15 deployment setting did not match the shared
