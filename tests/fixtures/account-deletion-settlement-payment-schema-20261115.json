@@ -1,0 +1,1068 @@
+{
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "capturedAt": "2026-11-15T09:57:17.073776+00:00",
+  "metadataOnly": true,
+  "enumTypes": {
+    "app_role": ["user", "shopper", "moderator", "admin"],
+    "park_kind": ["park", "district"],
+    "match_status": ["active", "released", "completed", "cancelled"],
+    "order_origin": [
+      "buy_now",
+      "sell_now",
+      "sourcing_quote",
+      "admin_validation",
+      "sourcing_ask",
+      "sourcing_shopper"
+    ],
+    "order_status": [
+      "inquiry",
+      "awaiting_payment",
+      "paid",
+      "sourcing",
+      "ready_to_ship",
+      "shipped",
+      "delivered",
+      "completed",
+      "cancelled",
+      "refunded",
+      "disputed",
+      "awaiting_authorization",
+      "authorized",
+      "shopper_assigned",
+      "purchase_confirmed",
+      "unavailable",
+      "payment_captured"
+    ],
+    "release_type": [
+      "open_edition",
+      "limited_edition",
+      "seasonal",
+      "event_exclusive",
+      "annual_passholder",
+      "unknown",
+      "limited_release"
+    ],
+    "member_intent": ["buying", "selling", "shopping_in_park", "browsing"],
+    "payout_status": ["pending", "processing", "completed", "failed", "reversed"],
+    "dispute_status": ["open", "under_review", "resolved_buyer", "resolved_seller", "withdrawn"],
+    "item_condition": [
+      "new_with_tags",
+      "new_without_tags",
+      "used_excellent",
+      "used_good",
+      "not_applicable"
+    ],
+    "listing_status": ["active", "matched", "cancelled", "expired"],
+    "product_status": ["draft", "pending_review", "published", "rejected", "archived"],
+    "shipment_status": [
+      "pending",
+      "label_created",
+      "shipped",
+      "in_transit",
+      "delivered",
+      "exception"
+    ],
+    "suggestion_status": ["submitted", "in_review", "approved", "rejected", "merged_duplicate"],
+    "listing_event_type": [
+      "created",
+      "price_changed",
+      "cancelled",
+      "expired",
+      "matched",
+      "released",
+      "evidence_added"
+    ],
+    "product_image_kind": ["canonical", "seller_evidence"],
+    "order_evidence_kind": ["purchase_receipt", "item_photo", "delivery_proof", "dispute_evidence"],
+    "payment_record_kind": ["authorization", "capture", "payment", "refund"],
+    "listing_offer_status": [
+      "pending",
+      "countered",
+      "accepted",
+      "declined",
+      "withdrawn",
+      "expired"
+    ],
+    "location_granularity": ["store", "district", "park"],
+    "shopper_quote_status": ["submitted", "accepted", "declined", "expired", "withdrawn"],
+    "payment_record_status": ["succeeded", "pending", "failed", "voided"],
+    "price_evidence_source": [
+      "member_report",
+      "approved_shopper",
+      "receipt_verified",
+      "admin_verified"
+    ],
+    "sighting_availability": ["in_stock", "limited", "sold_out"],
+    "sourcing_request_status": ["open", "quote_accepted", "cancelled", "expired"],
+    "shopper_application_status": ["submitted", "in_review", "approved", "rejected"],
+    "sourcing_assignment_status": [
+      "assigned",
+      "purchase_confirmed",
+      "unavailable",
+      "completed",
+      "cancelled"
+    ]
+  },
+  "function": {
+    "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "config": ["search_path=public, pg_temp"],
+    "bodyMd5": "728e9be8c04704bacca06f8442e1373a",
+    "signature": "finalize_stripe_order_payment(uuid,text,text,text,integer,integer,text,uuid)",
+    "definition": "CREATE OR REPLACE FUNCTION public.finalize_stripe_order_payment(_order_id uuid, _checkout_session text, _payment_intent text, _charge text, _amount_total integer, _tax_cents integer, _payment_status text, _offer_id uuid DEFAULT NULL::uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE o public.orders; expected integer;\nBEGIN\n  PERFORM set_config('parkvault.trusted_operation', 'on', true);\n  SELECT * INTO o FROM public.orders WHERE id = _order_id FOR UPDATE;\n  IF o.id IS NULL THEN RAISE EXCEPTION 'Order not found'; END IF;\n  IF o.stripe_payment_intent_id IS NOT NULL AND o.stripe_payment_intent_id <> _payment_intent THEN\n    RAISE EXCEPTION 'Payment intent mismatch';\n  END IF;\n  IF o.payment_authorized THEN\n    PERFORM set_config('parkvault.trusted_operation', 'off', true);\n    RETURN;\n  END IF;\n  IF o.status <> 'awaiting_payment' THEN\n    RAISE EXCEPTION 'Order reservation is no longer payable';\n  END IF;\n  IF o.ask_id IS NOT NULL AND NOT EXISTS (\n    SELECT 1 FROM public.asks a\n     WHERE a.id = o.ask_id AND a.status = 'matched' AND a.matched_order_id = o.id\n  ) THEN\n    RAISE EXCEPTION 'Exact listing reservation is no longer owned by this order';\n  END IF;\n  expected := o.merchandise_cents + o.buyer_fee_cents + o.shipping_cents + _tax_cents;\n  IF expected <> _amount_total THEN RAISE EXCEPTION 'Stripe total does not match order total'; END IF;\n\n  UPDATE public.orders\n     SET tax_cents = _tax_cents, total_cents = _amount_total,\n         fee_snapshot = fee_snapshot || jsonb_build_object(\n           'tax_cents', _tax_cents, 'shipping_and_tax_calculated', true,\n           'total_cents', _amount_total),\n         stripe_checkout_session_id = _checkout_session,\n         stripe_payment_intent_id = _payment_intent,\n         stripe_charge_id = nullif(_charge, ''),\n         stripe_payment_status = _payment_status,\n         stripe_captured_at = now(), payment_authorized = true,\n         status = 'payment_captured', reservation_expires_at = NULL,\n         checkout_expires_at = NULL\n   WHERE id = o.id;\n\n  INSERT INTO public.order_payments (\n    order_id, kind, provider, external_reference, amount_cents, currency,\n    provider_status, recorded_by, note\n  ) VALUES (\n    o.id, 'payment', 'stripe', _payment_intent, _amount_total, o.currency,\n    'succeeded', o.buyer_id, 'Captured by ParkVault Checkout.'\n  ) ON CONFLICT DO NOTHING;\n\n  INSERT INTO public.order_payouts (\n    order_id, payee_id, provider, amount_cents, currency, status, recorded_by, note\n  ) VALUES (\n    o.id, o.seller_id, 'stripe_connect', o.payout_cents, o.currency, 'pending',\n    o.buyer_id, 'Held by ParkVault until delivery and the inspection window are complete.'\n  ) ON CONFLICT (order_id) DO NOTHING;\n\n  INSERT INTO public.order_events (order_id, actor_id, from_status, to_status, note)\n  VALUES (o.id, NULL, o.status, 'payment_captured',\n    'Payment captured securely by Stripe. Payout remains pending.');\n\n  IF _offer_id IS NOT NULL THEN\n    UPDATE public.listing_offers\n       SET status = 'accepted', stripe_checkout_session_id = _checkout_session,\n           stripe_payment_intent_id = _payment_intent,\n           stripe_charge_id = nullif(_charge, ''),\n           stripe_payment_status = 'captured', updated_at = now()\n     WHERE id = _offer_id;\n  END IF;\n\n  IF o.ask_id IS NOT NULL THEN\n    UPDATE public.listing_offers\n       SET status = 'declined',\n           stripe_payment_status = CASE\n             WHEN (stripe_payment_intent_id IS NOT NULL OR stripe_checkout_session_id IS NOT NULL)\n              AND coalesce(stripe_payment_status, '') NOT IN ('canceled', 'captured')\n               THEN 'cancel_pending'\n             ELSE stripe_payment_status\n           END,\n           updated_at = now()\n     WHERE ask_id = o.ask_id\n       AND (_offer_id IS NULL OR id <> _offer_id)\n       AND status IN ('pending', 'countered');\n  END IF;\n\n  IF o.origin = 'sourcing_shopper' THEN\n    UPDATE public.sourcing_assignments SET status = 'assigned', updated_at = now()\n     WHERE order_id = o.id;\n    PERFORM public.notify_member(o.seller_id, 'sourcing_job', 'New shopping job',\n      'A buyer has paid for you to source an item. Open Park Shopper to start shopping.', o.id);\n    PERFORM public.notify_member(o.buyer_id, 'payment_captured', 'Shopping job confirmed',\n      'Your Park Shopper has been notified and will start shopping.', o.id);\n  ELSE\n    PERFORM public.notify_member(o.seller_id, 'order_paid', 'Your item sold',\n      'Payment is complete. Open the order for shipping instructions.', o.id);\n    PERFORM public.notify_member(o.buyer_id, 'payment_captured', 'Purchase confirmed',\n      'Your ParkVault payment was successful.', o.id);\n  END IF;\n  PERFORM set_config('parkvault.trusted_operation', 'off', true);\nEND;\nEND;$function$\n",
+    "securityDefiner": true
+  },
+  "rows": [
+    {
+      "source": "order_events",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "order_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "actor_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "from_status",
+            "type": "order_status",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "to_status",
+            "type": "order_status",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "note",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX order_events_pkey ON public.order_events USING btree (id)",
+          "CREATE INDEX order_events_order_idx ON public.order_events USING btree (order_id, created_at)"
+        ],
+        "policies": [
+          {
+            "name": "Participants read their own order history",
+            "check": null,
+            "using": "(EXISTS ( SELECT 1\n   FROM orders o\n  WHERE ((o.id = order_events.order_id) AND ((o.buyer_id = auth.uid()) OR (o.seller_id = auth.uid())))))",
+            "command": "r"
+          },
+          {
+            "name": "Staff read pilot order history",
+            "check": null,
+            "using": "(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'moderator'::app_role))",
+            "command": "r"
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*"
+          }
+        ],
+        "triggers": null,
+        "constraints": [
+          {
+            "name": "order_events_actor_id_fkey",
+            "table": "order_events",
+            "definition": "FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "order_events_order_id_fkey",
+            "table": "order_events",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "order_events_pkey",
+            "table": "order_events",
+            "definition": "PRIMARY KEY (id)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "order_payments",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "order_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "kind",
+            "type": "payment_record_kind",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "provider",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "external_reference",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "amount_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "currency",
+            "type": "character(3)",
+            "default": "'USD'::bpchar",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "provider_status",
+            "type": "payment_record_status",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "occurred_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "recorded_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "note",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX order_payments_pkey ON public.order_payments USING btree (id)",
+          "CREATE UNIQUE INDEX order_payments_provider_external_reference_kind_key ON public.order_payments USING btree (provider, external_reference, kind)"
+        ],
+        "policies": [
+          {
+            "name": "Parties and staff read payment evidence",
+            "check": null,
+            "using": "((EXISTS ( SELECT 1\n   FROM orders o\n  WHERE ((o.id = order_payments.order_id) AND ((o.buyer_id = auth.uid()) OR (o.seller_id = auth.uid()))))) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'moderator'::app_role))",
+            "command": "r"
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*"
+          }
+        ],
+        "triggers": [
+          {
+            "name": "guard_order_payments",
+            "bodyMd5": "9d3052e8c37745fa6812af16f70478e0",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.guard_pilot_writes()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  IF NOT public.is_trusted_operation() THEN\n    RAISE EXCEPTION 'This record is maintained by ParkVault pilot operations and cannot be changed directly'\n      USING errcode = '42501';\n  END IF;\n  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;\n  RETURN NEW;\nEND $function$\n",
+            "definition": "CREATE TRIGGER guard_order_payments BEFORE INSERT OR DELETE OR UPDATE ON order_payments FOR EACH ROW EXECUTE FUNCTION guard_pilot_writes()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "order_payments_amount_cents_check",
+            "table": "order_payments",
+            "definition": "CHECK (amount_cents > 0)"
+          },
+          {
+            "name": "order_payments_order_id_fkey",
+            "table": "order_payments",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "order_payments_pkey",
+            "table": "order_payments",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "order_payments_provider_external_reference_kind_key",
+            "table": "order_payments",
+            "definition": "UNIQUE (provider, external_reference, kind)"
+          },
+          {
+            "name": "order_payments_reference_is_not_an_instrument",
+            "table": "order_payments",
+            "definition": "CHECK (external_reference !~ '[0-9]{12,}'::text)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "order_payouts",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "order_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "payee_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "provider",
+            "type": "text",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "external_reference",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "amount_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "currency",
+            "type": "character(3)",
+            "default": "'USD'::bpchar",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "status",
+            "type": "payout_status",
+            "default": "'pending'::payout_status",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "occurred_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "recorded_by",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "note",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX order_payouts_order_id_key ON public.order_payouts USING btree (order_id)",
+          "CREATE UNIQUE INDEX order_payouts_pkey ON public.order_payouts USING btree (id)"
+        ],
+        "policies": [
+          {
+            "name": "Payee and staff read payout records",
+            "check": null,
+            "using": "((payee_id = auth.uid()) OR (EXISTS ( SELECT 1\n   FROM orders o\n  WHERE ((o.id = order_payouts.order_id) AND (o.buyer_id = auth.uid())))) OR has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'moderator'::app_role))",
+            "command": "r"
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*"
+          }
+        ],
+        "triggers": [
+          {
+            "name": "guard_order_payouts",
+            "bodyMd5": "9d3052e8c37745fa6812af16f70478e0",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.guard_pilot_writes()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  IF NOT public.is_trusted_operation() THEN\n    RAISE EXCEPTION 'This record is maintained by ParkVault pilot operations and cannot be changed directly'\n      USING errcode = '42501';\n  END IF;\n  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;\n  RETURN NEW;\nEND $function$\n",
+            "definition": "CREATE TRIGGER guard_order_payouts BEFORE INSERT OR DELETE OR UPDATE ON order_payouts FOR EACH ROW EXECUTE FUNCTION guard_pilot_writes()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "order_payouts_amount_cents_check",
+            "table": "order_payouts",
+            "definition": "CHECK (amount_cents >= 0)"
+          },
+          {
+            "name": "order_payouts_order_id_fkey",
+            "table": "order_payouts",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "order_payouts_order_id_key",
+            "table": "order_payouts",
+            "definition": "UNIQUE (order_id)"
+          },
+          {
+            "name": "order_payouts_pkey",
+            "table": "order_payouts",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "order_payouts_reference_is_not_an_instrument",
+            "table": "order_payouts",
+            "definition": "CHECK (external_reference IS NULL OR external_reference !~ '[0-9]{12,}'::text)"
+          }
+        ]
+      }
+    },
+    {
+      "source": "orders",
+      "metadata": {
+        "columns": [
+          {
+            "name": "id",
+            "type": "uuid",
+            "default": "gen_random_uuid()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "order_number",
+            "type": "text",
+            "default": "('PV-'::text || upper(substr(replace((gen_random_uuid())::text, '-'::text, ''::text), 1, 10)))",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "buyer_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "seller_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "product_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "variant_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "origin",
+            "type": "order_origin",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "ask_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "bid_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "status",
+            "type": "order_status",
+            "default": "'awaiting_payment'::order_status",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "currency",
+            "type": "character(3)",
+            "default": "'USD'::bpchar",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "merchandise_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "buyer_fee_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "seller_fee_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "shipping_cents",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "tax_cents",
+            "type": "integer",
+            "default": "0",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "total_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "payout_cents",
+            "type": "integer",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "fee_schedule_id",
+            "type": "uuid",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "fee_snapshot",
+            "type": "jsonb",
+            "default": null,
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "payment_authorized",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "reservation_expires_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "is_demo",
+            "type": "boolean",
+            "default": "false",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "created_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "updated_at",
+            "type": "timestamp with time zone",
+            "default": "now()",
+            "notNull": true,
+            "generated": ""
+          },
+          {
+            "name": "stripe_checkout_session_id",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "stripe_payment_intent_id",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "stripe_charge_id",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "stripe_payment_status",
+            "type": "text",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "stripe_captured_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "shipping_rate_snapshot",
+            "type": "jsonb",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "checkout_expires_at",
+            "type": "timestamp with time zone",
+            "default": null,
+            "notNull": false,
+            "generated": ""
+          },
+          {
+            "name": "platform_fee_cents",
+            "type": "integer",
+            "default": "(buyer_fee_cents + seller_fee_cents)",
+            "notNull": false,
+            "generated": "s"
+          }
+        ],
+        "indexes": [
+          "CREATE UNIQUE INDEX orders_order_number_key ON public.orders USING btree (order_number)",
+          "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)",
+          "CREATE UNIQUE INDEX orders_stripe_checkout_session_id_key ON public.orders USING btree (stripe_checkout_session_id)",
+          "CREATE UNIQUE INDEX orders_stripe_payment_intent_id_key ON public.orders USING btree (stripe_payment_intent_id)",
+          "CREATE INDEX orders_buyer_idx ON public.orders USING btree (buyer_id, created_at DESC)",
+          "CREATE INDEX orders_reservation_idx ON public.orders USING btree (status, reservation_expires_at)",
+          "CREATE INDEX orders_seller_idx ON public.orders USING btree (seller_id, created_at DESC)"
+        ],
+        "policies": [
+          {
+            "name": "Participants read their own orders",
+            "check": null,
+            "using": "((buyer_id = auth.uid()) OR (seller_id = auth.uid()))",
+            "command": "r"
+          },
+          {
+            "name": "Staff read pilot orders",
+            "check": null,
+            "using": "(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'moderator'::app_role))",
+            "command": "r"
+          },
+          {
+            "name": "bluebird_account_session_boundary",
+            "check": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "using": "( SELECT account_current_session_active() AS account_current_session_active)",
+            "command": "*"
+          }
+        ],
+        "triggers": [
+          {
+            "name": "guard_shopper_paid_work_readiness",
+            "bodyMd5": "56ce54c259165110bd67f8a22b4a6b13",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.guard_shopper_paid_work_readiness()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  IF NEW.origin='sourcing_shopper' AND (TG_OP='INSERT' OR\n      (NEW.status='sourcing' AND OLD.status IS DISTINCT FROM NEW.status)) THEN\n    IF NOT EXISTS(SELECT 1 FROM public.shopper_service_profiles sp\n      WHERE sp.shopper_id=NEW.seller_id AND sp.stripe_account_id IS NOT NULL\n        AND sp.stripe_details_submitted AND sp.stripe_payouts_enabled\n        AND sp.stripe_account_mode IN ('test','live')) THEN\n      RAISE EXCEPTION 'This shopper must finish payout setup before receiving paid work';\n    END IF;\n  END IF;\n  RETURN NEW;\nEND $function$\n",
+            "definition": "CREATE TRIGGER guard_shopper_paid_work_readiness BEFORE INSERT OR UPDATE OF status ON orders FOR EACH ROW EXECUTE FUNCTION guard_shopper_paid_work_readiness()"
+          },
+          {
+            "name": "orders_immutable",
+            "bodyMd5": "5e1258ae08eeb084935959680b18c57b",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.guard_order_immutable_fields()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  IF public.is_trusted_operation() THEN\n    NEW.updated_at := now();\n    RETURN NEW;\n  END IF;\n  IF NEW.fee_snapshot <> OLD.fee_snapshot\n     OR NEW.fee_schedule_id <> OLD.fee_schedule_id\n     OR NEW.merchandise_cents <> OLD.merchandise_cents\n     OR NEW.buyer_fee_cents <> OLD.buyer_fee_cents\n     OR NEW.seller_fee_cents <> OLD.seller_fee_cents\n     OR NEW.shipping_cents <> OLD.shipping_cents\n     OR NEW.tax_cents <> OLD.tax_cents\n     OR NEW.total_cents <> OLD.total_cents\n     OR NEW.payout_cents <> OLD.payout_cents\n     OR NEW.currency <> OLD.currency\n     OR NEW.origin <> OLD.origin\n     OR NEW.buyer_id <> OLD.buyer_id THEN\n    RAISE EXCEPTION 'Order pricing and origin are immutable';\n  END IF;\n  NEW.updated_at := now();\n  RETURN NEW;\nEND;\n$function$\n",
+            "definition": "CREATE TRIGGER orders_immutable BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION guard_order_immutable_fields()"
+          },
+          {
+            "name": "orders_status_transitions",
+            "bodyMd5": "7b3152a0a9977af5c4ffe99f9b20a660",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.guard_order_status_transitions()\n RETURNS trigger\n LANGUAGE plpgsql\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nBEGIN\n  IF OLD.status IN ('cancelled','refunded') AND NEW.status <> OLD.status THEN\n    RAISE EXCEPTION 'Order % is closed (%). A new valid match is required.', OLD.order_number, OLD.status;\n  END IF;\n  RETURN NEW;\nEND;\n$function$\n",
+            "definition": "CREATE TRIGGER orders_status_transitions BEFORE UPDATE ON orders FOR EACH ROW EXECUTE FUNCTION guard_order_status_transitions()"
+          },
+          {
+            "name": "shopping_verified_purchase",
+            "bodyMd5": "83d460037621c55167924f896c42eb2a",
+            "enabled": "O",
+            "function": "CREATE OR REPLACE FUNCTION public.record_shopping_outcome()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare member uuid; item text; event_kind text; event_id uuid:=new.id; happened timestamptz:=now(); amount numeric; currency_code text;\nbegin\n if tg_table_name='listing_inquiries' then member=new.buyer_id; item=new.listing_id::text; event_kind='inquiry';\n elsif tg_table_name='conversations' then member=new.buyer_id; item=coalesce(new.listing_id::text,case when new.dealer_inventory_record_id is not null then 'dealerfeed-'||new.dealer_inventory_record_id::text end); event_kind='inquiry';\n elsif tg_table_name='orders' then\n  if new.is_demo or new.stripe_payment_status is distinct from 'succeeded' or new.stripe_captured_at is null or new.ask_id is null then return new; end if;\n  member=new.buyer_id;item=new.ask_id::text;event_kind='purchase';happened=new.stripe_captured_at;amount=new.merchandise_cents/100.0;currency_code=new.currency;\n elsif tg_table_name='verified_sales' then\n  if not new.is_live then return new; end if;\n  select o.buyer_id,o.ask_id::text,o.id,o.merchandise_cents/100.0,o.currency into member,item,event_id,amount,currency_code from orders o where o.id=new.order_id and not o.is_demo;\n  event_kind='purchase';happened=new.sold_at;\n end if;\n if item is not null and exists(select 1 from shopping_privacy where subject='u:'||member::text and personalization)\n and exists(select 1 from shopping_controls where tracking) then\n  insert into shopping_events(id,subject,user_id,session_id,kind,listing_id,context,occurred_at)\n  values(event_id,'u:'||member::text,member,event_id,event_kind,item,jsonb_strip_nulls(jsonb_build_object('source','verified_'||tg_table_name,'value',amount,'currency',currency_code)),happened) on conflict(id) do nothing;\n end if;\n return new;\nend $function$\n",
+            "definition": "CREATE TRIGGER shopping_verified_purchase AFTER INSERT OR UPDATE OF stripe_payment_status, stripe_captured_at ON orders FOR EACH ROW EXECUTE FUNCTION record_shopping_outcome()"
+          }
+        ],
+        "constraints": [
+          {
+            "name": "asks_matched_order_fk",
+            "table": "asks",
+            "definition": "FOREIGN KEY (matched_order_id) REFERENCES orders(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "order_reviews_order_id_fkey",
+            "table": "order_reviews",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "bids_matched_order_fk",
+            "table": "bids",
+            "definition": "FOREIGN KEY (matched_order_id) REFERENCES orders(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "market_matches_order_id_fkey",
+            "table": "market_matches",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "notifications_order_id_fkey",
+            "table": "notifications",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "order_addresses_order_id_fkey",
+            "table": "order_addresses",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "order_disputes_order_id_fkey",
+            "table": "order_disputes",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "order_events_order_id_fkey",
+            "table": "order_events",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "order_evidence_order_id_fkey",
+            "table": "order_evidence",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "order_payments_order_id_fkey",
+            "table": "order_payments",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "order_payouts_order_id_fkey",
+            "table": "order_payouts",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "order_shipments_order_id_fkey",
+            "table": "order_shipments",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "orders_ask_id_fkey",
+            "table": "orders",
+            "definition": "FOREIGN KEY (ask_id) REFERENCES asks(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "orders_bid_id_fkey",
+            "table": "orders",
+            "definition": "FOREIGN KEY (bid_id) REFERENCES bids(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "orders_buyer_fee_cents_check",
+            "table": "orders",
+            "definition": "CHECK (buyer_fee_cents >= 0)"
+          },
+          {
+            "name": "orders_buyer_id_fkey",
+            "table": "orders",
+            "definition": "FOREIGN KEY (buyer_id) REFERENCES auth.users(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "orders_distinct_parties",
+            "table": "orders",
+            "definition": "CHECK (seller_id IS NULL OR seller_id <> buyer_id)"
+          },
+          {
+            "name": "orders_fee_schedule_id_fkey",
+            "table": "orders",
+            "definition": "FOREIGN KEY (fee_schedule_id) REFERENCES fee_schedules(id)"
+          },
+          {
+            "name": "orders_merchandise_cents_check",
+            "table": "orders",
+            "definition": "CHECK (merchandise_cents >= 0)"
+          },
+          {
+            "name": "orders_order_number_key",
+            "table": "orders",
+            "definition": "UNIQUE (order_number)"
+          },
+          {
+            "name": "orders_origin_references",
+            "table": "orders",
+            "definition": "CHECK (origin = 'buy_now'::order_origin AND ask_id IS NOT NULL AND bid_id IS NULL OR origin = 'sourcing_ask'::order_origin AND ask_id IS NOT NULL AND bid_id IS NULL OR origin = 'sell_now'::order_origin AND bid_id IS NOT NULL AND ask_id IS NULL OR (origin = ANY (ARRAY['sourcing_quote'::order_origin, 'admin_validation'::order_origin, 'sourcing_shopper'::order_origin])) AND ask_id IS NULL AND bid_id IS NULL)"
+          },
+          {
+            "name": "orders_payout_net_of_seller_fee",
+            "table": "orders",
+            "definition": "CHECK (payout_cents = (merchandise_cents - seller_fee_cents))"
+          },
+          {
+            "name": "orders_payout_within_merchandise",
+            "table": "orders",
+            "definition": "CHECK (payout_cents >= 0 AND payout_cents <= merchandise_cents)"
+          },
+          {
+            "name": "orders_pkey",
+            "table": "orders",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "name": "orders_product_id_fkey",
+            "table": "orders",
+            "definition": "FOREIGN KEY (product_id) REFERENCES products(id)"
+          },
+          {
+            "name": "orders_seller_fee_cents_check",
+            "table": "orders",
+            "definition": "CHECK (seller_fee_cents >= 0)"
+          },
+          {
+            "name": "orders_seller_id_fkey",
+            "table": "orders",
+            "definition": "FOREIGN KEY (seller_id) REFERENCES auth.users(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "orders_shipping_cents_check",
+            "table": "orders",
+            "definition": "CHECK (shipping_cents >= 0)"
+          },
+          {
+            "name": "orders_stripe_checkout_session_id_key",
+            "table": "orders",
+            "definition": "UNIQUE (stripe_checkout_session_id)"
+          },
+          {
+            "name": "orders_stripe_payment_intent_id_key",
+            "table": "orders",
+            "definition": "UNIQUE (stripe_payment_intent_id)"
+          },
+          {
+            "name": "orders_tax_cents_check",
+            "table": "orders",
+            "definition": "CHECK (tax_cents >= 0)"
+          },
+          {
+            "name": "orders_total_cents_check",
+            "table": "orders",
+            "definition": "CHECK (total_cents >= 0)"
+          },
+          {
+            "name": "orders_total_is_consistent",
+            "table": "orders",
+            "definition": "CHECK (total_cents = (merchandise_cents + buyer_fee_cents + shipping_cents + tax_cents))"
+          },
+          {
+            "name": "orders_variant_id_fkey",
+            "table": "orders",
+            "definition": "FOREIGN KEY (variant_id) REFERENCES product_variants(id)"
+          },
+          {
+            "name": "verified_sales_order_id_fkey",
+            "table": "verified_sales",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT"
+          },
+          {
+            "name": "shipping_quotes_order_id_fkey",
+            "table": "shipping_quotes",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "shopper_quotes_matched_order_id_fkey",
+            "table": "shopper_quotes",
+            "definition": "FOREIGN KEY (matched_order_id) REFERENCES orders(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "sourcing_assignments_order_id_fkey",
+            "table": "sourcing_assignments",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sourcing_balance_checkouts_order_id_fkey",
+            "table": "sourcing_balance_checkouts",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          },
+          {
+            "name": "sourcing_receipt_tax_quotes_order_id_fkey",
+            "table": "sourcing_receipt_tax_quotes",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id)"
+          },
+          {
+            "name": "sourcing_requests_matched_order_id_fkey",
+            "table": "sourcing_requests",
+            "definition": "FOREIGN KEY (matched_order_id) REFERENCES orders(id) ON DELETE SET NULL"
+          },
+          {
+            "name": "sourcing_tips_order_id_fkey",
+            "table": "sourcing_tips",
+            "definition": "FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE"
+          }
+        ]
+      }
+    }
+  ],
+  "offerSupport": {
+    "capturedAt": "2026-11-15T09:48:59.031728+00:00",
+    "columns": [
+      {
+        "name": "status",
+        "type": "listing_offer_status",
+        "default": "'pending'::listing_offer_status",
+        "notNull": true
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "default": "now()",
+        "notNull": true
+      },
+      {
+        "name": "stripe_checkout_session_id",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "stripe_payment_intent_id",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "stripe_charge_id",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      },
+      {
+        "name": "stripe_payment_status",
+        "type": "text",
+        "default": null,
+        "notNull": false
+      }
+    ]
+  }
+}

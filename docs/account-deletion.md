@@ -1187,3 +1187,42 @@ erasure, cache preparation or worker activation is performed by this batch.
 Remaining analytics, explicit financial/moderation/consent/audit retention,
 provider erasure authority, Apple/manual revocation, final identity handling and
 full end-to-end rehearsal remain necessary before enabling account deletion.
+
+### Settlement notice compatibility (source only, November 15)
+
+`20261115050000_account_deletion_settlement_notices.sql` prevents the existing
+`notify_member` helper from rolling back a business transaction solely because
+its notice recipient requested deletion or no longer exists. It uses the same
+recipient serialization/identity check as private record writes. Only a proven
+deleting or removed recipient is omitted; active-recipient validation errors,
+unexpected database errors and pending-caller session rejection remain errors.
+Direct writes cannot bypass the private-record guard. The helper restores the
+caller's trusted-operation setting on success or error, including nested use.
+The migration checks the captured original function body/configuration and all
+prerequisite barriers, then installs the ordinary session wrapper and proof
+registry. It does not enable the deletion worker or widen its erasure authority.
+
+Fresh metadata and the current checkout implementation establish that exact
+purchase orders are reserved before the Stripe Checkout session is created.
+The captured payment finalizer updates that existing order; it does not insert a
+new one. No new-order bypass is required or added. The real notice helper would
+previously reject the deletion-pending recipient inside that finalizer, rolling
+back payment/payout/event recording. Disposable tests reproduce that failure
+with the captured routine, then verify settlement and idempotent replay after
+either the buyer or seller requests deletion. The remaining active participant
+keeps their notice; the deleting participant receives none. Permitted purchase
+learning remains deduplicated for an active buyer, while a deleting buyer's
+withdrawal prevents new shopping activity. Real PostgreSQL connections also
+verify notice-before-request and request-before-notice locking.
+
+Fixtures retain captured notification/payment column types, defaults, generated
+fee column, checks, uniqueness, callback bodies and order hooks. Supporting
+catalog/financial parents and identities are synthetic; the competing-offer
+branch has captured referenced column types but no offer is settled in these
+exact-purchase tests. This is database transaction compatibility evidence, not
+proof of a signed Stripe webhook, a live charge, every sourcing/offer workflow,
+delivery to real devices or complete financial retention/deletion. Those
+workflows and the full erasure composition remain launch requirements.
+
+**Installation hold:** source-only and stacked on the owned-listing component.
+No production function was replaced and no member/payment record was modified.
