@@ -248,7 +248,10 @@ try {
       "public data is not rendered before setup",
     );
     f.release();
-    await f.page.getByRole("heading", { name: "Startup vehicle", exact: true }).waitFor();
+    await f.page
+      .getByRole("region", { name: "Vehicles", exact: true })
+      .getByRole("heading", { name: "Startup vehicle", exact: true })
+      .waitFor();
     assert.equal(f.homes, 1);
     assert.equal(
       await f.page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
@@ -266,7 +269,10 @@ try {
     await f.page.evaluate(() => {
       location.hash = "/";
     });
-    await f.page.getByRole("heading", { name: "Fresh return vehicle", exact: true }).waitFor();
+    await f.page
+      .getByRole("region", { name: "Vehicles", exact: true })
+      .getByRole("heading", { name: "Fresh return vehicle", exact: true })
+      .waitFor();
     assert.equal(f.homes, 2, "return loads fresh data, not startup replay");
     for (const h of f.publicHeaders)
       for (const key of ["authorization", "cookie", "x-bluebird-install", "referer"])
@@ -286,7 +292,10 @@ try {
     await f.page.goto(origin);
     await wait(f.homeStarted.promise);
     f.release();
-    await f.page.getByRole("heading", { name: "Startup vehicle", exact: true }).waitFor();
+    await f.page
+      .getByRole("region", { name: "Vehicles", exact: true })
+      .getByRole("heading", { name: "Startup vehicle", exact: true })
+      .waitFor();
     for (let end = Date.now() + 15000; !f.accountRead;) {
       if (Date.now() > end) throw Error("Member session did not restore");
       await pause(20);
