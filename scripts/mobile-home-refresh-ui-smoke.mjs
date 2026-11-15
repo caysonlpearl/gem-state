@@ -112,6 +112,7 @@ try {
       aborted = 0;
     const calls = [];
     let petMode = "ok",
+      homePet,
       petGate,
       releasePets;
     await page.route("https://onbluebird.com/**", async (route) => {
@@ -151,7 +152,7 @@ try {
               vehicle: { ...c.display.vehicle, model: `Explorer batch ${reads}` },
             },
           })),
-          recent,
+          recent: homePet ? [...recent, homePet] : recent,
         };
       } else if (path === "shopping")
         data = { personalization: false, trackingAvailable: true, recommendationsAvailable: true };
@@ -387,9 +388,15 @@ try {
 
     if (width === 390) {
       await goHome();
-      petMode = "failed";
+      // A border pet in the snapshot is filtered by Home's Idaho-only row
+      // allocator. It must not suppress the eligible category-cache fallback.
+      homePet = pets[0];
       await page.reload();
       const petsRow = page.getByRole("region", { name: "Pets & adoption", exact: true });
+      await petsRow.getByRole("heading", { name: "Adoptable dog", exact: true }).waitFor();
+      homePet = undefined;
+      petMode = "failed";
+      await page.reload();
       await petsRow
         .getByText("Pets are temporarily unavailable. Pull to refresh or try See all.", {
           exact: true,
@@ -429,6 +436,7 @@ try {
       jobs: true,
       petsFromCategoryCache: true,
       petsFailureAndEmptyRecovery: width === 390,
+      borderOnlyHomePetsFallback: width === 390,
       pull: true,
       ignoredGestures: true,
       singleFlight: true,

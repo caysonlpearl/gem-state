@@ -41,7 +41,15 @@ export function HomeDiscovery({
   const [petsUnavailable, setPetsUnavailable] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    if (home.recent.some((card) => card.categorySlug === "pets" && card.display?.pet)) {
+    if (
+      home.recent.some(
+        (card) =>
+          card.categorySlug === "pets" &&
+          card.display?.pet &&
+          card.state === "ID" &&
+          mobileListingAllowed(card),
+      )
+    ) {
       setPetsLoading(false);
       setPetsUnavailable(false);
       setCachedPets([]);
@@ -49,8 +57,8 @@ export function HomeDiscovery({
     }
     setPetsLoading(true);
     setPetsUnavailable(false);
-    // The Home snapshot can omit pets while the shared category search still
-    // has eligible inventory. Reuse its cache-only Idaho/border rescue rules.
+    // Home allocation reserves Idaho pets. A missing or border-only snapshot
+    // still needs category search's cache-only Idaho/border rescue rules.
     api<MobileBrowse>("search?category=pets&state=ID&page=1", "GET", undefined, controller.signal)
       .then((result) => {
         if (controller.signal.aborted) return;
