@@ -421,6 +421,23 @@ provider and validate Google/Apple linking with existing accounts. Do not ship
 unconfigured social-login options. The app id is
 `com.onbluebird.marketplace`; confirm ownership/availability when enrolling.
 
+Before a phone install or a change of auth project, run
+`npm run check:mobile:auth-redirect`. It starts an anonymous PKCE authorization
+request, never visits Google, then cancels that same transient flow through the
+real Supabase callback. The check fails if the callback falls back to the website
+instead of the exact app return address. State and transient cookies remain in
+memory; the report contains no credentials, authorization codes or tokens. This
+checks live redirect configuration, not successful Google sign-in or a device
+session. It is a manual release check, not part of the offline test suite.
+
+The November 15 investigation reproduced the website fallback with this check:
+the app callback was absent from production's allowed destinations. Keep the
+website Site URL and existing website redirects intact; add only the exact app
+callback through an authorized configuration change, without a broad wildcard.
+Then rerun the check and start a fresh Google sign-in from inside the app. An
+older browser attempt does not establish the app's separate PKCE session.
+See [Supabase's native deep-link guidance](https://supabase.com/docs/guides/auth/native-mobile-deep-linking).
+
 Create Apple signing credentials, APNs capability/entitlement and associated
 domains after enrollment. Add the verified Apple team identifier to the
 website's apple-app-site-association file. Add Google Play signing certificate
