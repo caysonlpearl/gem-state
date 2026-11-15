@@ -187,7 +187,7 @@ export function MessagesSectionView({
                     : "Your buyer and seller conversations will appear here."}
                 </p>
               </div>
-              {detail && (
+              {detail?.otherMemberId && (
                 <button
                   type="button"
                   onClick={() => setBlockOpen(true)}
@@ -228,122 +228,145 @@ export function MessagesSectionView({
                   </div>
                 ))}
               </div>
-              <form
-                className="border-t border-border px-2 pt-3"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  submitMessage();
-                }}
-              >
-                <textarea
-                  aria-label="Reply"
-                  value={body}
-                  onChange={(event) => setBody(event.target.value)}
-                  maxLength={5000}
-                  rows={3}
-                  className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-[12.5px] outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="Write a reply…"
-                />
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-                  {attachmentsEnabled && (
-                    <label className="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground">
-                      <input
-                        aria-label="Add attachment"
-                        ref={attachmentInput}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,application/pdf"
-                        className="sr-only"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0] ?? null;
-                          if (
-                            file &&
-                            (!new Set([
-                              "image/jpeg",
-                              "image/png",
-                              "image/webp",
-                              "application/pdf",
-                            ]).has(file.type) ||
-                              file.size > 10 * 1024 * 1024)
-                          ) {
-                            onError("Use a JPG, PNG, WebP, or PDF no larger than 10 MB.");
-                            event.currentTarget.value = "";
-                            setAttachment(null);
-                            return;
-                          }
-                          setAttachment(file);
-                        }}
-                      />
-                      <span className="max-w-full break-all rounded-lg border border-input px-2.5 py-1.5">
-                        {attachment ? `Attach: ${attachment.name}` : "Add attachment"}
-                      </span>
-                    </label>
-                  )}
-                  {attachment && (
-                    <button
-                      type="button"
-                      onClick={() => setAttachment(null)}
-                      className="text-[11px] font-semibold text-muted-foreground underline underline-offset-2"
-                    >
-                      Remove attachment
-                    </button>
-                  )}
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setReportReason("");
-                        setReportOpen(true);
-                      }}
-                      className="text-[11px] text-muted-foreground hover:text-destructive"
-                    >
-                      Report conversation
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={sending || blocking || (!body.trim() && !attachment)}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
-                    >
-                      {sending ? "Sending…" : "Send"}
-                      <PaperPlaneTilt size={14} weight="fill" />
-                    </button>
-                  </div>
-                </div>
-                {reportSubmitted && (
-                  <p
-                    role="status"
-                    className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-[11px] text-primary"
+              {!detail.otherMemberId ? (
+                <div className="border-t border-border px-2 pt-3 text-[12.5px] text-muted-foreground">
+                  <p role="status">
+                    This member is no longer available. This conversation is read-only.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReportReason("");
+                      setReportOpen(true);
+                    }}
+                    className="mt-2 min-h-11 text-[11px] font-semibold underline underline-offset-2"
                   >
-                    Report submitted. Bluebird moderators can now review this conversation;
-                    submitting again will update the existing report instead of creating a
-                    duplicate.
-                  </p>
-                )}
-                {failedSend && (
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">
-                    <span>
-                      {failedSend === "attachment"
-                        ? "Attachment not sent. Your file is still selected."
-                        : "Message not sent. Your text is still here."}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        submitMessage();
-                      }}
-                      disabled={sending}
-                      className="font-semibold underline underline-offset-2 disabled:opacity-50"
-                    >
-                      Retry send
-                    </button>
+                    Report conversation
+                  </button>
+                  {reportSubmitted && (
+                    <p role="status" className="mt-2 text-primary">
+                      Report submitted. Bluebird moderators can now review this conversation.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <form
+                  className="border-t border-border px-2 pt-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    submitMessage();
+                  }}
+                >
+                  <textarea
+                    aria-label="Reply"
+                    value={body}
+                    onChange={(event) => setBody(event.target.value)}
+                    maxLength={5000}
+                    rows={3}
+                    className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-[12.5px] outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="Write a reply…"
+                  />
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                    {attachmentsEnabled && (
+                      <label className="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground">
+                        <input
+                          aria-label="Add attachment"
+                          ref={attachmentInput}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,application/pdf"
+                          className="sr-only"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0] ?? null;
+                            if (
+                              file &&
+                              (!new Set([
+                                "image/jpeg",
+                                "image/png",
+                                "image/webp",
+                                "application/pdf",
+                              ]).has(file.type) ||
+                                file.size > 10 * 1024 * 1024)
+                            ) {
+                              onError("Use a JPG, PNG, WebP, or PDF no larger than 10 MB.");
+                              event.currentTarget.value = "";
+                              setAttachment(null);
+                              return;
+                            }
+                            setAttachment(file);
+                          }}
+                        />
+                        <span className="max-w-full break-all rounded-lg border border-input px-2.5 py-1.5">
+                          {attachment ? `Attach: ${attachment.name}` : "Add attachment"}
+                        </span>
+                      </label>
+                    )}
+                    {attachment && (
+                      <button
+                        type="button"
+                        onClick={() => setAttachment(null)}
+                        className="text-[11px] font-semibold text-muted-foreground underline underline-offset-2"
+                      >
+                        Remove attachment
+                      </button>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReportReason("");
+                          setReportOpen(true);
+                        }}
+                        className="text-[11px] text-muted-foreground hover:text-destructive"
+                      >
+                        Report conversation
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={sending || blocking || (!body.trim() && !attachment)}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
+                      >
+                        {sending ? "Sending…" : "Send"}
+                        <PaperPlaneTilt size={14} weight="fill" />
+                      </button>
+                    </div>
                   </div>
-                )}
-                {attachmentsEnabled && (
-                  <p className="mt-2 text-[10.5px] text-muted-foreground">
-                    JPG, PNG, WebP, or PDF · 10 MB maximum. Never send payment details or sensitive
-                    information.
-                  </p>
-                )}
-              </form>
+                  {reportSubmitted && (
+                    <p
+                      role="status"
+                      className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-[11px] text-primary"
+                    >
+                      Report submitted. Bluebird moderators can now review this conversation;
+                      submitting again will update the existing report instead of creating a
+                      duplicate.
+                    </p>
+                  )}
+                  {failedSend && (
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">
+                      <span>
+                        {failedSend === "attachment"
+                          ? "Attachment not sent. Your file is still selected."
+                          : "Message not sent. Your text is still here."}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          submitMessage();
+                        }}
+                        disabled={sending}
+                        className="font-semibold underline underline-offset-2 disabled:opacity-50"
+                      >
+                        Retry send
+                      </button>
+                    </div>
+                  )}
+                  {attachmentsEnabled && (
+                    <p className="mt-2 text-[10.5px] text-muted-foreground">
+                      JPG, PNG, WebP, or PDF · 10 MB maximum. Never send payment details or
+                      sensitive information.
+                    </p>
+                  )}
+                </form>
+              )}
             </>
           ) : (
             <EmptyState

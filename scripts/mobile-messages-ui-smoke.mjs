@@ -129,7 +129,17 @@ try {
       release,
       reportFailure = true,
       blocked = false,
-      attachmentsEnabled = true;
+      attachmentsEnabled = true,
+      retired = false;
+    const otherAccountSummary = () => ({
+      ...summary(c, "Other account conversation"),
+      buyerId: ownerB,
+      sellerId: retired ? null : ownerA,
+      otherMemberId: retired ? null : ownerA,
+      otherMemberName: retired ? "Former Bluebird member" : "Fixture member",
+      listingId: retired ? null : "listing-" + c,
+      closedAt: retired ? new Date().toISOString() : null,
+    });
     await page.route("https://fixture.supabase.co/**", async (route) => {
       if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers });
       const path = decodeURIComponent(new URL(route.request().url()).pathname);
@@ -195,10 +205,7 @@ try {
         shoppingEvents.push(payload);
         data = {};
       } else if (path === "conversations" && method === "GET")
-        data =
-          actor === ownerA
-            ? summaries
-            : [{ ...summary(c, "Other account conversation"), buyerId: ownerB }];
+        data = actor === ownerA ? summaries : [otherAccountSummary()];
       else {
         const match = /^conversations\/([^/]+)(?:\/(.*))?$/.exec(path);
         if (!match) throw Error("Unexpected API fixture " + path);
@@ -208,7 +215,7 @@ try {
           return fail(404, "Conversation not found.", "conversation_unavailable");
         if (!action && method === "GET")
           data = {
-            ...(summaries.find((s) => s.id === id) || summary(c, "Other account conversation")),
+            ...(summaries.find((s) => s.id === id) || otherAccountSummary()),
             messages: messages.get(id),
           };
         else if (action === "read") data = { ok: true };
@@ -450,6 +457,43 @@ try {
     await reply.waitFor();
     assert.equal(await page.getByLabel("Add attachment", { exact: true }).count(), 0);
     assert.equal(await page.getByRole("button", { name: "Send", exact: true }).count(), 1);
+    retired = true;
+    messages.set(c, [
+      {
+        id: randomUUID(),
+        conversationId: c,
+        senderId: ownerB,
+        body: "Your retained conversation message",
+        attachmentPath: null,
+        attachmentUrl: null,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    await page.reload();
+    await page
+      .getByText("This member is no longer available. This conversation is read-only.", {
+        exact: true,
+      })
+      .waitFor();
+    await page.getByText("Your retained conversation message", { exact: true }).waitFor();
+    assert.equal(await page.getByLabel("Reply", { exact: true }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Send", exact: true }).count(), 0);
+    assert.equal(await page.getByRole("button", { name: "Block member", exact: true }).count(), 0);
+    await page.getByRole("button", { name: "Report conversation", exact: true }).click();
+    const retiredDialog = page.getByRole("dialog");
+    await retiredDialog
+      .getByPlaceholder("Reason for reporting")
+      .fill("Synthetic retired conversation report");
+    await retiredDialog.getByRole("button", { name: "Submit report", exact: true }).click();
+    await page
+      .getByText("Report submitted. Bluebird moderators can now review this conversation.", {
+        exact: true,
+      })
+      .waitFor();
+    await retiredDialog.waitFor({ state: "hidden" });
+    assert.equal(reports.at(-1).id, c);
+    assert.equal(shoppingEvents.length, 0);
+    await page.screenshot({ path: resolve(output, `read-only-${viewport.width}.png`) });
     results.push({
       viewport,
       sharedWebsiteConversation: true,
@@ -463,6 +507,9 @@ try {
       blockConfirmation: true,
       accountIsolation: true,
       missingMigrationKeepsTextMessages: true,
+      deletedMemberReadOnly: true,
+      recipientContentPreserved: true,
+      retiredConversationReporting: true,
       privateShoppingExports: 0,
       horizontalOverflow: false,
     });

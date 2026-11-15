@@ -317,7 +317,10 @@ async function allowedConversation(id: string, userId: string) {
     const allowed = await (
       await import("./mobile-storefront.server")
     ).mobileGeneralDealerContexts(await database(), userId, [detail], ready);
-    if (!allowed.has(detail.id))
+    const retired = await (
+      await import("./mobile-retired-conversations.server")
+    ).mobileRetiredConversationContexts(await database(), userId, [detail]);
+    if (!allowed.has(detail.id) && !retired.has(detail.id))
       throw new MobileApiError(
         404,
         "conversation_unavailable",
@@ -1004,9 +1007,12 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       all,
       await (await import("./mobile-messaging.server")).mobileDealerMessagesReady(),
     );
+    const retired = await (
+      await import("./mobile-retired-conversations.server")
+    ).mobileRetiredConversationContexts(await database(), user.id, all);
     const safe = await Promise.all(
       all.map(async (c: any) => {
-        if (!c.listingId) return scoped.has(c.id) ? c : null;
+        if (!c.listingId) return scoped.has(c.id) || retired.has(c.id) ? c : null;
         try {
           await allowedConversationListing(c.listingId, native);
           return c;
@@ -1245,7 +1251,9 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
   );
   if (method === "POST" && attachmentMatch) {
     const id = z.string().guid().parse(attachmentMatch[1]);
-    await allowedConversation(id, user.id);
+    const conversation = await allowedConversation(id, user.id);
+    if (attachmentMatch[2] === "attachments" && !conversation.otherMemberId)
+      throw new MobileApiError(409, "conversation_read_only", "This conversation is read-only.");
     if (!(await (await import("./mobile-messaging.server")).mobileAttachmentsReady()))
       throw new MobileApiError(
         503,

@@ -359,6 +359,7 @@ test("attachment preparation checks both participants' blocks before issuing an 
     thread = randomUUID();
   let participant = true,
     blocked = true,
+    retired = false,
     tokens = 0,
     adminReads = 0;
   const modules = {
@@ -425,7 +426,24 @@ test("attachment preparation checks both participants' blocks before issuing an 
   ) =>
     exports.createConversationAttachmentUpload({
       data,
-      context: { userId: actor, supabase: { from: () => q } },
+      context: {
+        userId: actor,
+        supabase: {
+          from: (table) =>
+            table === "conversations"
+              ? {
+                  select: () => ({
+                    eq: () => ({
+                      maybeSingle: async () => ({
+                        data: { buyer_id: actor, seller_id: retired ? null : randomUUID() },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }
+              : q,
+        },
+      },
     });
   await assert.rejects(call, /Messaging is unavailable/);
   assert.equal(tokens, 0);
@@ -434,6 +452,10 @@ test("attachment preparation checks both participants' blocks before issuing an 
   assert.equal(adminReads, 1);
   participant = true;
   blocked = false;
+  retired = true;
+  await assert.rejects(call, /read-only/);
+  assert.equal(tokens, 0, "Retired conversations cannot prepare a new upload");
+  retired = false;
   const result = await call();
   assert(result.path.startsWith(`${actor}/${thread}/`));
   assert(result.path.endsWith(".pdf"));

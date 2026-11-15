@@ -8,15 +8,16 @@ export type ConversationSummary = {
   id: string;
   listingId: string | null;
   listingTitle: string;
-  buyerId: string;
-  sellerId: string;
+  buyerId: string | null;
+  sellerId: string | null;
   memberRole: "buyer" | "seller";
-  otherMemberId: string;
+  otherMemberId: string | null;
   otherMemberName: string;
   lastMessageAt: string;
   lastReadAt: string | null;
   unread: boolean;
   createdAt: string;
+  closedAt?: string | null;
 };
 
 export type ConversationMessage = {
@@ -57,8 +58,9 @@ function summary(
     sellerId: row.seller_id,
     memberRole: row.buyer_id === userId ? "buyer" : "seller",
     otherMemberId,
-    otherMemberName:
-      row.buyer_id === userId && row.dealerDisplayName
+    otherMemberName: !otherMemberId
+      ? "Former Bluebird member"
+      : row.buyer_id === userId && row.dealerDisplayName
         ? row.dealerDisplayName
         : (otherMemberNames.get(otherMemberId) ?? "Bluebird member"),
     lastMessageAt: row.last_message_at,
@@ -68,6 +70,7 @@ function summary(
       (!participant?.last_read_at || row.last_message_at > participant.last_read_at),
     ),
     createdAt: row.created_at,
+    closedAt: row.closed_at ?? null,
   };
 }
 
@@ -83,7 +86,7 @@ async function conversationContext(rows: any[], userId: string) {
   const db = supabaseAdmin as any;
   const listingIds = [...new Set(rows.map((r) => r.listing_id).filter(Boolean))];
   const memberIds = [
-    ...new Set(rows.map((r) => (r.buyer_id === userId ? r.seller_id : r.buyer_id))),
+    ...new Set(rows.map((r) => (r.buyer_id === userId ? r.seller_id : r.buyer_id)).filter(Boolean)),
   ];
   const [{ data: asks, error: askError }, { data: profiles, error: profileError }] =
     await Promise.all([
@@ -123,7 +126,7 @@ export const getMyConversations = createServerFn({ method: "GET" })
     const { data, error } = await client
       .from("conversations")
       .select(
-        "id,listing_id,dealer_id,dealer_inventory_record_id,dealer_context_title,buyer_id,seller_id,last_message_at,created_at,asks(products(name)),conversation_participants(user_id,last_read_at)",
+        "id,listing_id,dealer_id,dealer_inventory_record_id,dealer_context_title,buyer_id,seller_id,last_message_at,created_at,closed_at,asks(products(name)),conversation_participants(user_id,last_read_at)",
       )
       .or(`buyer_id.eq.${context.userId},seller_id.eq.${context.userId}`)
       .order("last_message_at", { ascending: false })
@@ -141,7 +144,7 @@ export const getConversation = createServerFn({ method: "GET" })
     const { data: row, error } = await client
       .from("conversations")
       .select(
-        "id,listing_id,dealer_id,dealer_inventory_record_id,dealer_context_title,buyer_id,seller_id,last_message_at,created_at,asks(products(name)),conversation_participants(user_id,last_read_at)",
+        "id,listing_id,dealer_id,dealer_inventory_record_id,dealer_context_title,buyer_id,seller_id,last_message_at,created_at,closed_at,asks(products(name)),conversation_participants(user_id,last_read_at)",
       )
       .eq("id", data.id)
       .maybeSingle();
@@ -328,6 +331,15 @@ export const createConversationAttachmentUpload = createServerFn({ method: "POST
       throw new Error(error?.message ?? "You are not a participant in this conversation.");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: conversation, error: conversationError } = await (context.supabase as any)
+      .from("conversations")
+      .select("buyer_id,seller_id")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (conversationError || !conversation)
+      throw new Error("Could not check conversation permissions. Try again.");
+    if (!conversation.buyer_id || !conversation.seller_id)
+      throw new Error("This conversation is read-only.");
     const { data: blocked, error: blockError } = await (supabaseAdmin as any)
       .from("conversation_participants")
       .select("user_id")
