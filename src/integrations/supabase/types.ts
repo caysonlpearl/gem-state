@@ -5158,7 +5158,7 @@ export type Database = {
           size?: string | null
           sku_label?: string | null
           updated_at?: string
-          variation_key?: string | null
+          variation_key?: never
           watch_baseline?: number
         }
         Update: {
@@ -5172,7 +5172,7 @@ export type Database = {
           size?: string | null
           sku_label?: string | null
           updated_at?: string
-          variation_key?: string | null
+          variation_key?: never
           watch_baseline?: number
         }
         Relationships: [
@@ -5688,7 +5688,8 @@ export type Database = {
           seller_id: string
           seller_note: string | null
           status: string
-          suggestion_id: string
+          suggestion_id: string | null
+          unavailable_at: string | null
           updated_at: string
         }
         Insert: {
@@ -5707,7 +5708,8 @@ export type Database = {
           seller_id: string
           seller_note?: string | null
           status?: string
-          suggestion_id: string
+          suggestion_id?: string | null
+          unavailable_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -5726,7 +5728,8 @@ export type Database = {
           seller_id?: string
           seller_note?: string | null
           status?: string
-          suggestion_id?: string
+          suggestion_id?: string | null
+          unavailable_at?: string | null
           updated_at?: string
         }
         Relationships: [
