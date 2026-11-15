@@ -96,3 +96,51 @@ The real two-connection PostgreSQL gate verifies locked-cache skipping,
 remaining-work reporting, preserved guest rows and unchanged deletion-boundary
 coverage. These are source/fixture checks, not production-member or physical
 phone journey evidence. No real bookmark, optional record or email was changed.
+
+## Category-aware recommendation context — November 15, 2026
+
+The shared web/app service now selects its eight visual seeds across category
+and home-intent groups before taking a second seed from one group. The agreed
+signal weights, decay, explicit search filters/sorts and stable comparison
+assignment are unchanged. A dominant vehicle interest can no longer occupy
+every seed slot while a separate furniture or home interest is present.
+Exposure model names append `:category-seeds-v1` to identify this candidate
+selection change; it does not promote a trained ranking challenger or change
+the embedding model.
+
+Recently viewed follows actual detail-view chronology within the recommendation
+window. It no longer depends on the eight strongest visual seeds or inclusion
+in the newest 200 public inventory rows. Continue shopping resolves its own
+favorite/repeat-visit references, including older explicit favorites. Saves and
+purchases do not manufacture detail views. The union requires at most 24 full
+reference cards; availability, publication, native catalog restrictions and
+external-cache eligibility still apply before returning them. Missing vectors
+do not block history, and public discovery remains the failure/cold-start
+fallback.
+
+Category/home-mode context is reused from the existing public pool and native
+eligibility reads. Only missing contexts require an additional metadata lookup
+against `shopping_inventory`, projecting `listing_id`, `category` and home mode
+without listing text/photos or new provider requests. It supports the existing
+bounded history/favorite/choice budgets with a 15,000-id ceiling, URL-sized
+chunks, at most four concurrent reads, an eight-second deadline and no SDK
+retries. Exact counts distinguish missing inventory from a capped response.
+Missing inventory is omitted; malformed, foreign, duplicate or partial
+failed results reject the lookup rather than silently returning a different
+personalization profile. Sibling requests settle under cancellation.
+
+Before returning personalized rows, the service rechecks permission and the
+original immutable history cutoff. Withdrawal, deletion-pending state or a
+history clear during slower candidate reads discards that earlier snapshot.
+This change adds no tracking fields, consent scope, SDK, migration or paid
+capacity. Native terms, personalization and advertising controls stay separate.
+
+A read-only production cache measurement used its primary-key index for 200
+category/home-mode projections: 164.79 ms execution, 11.816 ms planning, 233
+shared-hit blocks and zero shared-read blocks. This is one database sample,
+not end-to-end request latency or a load test. It read public cached inventory,
+not member histories. Source evidence is under
+`output/shopping-interest-context-20261115/`. Focused tests execute the real SDK
+projection against PostgreSQL JSON fields, bounded transport/error handling,
+category/home-intent coverage, older views/favorites, missing vectors, expired
+inventory, native exclusions and privacy changes during a request.
