@@ -1150,3 +1150,37 @@ native signup source. These are source/build/browser checks; production schema,
 backend publication, device installation and physical journeys need separate
 recorded evidence. Existing deletion, real push, Apple login and store beta gates
 remain open.
+
+## Native For you shopping and denser rails — November 14, 2026
+
+All Classifieds now defaults to For you, keeps its heading/chips closer to search,
+separates the filter/sort row, and hides decorative result totals. The mixed
+native feed excludes jobs and services before pagination; their dedicated pages
+remain available. Default discovery rotates categories and sellers across the
+existing bounded candidate pool. Permitted recommendations from the shared
+shopping service influence that order without injecting out-of-filter items.
+Choosing a price/date sort bypasses discovery ranking. Cached fallback applies
+the same sale-only boundary and filter/sort rules. No provider refresh, new SDK,
+new storage collection or migration is introduced by this batch.
+
+Home leads with For you, using permitted recommendations when available and a
+varied nonpersonalized fallback otherwise. Native recommendation/discovery rails
+show about two and a half phone cards (three and a half on small tablets), with
+photo, title, price and location. Between-section gaps are tighter; title height
+is not artificially reserved. Standard website cards keep their existing layout.
+Withdrawal removes personalized rows immediately while keeping public discovery
+usable; pending responses cannot restore withdrawn rows.
+
+The existing native terms acknowledgement and separate personalization controls
+remain authoritative. Signed-in activity uses the same account subject and
+shopping service as the website; guests use resettable install identifiers.
+Advertising remains separately gated and unconfigured native SDKs stay off.
+The existing policy/consent implementation is not a claim that all planned
+embedding jobs, model evaluation, notifications or account erasure are ready.
+
+Home rail attribution follows the owner's earlier placement decision: home,
+vehicle and rescue source links remain on the actual listing pages rather than
+repeated beneath homepage rails. Job/logo attribution stays with displayed job
+inventory. This supersedes the older four-card shopping-row layout/credit
+placement described above; provider native-distribution approval remains a
+separate launch gate.

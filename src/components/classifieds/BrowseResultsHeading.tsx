@@ -111,7 +111,9 @@ export function BrowseResultsHeading({
         </form>
       )}
       {!allCategoriesLanding && !motors && !homes && !jobs && !services && !pets && (
-        <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
+        <div
+          className={`no-scrollbar ${compact ? "mt-2" : "mt-5"} flex gap-2 overflow-x-auto pb-1`}
+        >
           <BrowsePill
             renderLink={BrowseLink}
             active={!search.group && !search.category}

@@ -97,6 +97,9 @@ async function read<T extends Screen>(
       });
       data = {
         items,
+        ...(typeof result.feedModel === "string" && result.feedModel.length <= 120
+          ? { feedModel: result.feedModel }
+          : {}),
         total: result.total ?? items.length,
         page: result.page ?? 1,
         pageSize: result.pageSize ?? 24,

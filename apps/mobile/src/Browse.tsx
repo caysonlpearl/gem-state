@@ -1,3 +1,5 @@
+import { sortOptions, type Sort } from "../../../src/lib/browse-search";
+import { mobileSaleScope } from "../../../src/lib/mobile-sale-feed";
 import { trackShopping } from "./shopping";
 import { NativeVehicleSearchHeader, NativeCategorySearchHeader } from "./VehicleSearchHeader";
 import { NativeAutoLoad } from "./AutoLoad";
@@ -252,7 +254,8 @@ export function NativeBrowse({
         view={view}
         card={cardsById.get(listing.id)!}
         position={position}
-        placement="browse"
+        placement={mobileSaleScope(search) && !search.sort ? "for_you" : "browse"}
+        model={result?.feedModel ?? "browse-v1"}
         learning={learning && active}
         onOpen={(id) => onNavigate(`/listings/${id}`)}
       />
@@ -344,7 +347,7 @@ export function NativeBrowse({
   return (
     <section
       aria-label="Browse listings"
-      className="native-browse-page mx-auto max-w-[1400px] px-3 py-3 sm:px-6"
+      className="native-browse-page mx-auto max-w-[1400px] px-3 pb-3 pt-1 sm:px-6"
     >
       <BrowseResultsHeading
         compact
@@ -437,6 +440,29 @@ export function NativeBrowse({
       ) : (
         <BrowseResultsView
           compact
+          sortControl={
+            mobileSaleScope(search) ? (
+              <select
+                id="sort"
+                aria-label="Sort"
+                className="select-chevron h-11 rounded-full border border-input bg-card pl-4 pr-8 text-[13px] font-medium"
+                value={search.sort ?? "for_you"}
+                onChange={(event) =>
+                  apply({
+                    sort:
+                      event.target.value === "for_you" ? undefined : (event.target.value as Sort),
+                  })
+                }
+              >
+                <option value="for_you">For you</option>
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ) : undefined
+          }
           search={search}
           motors={false}
           homes={homes}

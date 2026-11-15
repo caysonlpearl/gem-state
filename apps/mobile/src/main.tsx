@@ -1173,6 +1173,7 @@ function Feed({
       {!saved && !search && !category && sort === "newest" && (
         <ShoppingRows
           learning={learning}
+          fallbackCards={home ? [...home.recent, ...home.motors] : items}
           revision={revision}
           onOpen={(id) => go(`/listings/${id}`)}
         />

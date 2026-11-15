@@ -3,6 +3,7 @@ import type { ClassifiedBrowseInput } from "./classified-browse-contract.ts";
 import { classifiedCategories } from "../config/classifieds.ts";
 import type { ListingCardSummary } from "./listing-card-summary";
 import { mobileListingAllowed } from "./mobile-contract.ts";
+import { mobileSaleItem, mobileSaleScope, mixMobileSaleFeed } from "./mobile-sale-feed.ts";
 import { homepagePayload, type HomepageSnapshot } from "./homepage-snapshot-contract.ts";
 import { initialHomepagePayload } from "./homepage-initial-payload.ts";
 
@@ -119,12 +120,18 @@ export function mobileCachedSearch(
         mobileListingAllowed(card) &&
         (!card.externalHome?.cacheExpiresAt || Date.parse(card.externalHome.cacheExpiresAt) > now),
     );
-  const matches = landingCards(cards, filters);
+  const matching = landingCards(cards, filters).filter(
+    (card) => !mobileSaleScope(filters) || mobileSaleItem(card),
+  );
   const page = filters.page ?? 1,
     pageSize = 24;
+  const matches =
+    mobileSaleScope(filters) && !filters.sort
+      ? mixMobileSaleFeed(matching, [], page * pageSize)
+      : matching;
   return {
     listings: matches.slice((page - 1) * pageSize, page * pageSize),
-    total: matches.length,
+    total: matching.length,
     page,
     pageSize,
     incomplete: true,
@@ -140,7 +147,10 @@ export function mobileSearchPage<T extends ListingCardSummary>(
 ) {
   const publicFilters = { ...filters, sellerSlug: undefined, dealerSlug: undefined };
   const listings = page.listings.filter(
-    (card) => mobileListingAllowed(card) && matchesLandingCard(card, publicFilters),
+    (card) =>
+      mobileListingAllowed(card) &&
+      (!mobileSaleScope(filters) || mobileSaleItem(card)) &&
+      matchesLandingCard(card, publicFilters),
   );
   return {
     ...page,

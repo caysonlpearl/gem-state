@@ -25,5 +25,14 @@ export function mobileSearchInput(params: URLSearchParams): ClassifiedBrowseInpu
   const page = raw.page ? Number(raw.page) : 1;
   delete raw.page;
   const { input, unsupported } = savedSearchBrowseInput(raw);
-  return unsupported.length ? null : { ...input, page, mobileCatalog: true };
+  // Saved-search normalization supplies newest for the website. Native mixed
+  // discovery must retain the distinction between an omitted and chosen sort.
+  return unsupported.length
+    ? null
+    : {
+        ...input,
+        sort: raw.sort === undefined ? undefined : input.sort,
+        page,
+        mobileCatalog: true,
+      };
 }

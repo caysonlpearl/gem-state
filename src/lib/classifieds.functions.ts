@@ -9,6 +9,7 @@ import {
 import { mobileWriteId } from "./mobile-write";
 import { homeRecommendationRows } from "./home-shopping.ts";
 import { discoverySellerToken } from "./discovery-ranking.ts";
+import { mixMobileSaleFeed, mobileSaleScope, mobileSaleItem } from "./mobile-sale-feed.ts";
 import { mixPetSpecies } from "./pet-mix.ts";
 import { getPhotoStorageModule } from "./photo-storage-access";
 import { selectLandingCoverage } from "./landing-coverage";
@@ -1624,9 +1625,14 @@ export async function loadSeoBrowseInventory(data: ClassifiedBrowseInput) {
 }
 
 /** Mobile discovery reads existing caches; opening the app never spends provider requests. */
-export async function loadMobileBrowseInventory(data: ClassifiedBrowseInput) {
+export async function loadMobileBrowseInventory(
+  data: ClassifiedBrowseInput,
+  preferredIds: readonly string[] = [],
+) {
   return runBrowseClassifieds(normalizeClassifiedBrowseInput({ ...data, mobileCatalog: true }), {
     readOnlyProviders: true,
+    mobileDiscovery: !data.sort && mobileSaleScope(data),
+    preferredIds,
   });
 }
 
@@ -1639,6 +1645,8 @@ async function runBrowseClassifieds(
     selectHomePhotos?: boolean;
     readOnlyHome?: boolean;
     readOnlyProviders?: boolean;
+    mobileDiscovery?: boolean;
+    preferredIds?: readonly string[];
     pageSize?: number;
     includeExactCount?: boolean;
     timingsMs?: Record<string, number>;
@@ -1693,12 +1701,15 @@ async function runBrowseClassifieds(
     ) {
       return empty;
     }
+    const saleFeed = data.mobileCatalog && mobileSaleScope(data);
     const requestedCategorySlugs = data.category ? [data.category] : groupSlugs;
     const categorySlugs = data.mobileCatalog
       ? (requestedCategorySlugs.length
           ? requestedCategorySlugs
           : classifiedCategories.map((c) => c.slug)
-        ).filter((slug) => slug !== "firearms")
+        ).filter(
+          (slug) => slug !== "firearms" && (!saleFeed || !["jobs", "services"].includes(slug)),
+        )
       : requestedCategorySlugs;
     if (data.mobileCatalog && !categorySlugs.length) return empty;
     const selection = categorySlugs.length
@@ -1985,7 +1996,7 @@ async function runBrowseClassifieds(
         import("./dealer-feed.server"),
       ]),
     );
-    const includeAdzuna = adzuna.canIncludeAdzuna(data);
+    const includeAdzuna = !saleFeed && adzuna.canIncludeAdzuna(data);
     const includeMashvisor = mashvisor.canIncludeMashvisor(data);
     const includeOpenWebNinja = openWebNinja.canIncludeOpenWebNinja(data);
     const openWebNinjaEnabled =
@@ -1998,7 +2009,7 @@ async function runBrowseClassifieds(
     const includeExternalHomes = includeMashvisor || includeOpenWebNinja;
     // Local businesses from the services directory follow members' service
     // listings, paged in the database rather than loaded all at once.
-    const includeDirectory = directoryAdapter.canIncludeDirectory(data);
+    const includeDirectory = !saleFeed && directoryAdapter.canIncludeDirectory(data);
     const includeMerchandise = !data.mobileCatalog && merchandise.canIncludeMerchandise(data);
     const from = (page - 1) * pageSize;
     // Pay units are deliberately normalized in `comparableJobPay` (hourly
@@ -2010,6 +2021,7 @@ async function runBrowseClassifieds(
     const unitAwareJobSort =
       data.category === "jobs" && (data.sort === "price_low" || data.sort === "price_high");
     const mergeBeforePaging =
+      options.mobileDiscovery ||
       options.readOnlyHome ||
       includeAdzuna ||
       includeExternalHomes ||
@@ -2180,7 +2192,15 @@ async function runBrowseClassifieds(
       data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
         ? Math.max(pageSize, mockSource.length)
         : pageSize;
-    const orderedListings = [...featuredListings, ...standardListings];
+    const matchingCandidates = [...featuredListings, ...standardListings].filter(
+      (card) => !saleFeed || mobileSaleItem(card),
+    );
+    const candidates = saleFeed
+      ? [...new Map(matchingCandidates.map((card) => [card.id, card])).values()]
+      : matchingCandidates;
+    const orderedListings = options.mobileDiscovery
+      ? mixMobileSaleFeed(candidates, options.preferredIds, from + resultLimit)
+      : candidates;
     const nativePage = mergeBeforePaging
       ? orderedListings.slice(from, from + resultLimit)
       : orderedListings.slice(0, resultLimit);
@@ -2240,7 +2260,9 @@ async function runBrowseClassifieds(
       // The directory remains independently database-paged after that window.
       total:
         (mergeBeforePaging
-          ? orderedListings.length
+          ? options.mobileDiscovery
+            ? candidates.length
+            : orderedListings.length
           : (count ?? listings.length) + mockListings.length) + directory.total,
       page,
       pageSize: pageSize,

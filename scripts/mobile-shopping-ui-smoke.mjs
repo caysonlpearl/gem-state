@@ -47,7 +47,8 @@ try {
       events = [],
       choices = new Map(),
       dismissed = new Map();
-    let consentUnavailable = false;
+    let consentUnavailable = false,
+      onlyWorkRecommendations = false;
     const cards = [
       {
         id: "dealerfeed-fixture-car",
@@ -143,7 +144,10 @@ try {
       if (await menu.isVisible()) await menu.click();
       await page.getByRole("button", { name: "Privacy choices", exact: true }).click();
     };
-    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("pageerror", (error) => {
+      errors.push(error.message);
+      console.error("Shopping UI error", page.url(), error.stack);
+    });
     await page.route(api + "**", async (route) => {
       const request = route.request(),
         url = new URL(request.url()),
@@ -194,7 +198,11 @@ try {
             ? cards.filter((card) => !dismissed.get(id)?.has(card.id))
             : [],
           recommended: choices.get(id)
-            ? cards.filter((card) => !dismissed.get(id)?.has(card.id))
+            ? cards.filter(
+                (card) =>
+                  !dismissed.get(id)?.has(card.id) &&
+                  (!onlyWorkRecommendations || card.categorySlug === "jobs"),
+              )
             : [],
           model: "fixture-v1",
         };
@@ -293,10 +301,10 @@ try {
     await page.waitForTimeout(1600);
     assert.equal(events.length, 0, "Listings behind privacy controls are not visible impressions");
     await dialog.getByRole("button", { name: "Done", exact: true }).click();
-    await page.getByRole("heading", { name: "Recommended for you", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "For you", exact: true }).waitFor();
     const recommendation = page
-      .getByRole("heading", { name: "Recommended for you", exact: true })
-      .locator("..");
+      .getByRole("heading", { name: "For you", exact: true })
+      .locator("xpath=ancestor::section[1]");
     const request = page.waitForRequest(
       (request) => request.url().endsWith("/activity") && request.method() === "POST",
     );
@@ -316,12 +324,14 @@ try {
     );
     await page.mouse.move(0, 0);
     const geometry = [];
-    for (const title of ["Recently viewed", "Continue shopping", "Recommended for you"]) {
-      const row = page.getByRole("heading", { name: title, exact: true }).locator("..");
+    for (const title of ["Recently viewed", "Continue shopping", "For you"]) {
+      const row = page
+        .getByRole("heading", { name: title, exact: true })
+        .locator("xpath=ancestor::section[1]");
       assert.equal(
         await row.locator("article").count(),
         4,
-        "Match the website's four-card row limit",
+        "Mixed shopping rows omit job candidates",
       );
       assert.equal(await row.getByText("Fifth hidden job", { exact: true }).count(), 0);
       assert.equal(
@@ -331,7 +341,7 @@ try {
       );
       assert.equal(
         await row.getByRole("link", { name: "RescueGroups.org", exact: true }).count(),
-        1,
+        0,
       );
       const boxes = await row.locator("article").evaluateAll((nodes) =>
         nodes.map((node) => {
@@ -339,17 +349,17 @@ try {
           return { x: box.x, y: box.y, bottom: box.bottom, width: box.width };
         }),
       );
-      const columns = viewport.width >= 768 ? 4 : 2;
-      for (let offset = 0; offset < boxes.length; offset += columns) {
-        const line = boxes.slice(offset, offset + columns);
-        assert.equal(new Set(line.map((box) => Math.round(box.y))).size, 1);
-        assert.equal(
-          new Set(line.map((box) => Math.round(box.bottom))).size,
-          1,
-          "Mixed listing cards stretch to the same bottom within every row",
-        );
-        assert.equal(new Set(line.map((box) => Math.round(box.x))).size, columns);
-      }
+      const columns = viewport.width >= 640 ? 3.5 : 2.5;
+      assert.equal(
+        new Set(boxes.map((box) => Math.round(box.y))).size,
+        1,
+        "Recommendations form a swipeable rail",
+      );
+      assert(boxes[2].x < viewport.width, "A partial next card invites swiping");
+      assert(
+        boxes[0].width < viewport.width / 2,
+        "Cards are narrower than the old two-column layout",
+      );
       assert.equal(
         await row.locator("h2").evaluate((node) => getComputedStyle(node).fontSize),
         "18px",
@@ -365,32 +375,50 @@ try {
       geometry.push({ title, columns, boxes });
     }
     await page.screenshot({ path: resolve(output, "recommendations-" + viewport.width + ".png") });
+    onlyWorkRecommendations = true;
+    await page.reload();
+    await page.waitForFunction(
+      () =>
+        document.getElementById("for-you-heading")?.closest("section")?.querySelectorAll("article")
+          .length === 2,
+    );
+    assert.equal(
+      await page
+        .getByRole("region", { name: "For you", exact: true })
+        .getByText("Fifth hidden job", { exact: true })
+        .count(),
+      0,
+      "A work-only recommendation response uses public shopping fallback",
+    );
+    onlyWorkRecommendations = false;
+    await page.reload();
+    await page.waitForFunction(
+      () =>
+        document.getElementById("for-you-heading")?.closest("section")?.querySelectorAll("article")
+          .length === 4,
+    );
     // Preserve older acknowledged choices without bringing the removed control back.
     const currentInstall = await page.evaluate(() =>
       localStorage.getItem("bluebird-mobile-install-v1"),
     );
     dismissed.set(currentInstall, new Set(["dealerfeed-fixture-other"]));
     await page.reload();
-    await page.getByRole("heading", { name: "Recommended for you", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "For you", exact: true }).waitFor();
     assert.equal(await recommendation.getByText("Fixture pickup", { exact: true }).count(), 0);
-    assert.equal(await recommendation.getByText("Fifth hidden job", { exact: true }).count(), 1);
+    assert.equal(await recommendation.getByText("Fifth hidden job", { exact: true }).count(), 0);
     assert.equal(
       await recommendation.getByRole("link", { name: "Adzuna", exact: true }).count(),
-      1,
+      0,
     );
     assert(
       !events.some((event) => event.kind === "dismiss"),
       "A page read never invents a dismissal",
     );
     await page.getByRole("button", { name: "See all vehicles", exact: true }).click();
-    await page
-      .getByRole("heading", { name: "Recommended for you", exact: true })
-      .waitFor({ state: "hidden" });
+    await page.getByRole("heading", { name: "For you", exact: true }).waitFor({ state: "hidden" });
     await page.goto(origin + "/#/search?sort=price_high");
     await page.locator("#sort").selectOption("price_high");
-    await page
-      .getByRole("heading", { name: "Recommended for you", exact: true })
-      .waitFor({ state: "hidden" });
+    await page.getByRole("heading", { name: "For you", exact: true }).waitFor({ state: "hidden" });
     await page.locator("#sort").selectOption("newest");
     await page
       .getByRole("navigation", { name: "Primary", exact: true })
@@ -402,15 +430,19 @@ try {
     await page.waitForFunction(() => document.querySelector("dialog input")?.checked === false);
     await dialog.getByRole("button", { name: "Done", exact: true }).click();
     await page
-      .getByRole("heading", { name: "Recommended for you", exact: true })
+      .getByRole("heading", { name: "Recently viewed", exact: true })
       .waitFor({ state: "hidden" });
+    await page
+      .getByRole("heading", { name: "Continue shopping", exact: true })
+      .waitFor({ state: "hidden" });
+    await page.getByRole("heading", { name: "For you", exact: true }).waitFor();
     await page.waitForTimeout(3000);
     const cutoff = events.length;
     await page.locator(".listing-card").first().click();
     await page.getByRole("heading", { name: "Fixture family car", exact: true }).waitFor();
     const similar = page
       .getByRole("heading", { name: "More like this", exact: true })
-      .locator("..");
+      .locator("xpath=ancestor::section[1]");
     await similar.waitFor();
     assert.equal(await similar.locator("article").count(), 4);
     assert.equal(await similar.getByRole("link", { name: "Adzuna", exact: true }).count(), 1);

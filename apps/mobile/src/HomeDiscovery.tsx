@@ -149,7 +149,7 @@ export function HomeDiscovery({
   return (
     <>
       <MarketplaceListingSection
-        className="homepage-lead-vehicles"
+        className="native-home-section homepage-lead-vehicles"
         density="compact"
         eyebrow=""
         title="Vehicles"
@@ -163,14 +163,11 @@ export function HomeDiscovery({
           </button>
         }
       >
-        <div className="no-scrollbar mt-2 flex gap-2.5 overflow-x-auto pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible">
+        <div className="native-listing-rail no-scrollbar mt-2 flex gap-2.5 overflow-x-auto pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible">
           {lead.map((summary, position) => {
             const card = originals.get(summary.id);
             return card ? (
-              <div
-                key={card.id}
-                className="min-w-0 basis-[calc((100%_-_10px)/2)] shrink-0 sm:basis-[calc((100%_-_20px)/3)] lg:basis-auto"
-              >
+              <div key={card.id} className="native-rail-card min-w-0 shrink-0">
                 <ListingTile
                   density="compact"
                   card={card}
@@ -193,6 +190,7 @@ export function HomeDiscovery({
       {sections.map((section) => (
         <MarketplaceListingSection
           key={section.title}
+          className="native-home-section"
           density="compact"
           eyebrow={section.eyebrow}
           title={section.title}
@@ -210,16 +208,13 @@ export function HomeDiscovery({
               className={
                 section.title === "More local finds"
                   ? "mt-2 grid grid-cols-2 gap-x-2.5 gap-y-4 lg:grid-cols-4"
-                  : "no-scrollbar mt-2 flex gap-2.5 overflow-x-auto pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible"
+                  : "native-listing-rail no-scrollbar mt-2 flex gap-2.5 overflow-x-auto pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible"
               }
             >
               {section.cards.map((summary, position) => {
                 const card = originals.get(summary.id);
                 return card ? (
-                  <div
-                    className="min-w-0 basis-[calc((100%_-_10px)/2)] shrink-0 sm:basis-[calc((100%_-_20px)/3)] lg:basis-auto"
-                    key={card.id}
-                  >
+                  <div className="native-rail-card min-w-0 shrink-0" key={card.id}>
                     <ListingTile
                       density="compact"
                       card={card}
