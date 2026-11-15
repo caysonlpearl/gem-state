@@ -18,7 +18,7 @@ export type AccountDeletionQueueDatabase = {
     name: QueueRpc,
     args?: Record<string, unknown>,
   ): PromiseLike<QueueResponse> & {
-    abortSignal(signal: AbortSignal): PromiseLike<QueueResponse>;
+    abortSignal(signal: AbortSignal): { retry(enabled: boolean): PromiseLike<QueueResponse> };
   };
 };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -46,7 +46,7 @@ export function createAccountDeletionQueue(db: AccountDeletionQueueDatabase): De
       : AbortSignal.timeout(15000);
     try {
       deadline.throwIfAborted();
-      const result = await db.rpc(name, args).abortSignal(deadline);
+      const result = await db.rpc(name, args).abortSignal(deadline).retry(false);
       deadline.throwIfAborted();
       if (!result || result.error !== null || result.data === undefined) throw new Error();
       return result.data;

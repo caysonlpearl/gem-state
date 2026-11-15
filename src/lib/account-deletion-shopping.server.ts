@@ -1,5 +1,5 @@
-import type { DeletionInventoryDatabase } from "./account-deletion-inventory.server";
-import { DeletionStepError, type DeletionJob } from "./account-deletion-worker";
+import type { PrivateRecordErasureDatabase } from "./account-deletion-private-records.server.ts";
+import { DeletionStepError, type DeletionJob } from "./account-deletion-worker.ts";
 
 const sources = [
   "shopping_events",
@@ -15,7 +15,7 @@ const object = (value: unknown): value is Record<string, unknown> =>
 /** Erases one bounded chunk of owned shopping data. This is a records/identity
  * component, not a complete phase adapter. Financial/consent retention, other
  * account records and provider/media cleanup remain separate requirements. */
-export function createAccountDeletionShoppingErasure(db: DeletionInventoryDatabase) {
+export function createAccountDeletionShoppingErasure(db: PrivateRecordErasureDatabase) {
   async function call(job: DeletionJob, signal: AbortSignal, verify: boolean) {
     const code = verify ? "verification_failed" : "records_unavailable";
     const fail = () => new DeletionStepError(code);
@@ -42,7 +42,8 @@ export function createAccountDeletionShoppingErasure(db: DeletionInventoryDataba
           _lease: target.lease_token,
           ...(verify ? {} : { _phase: target.phase, _limit: 100 }),
         })
-        .abortSignal(deadline);
+        .abortSignal(deadline)
+        .retry(false);
       deadline.throwIfAborted();
       if (!result || result.error !== null || result.data === undefined) throw fail();
       return result.data;

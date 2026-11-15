@@ -32,11 +32,16 @@ function transport(reply) {
     calls,
     rpc(name, args) {
       return {
-        async abortSignal(signal) {
-          assert(signal instanceof AbortSignal);
-          signal.throwIfAborted();
-          calls.push({ name, args, signal });
-          return { data: await reply(name, args, signal), error: null };
+        abortSignal(signal) {
+          return {
+            async retry(enabled) {
+              assert.equal(enabled, false);
+              assert(signal instanceof AbortSignal);
+              signal.throwIfAborted();
+              calls.push({ name, args, signal });
+              return { data: await reply(name, args, signal), error: null };
+            },
+          };
         },
       };
     },
@@ -268,7 +273,9 @@ test("RPC failures and invalid write results expose only allowlisted codes", asy
   await assert.rejects(queue.retry(valid, "private@example.com"), coded("worker_failed"));
   assert.equal(db.calls.length, 2, "invalid writes must be rejected before transmission");
   const errorResponse = createAccountDeletionQueue({
-    rpc: () => ({ abortSignal: async () => ({ data: [], error: { message: "SECRET" } }) }),
+    rpc: () => ({
+      abortSignal: () => ({ retry: async () => ({ data: [], error: { message: "SECRET" } }) }),
+    }),
   });
   await assert.rejects(errorResponse.claim(), coded("worker_failed"));
 });

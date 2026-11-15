@@ -24,17 +24,24 @@ export function storageProviderBridge(db, after) {
     calls,
     rpc(name, args) {
       return {
-        abortSignal: async (signal) => {
-          signal.throwIfAborted();
-          calls.push({ name, args });
-          const result = await db.query(
-            `select public.${name}(${Object.values(args)
-              .map((_, i) => "$" + (i + 1))
-              .join(",")}) as result`,
-            Object.values(args),
-          );
-          await after?.(name, args, result.rows[0].result);
-          return { data: result.rows[0].result, error: null };
+        abortSignal: (signal) => {
+          const result = (async () => {
+            signal.throwIfAborted();
+            calls.push({ name, args });
+            const result = await db.query(
+              `select public.${name}(${Object.values(args)
+                .map((_, i) => "$" + (i + 1))
+                .join(",")}) as result`,
+              Object.values(args),
+            );
+            await after?.(name, args, result.rows[0].result);
+            return { data: result.rows[0].result, error: null };
+          })();
+          result.retry = (enabled) => {
+            if (enabled !== false) throw Error("Fixture supports retries disabled only");
+            return result;
+          };
+          return result;
         },
       };
     },
