@@ -96,6 +96,32 @@ gate, TypeScript, targeted lint, production build, formatting and diff checks.
 The full regression suite passed 1,802 tests with 16 skipped and no failures.
 Hosted checks and installation are separate evidence; this batch is uninstalled.
 
+### Shared permission integration
+
+The separate integration fixture composes the actual shopping-erasure boundary,
+private records and activity cleanup in installation order, then reconstructs
+the consent/account schemas and callbacks captured November 15 at 14:37 UTC.
+Its Auth signup hook is a synthetic binding to the captured trigger function.
+All members and payloads remain synthetic; no production permission is changed.
+
+The real privacy callback can decline personalization/advertising during a
+pending deletion, clear the derived shopping history and preserve linked
+analytics for physical erasure. Re-enabling collection is rejected. Both cleanup
+contracts and account/session coverage remain current. After the first records
+passes, a legitimate late decline can leave a new false/false preference record;
+the next shopping cleanup pass removes it without recreating analytics. A prior
+pass must never be treated as whole-workflow completion.
+
+Captured signup/onboarding also keeps the two choices source-specific: website
+acceptance does not satisfy app onboarding, app alert-off survives later website
+alert opt-in, and signup does not grant native advertising permission. These
+integration tests do not erase consent evidence, establish financial/audit
+retention, remove Auth or finish the full deletion workflow.
+
+Both focused integration tests passed. The full suite passed 1,804 tests with
+16 skipped and no failures. These additions change tests and documentation;
+production behavior remains the uninstalled source described above.
+
 Remaining launch work includes explicit financial/moderation/consent/audit and
 shared-asset handling, provider erasure, authorization/identity composition and
 the independent full-flow rehearsal before activation. Native device delivery,
