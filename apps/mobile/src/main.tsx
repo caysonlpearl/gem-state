@@ -160,7 +160,10 @@ function Application() {
   const [advertising, setAdvertisingChoice] = useState(false);
   const [shopping, setShopping] = useState<ShopperStatus | null>(null),
     [privacyOpen, setPrivacyOpen] = useState(false);
-  const learning = shopping?.personalization === true && shopping.trackingAvailable === true;
+  const learning =
+    shopping?.personalization === true &&
+    shopping.trackingAvailable === true &&
+    (!session || (!!bootstrap && account?.consent.terms_version === bootstrap.policyVersion));
   const [searchRequest, setSearchRequest] = useState<
     (SaveSearchRequest & { owner: string; originHash: string }) | null
   >(null);
@@ -206,6 +209,7 @@ function Application() {
             clearMessageRetries();
             clearConversationAttachmentMemory();
             setAccount(null);
+            setTerms(false);
             setAlerts(false);
             void disableAdvertising();
             setShopperIdentity(next?.user.id ?? null);
@@ -373,7 +377,10 @@ function Application() {
       .then((a) => {
         if (alive) {
           setAccount(a);
-          setAlerts(a.consent.shopping_alerts === true);
+          setAlerts(
+            a.consent.terms_version === bootstrap.policyVersion &&
+              a.consent.shopping_alerts === true,
+          );
         }
       })
       .catch((e) => {

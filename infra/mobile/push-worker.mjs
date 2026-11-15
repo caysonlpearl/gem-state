@@ -7,6 +7,7 @@ import { cachedMobilePushListing } from "../../src/lib/mobile-push-catalog.ts";
 import { shoppingDeliveryCandidates } from "../../src/lib/shopping-delivery-eligibility.ts";
 import { shoppingControls } from "../../src/lib/shopping.server.ts";
 import { prepareMobilePush, pushRetryDelay } from "../../src/lib/mobile-push.ts";
+import { mobileShoppingConsent } from "../../src/lib/mobile-shopping-consent.ts";
 
 const b64 = (value) =>
   Buffer.from(typeof value === "string" ? value : JSON.stringify(value)).toString("base64url");
@@ -164,7 +165,13 @@ async function eligiblePush(db, row, listing, now) {
       .select("id,user_id,token,platform,updated_at")
       .eq("id", row.device_id)
       .maybeSingle(),
-    db.from("shopping_accounts").select("shopping_alerts").eq("user_id", row.user_id).maybeSingle(),
+    db
+      .from("shopping_accounts")
+      .select(
+        "terms_version,shopping_alerts,mobile_terms_version,mobile_terms_accepted_at,mobile_shopping_alerts",
+      )
+      .eq("user_id", row.user_id)
+      .maybeSingle(),
     db
       .from("account_notification_preferences")
       .select("message_alerts")
@@ -234,7 +241,7 @@ async function eligiblePush(db, row, listing, now) {
       deviceUserId: d.user_id,
       destination: new URL(n.destination_url, "https://onbluebird.com").href,
       listing,
-      shoppingAlerts: account.data?.shopping_alerts === true,
+      shoppingAlerts: mobileShoppingConsent(account.data).shopping_alerts,
       messageAlerts: prefs.data?.message_alerts !== false,
       blocked,
       deletionRequested: Boolean(deletion.data),

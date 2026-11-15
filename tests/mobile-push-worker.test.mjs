@@ -39,7 +39,13 @@ function fixture(
       platform: "ios",
       updated_at: new Date(now - 10000).toISOString(),
     },
-    shopping_accounts: { shopping_alerts: true },
+    shopping_accounts: {
+      shopping_alerts: true,
+      terms_version: "2026-11-12",
+      mobile_terms_version: "2026-11-12",
+      mobile_terms_accepted_at: "2026-11-14T00:00:00Z",
+      mobile_shopping_alerts: true,
+    },
     account_notification_preferences: { message_alerts: true },
     mobile_account_deletions: null,
     mobile_controls: { push_enabled: true },
@@ -144,6 +150,12 @@ for (const [name, change] of Object.entries({
   unsubscribe: (d) => {
     d.shopping_accounts.shopping_alerts = false;
   },
+  appOptOut: (d) => {
+    d.shopping_accounts.mobile_shopping_alerts = false;
+  },
+  websiteOnly: (d) => {
+    d.shopping_accounts.mobile_terms_version = null;
+  },
   paused: (d) => {
     d.mobile_controls.push_enabled = false;
   },
@@ -177,6 +189,15 @@ test("conversation block made during lookup suppresses message push", async () =
   }, "message");
   assert.equal((await f.run()).suppressed, 1);
   assert.equal(f.sent.length, 0);
+});
+
+test("requested conversation push remains separate from app shopping opt-in", async () => {
+  const f = fixture((d) => {
+    d.shopping_accounts.mobile_shopping_alerts = false;
+    d.shopping_accounts.mobile_terms_version = null;
+  }, "message");
+  assert.equal((await f.run()).sent, 1);
+  assert.equal(f.sent.length, 1);
 });
 test("missing current-user conversation participant fails closed", async () => {
   const f = fixture((d) => {

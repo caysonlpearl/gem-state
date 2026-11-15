@@ -342,10 +342,11 @@ function LogoPhoto({
 
 export function ListingCardPhoto({
   listing,
-  tall,
   priority,
   shoppingContext,
+  short = false,
 }: {
+  short?: boolean;
   shoppingContext?: Record<string, unknown>;
   listing: ListingCardSummary;
   tall?: boolean;
@@ -373,7 +374,7 @@ export function ListingCardPhoto({
     const image = imageRef.current;
     if (image?.complete && image.naturalWidth === 0) recoverPhoto(image);
   }, [recoverPhoto]);
-  const ratio = tall ? "aspect-[4/3]" : "aspect-[4/3]";
+  const ratio = short ? "aspect-[3/2]" : "aspect-[4/3]";
   const logoUrl = listingLogoUrl(listing);
   if (!listing.imageUrl && logoUrl) {
     return <LogoPhoto listing={listing} logoUrl={logoUrl} ratio={ratio} priority={priority} />;
@@ -542,11 +543,12 @@ export function ListingCardView({
   /** Load this card's photo eagerly at high priority (the first cards above the fold). */
   priority?: boolean;
   /** Native home discovery uses the same photos/actions with a shorter body. */
-  density?: "standard" | "compact";
+  density?: "standard" | "compact" | "browse";
 }) {
   return (
     <article
       ref={elementRef}
+      data-listing-density={density === "standard" ? undefined : density}
       className={`group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md ${className}`}
     >
       <div className="relative">
@@ -555,7 +557,7 @@ export function ListingCardView({
           className="block"
           ariaLabel={"View listing: " + listing.title}
         >
-          <ListingCardPhoto listing={listing} priority={priority} />
+          <ListingCardPhoto listing={listing} priority={priority} short={density === "browse"} />
         </ListingLink>
         {soldAt ? (
           <span className="absolute left-2 top-2 z-10 inline-flex rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-background shadow-sm">
@@ -565,7 +567,7 @@ export function ListingCardView({
           <div className="absolute right-2 top-2 z-10">{saveAction}</div>
         )}
       </div>
-      {density === "compact" ? (
+      {density !== "standard" ? (
         <ListingLink listing={listing} className="block px-2.5 pb-2.5 pt-2">
           <div className="numeric text-[17px] font-bold leading-5 text-primary">
             {listing.directory ? (
@@ -581,11 +583,27 @@ export function ListingCardView({
                   .join(" ") || listing.title
               : listing.title}
           </h3>
-          <p className="mt-1 truncate text-[11px] leading-4 text-muted-foreground">
-            {listing.externalMerchandise
-              ? "Shipping Only"
-              : placeLabel(listing.city, listing.state)}
-          </p>
+          {density === "browse" ? (
+            <div className="native-browse-card-meta mt-1 flex min-w-0 items-baseline justify-between gap-1 text-muted-foreground">
+              <span className="min-w-0 truncate" title={placeLabel(listing.city, listing.state)}>
+                {listing.externalMerchandise ? "Shipping" : placeLabel(listing.city, listing.state)}
+              </span>
+              <span className="shrink-0" aria-label={postedAge(soldAt ?? listing.createdAt)}>
+                {postedAge(soldAt ?? listing.createdAt)
+                  .replace(/^Posted\s*/i, "")
+                  .replace(/Yesterday/i, "1d")
+                  .replace(/(\d+)\s+days?(\s+ago)?/i, "$1d")
+                  .replace(/(\d+)\s+weeks?(\s+ago)?/i, "$1w")
+                  .replace(/(\d+)\s+hours?(\s+ago)?/i, "$1h")}
+              </span>
+            </div>
+          ) : (
+            <p className="mt-1 truncate text-[11px] leading-4 text-muted-foreground">
+              {listing.externalMerchandise
+                ? "Shipping Only"
+                : placeLabel(listing.city, listing.state)}
+            </p>
+          )}
         </ListingLink>
       ) : listing.home ? (
         <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">

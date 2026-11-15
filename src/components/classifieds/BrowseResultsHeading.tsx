@@ -16,6 +16,7 @@ export function BrowseResultsHeading({
   heading,
   term,
   showSearch = true,
+  compact = false,
   setTerm,
   scopedWithoutVehicleFilters,
   onApply,
@@ -35,6 +36,7 @@ export function BrowseResultsHeading({
   heading: string;
   term: string;
   showSearch?: boolean;
+  compact?: boolean;
   setTerm: (value: string) => void;
   scopedWithoutVehicleFilters: (patch: Partial<Search>) => Search;
   onApply: (patch: Partial<Search>) => void;
@@ -48,11 +50,27 @@ export function BrowseResultsHeading({
       >
         <div className={`${motors ? "hidden" : ""} flex items-center gap-4`}>
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
-              Bluebird classifieds
-            </p>
-            <h1 className="mt-2 text-[30px] font-bold tracking-tight">{heading}</h1>
-            <p className="mt-2 max-w-[62ch] text-[14px] leading-relaxed text-muted-foreground">
+            {!compact && (
+              <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
+                Bluebird classifieds
+              </p>
+            )}
+            <h1
+              className={
+                compact
+                  ? "text-[24px] font-bold tracking-tight"
+                  : "mt-2 text-[30px] font-bold tracking-tight"
+              }
+            >
+              {heading}
+            </h1>
+            <p
+              className={
+                compact
+                  ? "mt-1 max-w-[62ch] text-xs leading-relaxed text-muted-foreground"
+                  : "mt-2 max-w-[62ch] text-[14px] leading-relaxed text-muted-foreground"
+              }
+            >
               Local listings from sellers across Idaho.
             </p>
             {firearms ? (

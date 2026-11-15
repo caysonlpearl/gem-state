@@ -91,6 +91,7 @@ export function NativeAuth({
             data: {
               display_name: displayName || email.trim().split("@")[0],
               shopping_terms_version: policyVersion,
+              shopping_signup_source: "mobile",
               shopping_alerts: shoppingAlerts,
             },
           },

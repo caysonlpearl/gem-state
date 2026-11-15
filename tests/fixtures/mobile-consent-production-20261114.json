@@ -1,0 +1,89 @@
+{
+  "register_shopping_signup": {
+    "owner": "postgres",
+    "body_md5": "01a056a233f5c4d9b383a94b0e43eecd",
+    "definition": "CREATE OR REPLACE FUNCTION public.register_shopping_signup()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\nbegin\n if new.raw_user_meta_data->>'shopping_terms_version' = '2026-11-12' then\n  insert into shopping_accounts(user_id,terms_version,terms_accepted_at,shopping_alerts,alerts_version,alerts_updated_at)\n  values(new.id,'2026-11-12',now(),coalesce(new.raw_user_meta_data->>'shopping_alerts' = 'true',false),'2026-11-12',now());\n  insert into shopping_consents(user_id,subject,purpose,allowed,version) values\n   (new.id,'u:'||new.id::text,'terms',true,'2026-11-12'),\n   (new.id,'u:'||new.id::text,'shopping_alerts',coalesce(new.raw_user_meta_data->>'shopping_alerts' = 'true',false),'2026-11-12');\n end if;\n return new;\nend $function$\n",
+    "anon_execute": false,
+    "member_execute": false,
+    "service_execute": true,
+    "security_definer": true
+  },
+  "mobile_accept_terms": {
+    "owner": "postgres",
+    "body_md5": "b4a4e653eb83829b58f58890fcf42f68",
+    "definition": "CREATE OR REPLACE FUNCTION public.mobile_accept_terms(_user uuid, _version text, _shopping_alerts boolean)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$\ndeclare onboarding boolean;\nbegin\n select not exists(select 1 from shopping_accounts where user_id=_user and terms_version=_version) into onboarding;\n if _version <> '2026-11-12' then raise exception 'Current terms are required'; end if;\n insert into public.shopping_accounts(user_id,terms_version,terms_accepted_at,shopping_alerts,alerts_version,alerts_updated_at)\n values(_user,_version,now(),_shopping_alerts,_version,now())\n on conflict(user_id) do update set terms_version=excluded.terms_version,terms_accepted_at=coalesce(shopping_accounts.terms_accepted_at,now()),\n shopping_alerts=excluded.shopping_alerts,alerts_version=excluded.alerts_version,alerts_updated_at=now(),updated_at=now();\n if _shopping_alerts then update shopping_accounts set suppressed_at=null where user_id=_user;\n elsif not onboarding then update shopping_accounts set suppressed_at=now() where user_id=_user; end if;\n insert into public.shopping_consents(user_id,subject,purpose,allowed,version,source)\n values(_user,'u:'||_user::text,'terms',true,_version,'mobile'),(_user,'u:'||_user::text,'shopping_alerts',_shopping_alerts,_version,'mobile');\n if not _shopping_alerts then\n  update public.shopping_queue set status='suppressed',lease_until=null where user_id=_user and status in ('pending','processing') and (not onboarding or not requested);\n  update public.mobile_push_outbox p set status='suppressed',lease_until=null from public.notifications n\n   where p.notification_id=n.id and p.user_id=_user and n.kind<>'message' and p.status in ('pending','processing');\n end if;\nend $function$\n",
+    "anon_execute": false,
+    "member_execute": false,
+    "service_execute": true,
+    "security_definer": true
+  },
+  "shopping_accounts_columns": [
+    {
+      "name": "user_id",
+      "default": null,
+      "nullable": false,
+      "sql_type": "uuid"
+    },
+    {
+      "name": "terms_version",
+      "default": null,
+      "nullable": true,
+      "sql_type": "text"
+    },
+    {
+      "name": "terms_accepted_at",
+      "default": null,
+      "nullable": true,
+      "sql_type": "timestamp with time zone"
+    },
+    {
+      "name": "shopping_alerts",
+      "default": null,
+      "nullable": true,
+      "sql_type": "boolean"
+    },
+    {
+      "name": "suppressed_at",
+      "default": null,
+      "nullable": true,
+      "sql_type": "timestamp with time zone"
+    },
+    {
+      "name": "alerts_version",
+      "default": null,
+      "nullable": true,
+      "sql_type": "text"
+    },
+    {
+      "name": "alerts_updated_at",
+      "default": null,
+      "nullable": true,
+      "sql_type": "timestamp with time zone"
+    },
+    {
+      "name": "unsubscribe_token",
+      "default": "gen_random_uuid()",
+      "nullable": false,
+      "sql_type": "uuid"
+    },
+    {
+      "name": "history_after",
+      "default": "'1970-01-01 00:00:00+00'::timestamp with time zone",
+      "nullable": false,
+      "sql_type": "timestamp with time zone"
+    },
+    {
+      "name": "updated_at",
+      "default": "now()",
+      "nullable": false,
+      "sql_type": "timestamp with time zone"
+    },
+    {
+      "name": "delivery_blocked",
+      "default": "false",
+      "nullable": false,
+      "sql_type": "boolean"
+    }
+  ],
+  "migration_1900_history": 0
+}

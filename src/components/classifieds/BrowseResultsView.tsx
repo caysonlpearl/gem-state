@@ -10,6 +10,7 @@ export type BrowseLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "hre
   search?: Search;
 };
 export type BrowseResultsProps = {
+  compact?: boolean;
   search: Search;
   motors: boolean;
   homes: boolean;
@@ -42,6 +43,7 @@ export type BrowseResultsProps = {
 
 /** Website results shell, including controls, empty states, cards and alert actions. */
 export function BrowseResultsView({
+  compact = false,
   search,
   motors,
   homes,
@@ -73,7 +75,7 @@ export function BrowseResultsView({
 }: BrowseResultsProps) {
   return (
     <div
-      className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""} ${!motors ? "grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-8" : ""}`}
+      className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""} ${!motors ? "grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-8" : ""}${compact ? " native-results-layout" : ""}`}
     >
       {!motors && !homeLanding && (
         <ResponsiveBrowseFilters
@@ -84,9 +86,13 @@ export function BrowseResultsView({
           {homes ? homeFilters : genericFilters}
         </ResponsiveBrowseFilters>
       )}
-      <div className={`min-w-0 ${!motors ? "lg:col-start-2" : ""}`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {!motors && !homes && (
+      <div
+        className={`min-w-0 ${!motors ? "lg:col-start-2" : ""}${compact ? " native-results-body" : ""}`}
+      >
+        <div
+          className={`flex flex-wrap items-center justify-between gap-3${compact ? " native-results-toolbar" : ""}`}
+        >
+          {!motors && (!homes || compact) && (
             <div className="flex w-full flex-wrap items-center gap-2">
               <label className="sr-only" htmlFor="sort">
                 Sort
@@ -133,7 +139,11 @@ export function BrowseResultsView({
           )}
         </div>
 
-        <section id="results" aria-labelledby="browse-results-heading" className="mt-6">
+        <section
+          id="results"
+          aria-labelledby="browse-results-heading"
+          className={`mt-6${compact ? " native-results-section" : ""}`}
+        >
           <h2 id="browse-results-heading" className="sr-only">
             Search results
           </h2>

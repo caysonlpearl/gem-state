@@ -49,7 +49,7 @@ export function ListingTile({
   density = "standard",
 }: {
   view?: "grid" | "list";
-  density?: "standard" | "compact";
+  density?: "standard" | "compact" | "browse";
   card: MobileListing;
   position: number;
   placement?: string;

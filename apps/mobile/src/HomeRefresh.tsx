@@ -6,10 +6,17 @@ import { readPublicHome } from "./home-startup";
 
 const threshold = 68;
 const atHome = () => ["", "#", "#/"].includes(location.hash);
+const refreshInset = () =>
+  Math.max(
+    0,
+    parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--native-safe-top")) ||
+      0,
+  );
 /** A Home-only gesture; horizontal rails, forms, pinch zoom and other pages
  * keep their normal behavior. No provider refreshes or account writes. */
 export function HomeRefresh({ onData }: { onData: (home: MobileHome) => void }) {
   const [pull, setPull] = useState(0),
+    [safeTop, setSafeTop] = useState(0),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const apply = useRef(onData),
@@ -18,7 +25,7 @@ export function HomeRefresh({ onData }: { onData: (home: MobileHome) => void }) 
   useEffect(() => {
     const page = document.getElementById("native-page-surface");
     if (!page) return;
-    const distance = busy ? 72 : pull;
+    const distance = busy ? safeTop + 72 : pull;
     if (!distance && !page.style.transform) return;
     page.style.transition = pull > 0 && !busy ? "none" : "transform 180ms ease-out";
     page.style.transform = `translateY(${distance}px)`;
@@ -30,7 +37,7 @@ export function HomeRefresh({ onData }: { onData: (home: MobileHome) => void }) 
           }, 200)
         : undefined;
     return () => clearTimeout(timer);
-  }, [pull, busy]);
+  }, [pull, busy, safeTop]);
   useEffect(
     () => () => {
       const page = document.getElementById("native-page-surface");
@@ -44,11 +51,13 @@ export function HomeRefresh({ onData }: { onData: (home: MobileHome) => void }) 
     let alive = true,
       start: { x: number; y: number } | null = null,
       distance = 0,
+      inset = 0,
       dragged = false;
     refresh.current = async () => {
       if (request.current || !alive || !atHome()) return;
       const controller = new AbortController();
       request.current = controller;
+      setSafeTop(refreshInset());
       setBusy(true);
       setError("");
       setPull(0);
@@ -81,6 +90,8 @@ export function HomeRefresh({ onData }: { onData: (home: MobileHome) => void }) 
       )
         return;
       const point = event.touches[0];
+      inset = refreshInset();
+      setSafeTop(inset);
       start = { x: point.clientX, y: point.clientY };
     };
     const move = (event: TouchEvent) => {
@@ -103,11 +114,11 @@ export function HomeRefresh({ onData }: { onData: (home: MobileHome) => void }) 
       if (dy <= 10) return;
       if (event.cancelable) event.preventDefault();
       dragged = true;
-      distance = Math.min(96, dy * 0.5);
+      distance = Math.min(96 + inset, dy * 0.6);
       setPull(distance);
     };
     const end = (event: TouchEvent) => {
-      const ready = distance >= threshold;
+      const ready = distance >= threshold + inset;
       if (dragged && event.cancelable) event.preventDefault();
       reset();
       if (ready) void refresh.current();
@@ -146,20 +157,22 @@ export function HomeRefresh({ onData }: { onData: (home: MobileHome) => void }) 
           <div
             role="status"
             aria-live="polite"
-            className="pointer-events-none fixed left-1/2 top-[calc(env(safe-area-inset-top)+16px)] z-0 flex h-11 w-11 -translate-x-1/2 items-center justify-center text-primary"
+            className="native-refresh-indicator pointer-events-none fixed left-1/2 z-0 flex h-11 w-11 -translate-x-1/2 items-center justify-center text-primary"
           >
             {busy ? (
               <ArrowClockwise size={24} className="animate-spin motion-reduce:animate-none" />
             ) : (
               <ArrowDown
                 size={24}
-                style={{ transform: `rotate(${Math.min(180, (pull / threshold) * 180)}deg)` }}
+                style={{
+                  transform: `rotate(${Math.min(180, (pull / (threshold + safeTop)) * 180)}deg)`,
+                }}
               />
             )}
             <span className="sr-only">
               {busy
                 ? "Refreshing listings…"
-                : pull >= threshold
+                : pull >= threshold + safeTop
                   ? "Release to refresh"
                   : "Pull to refresh"}
             </span>

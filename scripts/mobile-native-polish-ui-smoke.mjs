@@ -53,7 +53,8 @@ try {
   browser = await chromium.launch(
     process.env.BLUEBIRD_BROWSER_CHANNEL ? { channel: process.env.BLUEBIRD_BROWSER_CHANNEL } : {},
   );
-  for (const width of [320, 440]) {
+  for (const width of [320, 440, 768]) {
+    const safeTop = width === 320 ? 0 : 59;
     const page = await browser.newPage({ viewport: { width, height: 900 }, hasTouch: true });
     page.setDefaultTimeout(15000);
     page.on("pageerror", (e) => errors.push(e.message));
@@ -61,8 +62,8 @@ try {
       window.fixtureTransitions = [];
       if (document.startViewTransition) {
         const original = document.startViewTransition.bind(document);
-        document.startViewTransition = (update) =>
-          original(() => {
+        document.startViewTransition = (update) => {
+          const transition = original(() => {
             update();
             window.fixtureTransitions.push({
               path: location.hash,
@@ -71,6 +72,9 @@ try {
               direction: document.documentElement.dataset.routeDirection,
             });
           });
+          window.fixtureTransitionFinished = transition.finished.catch(() => {});
+          return transition;
+        };
       }
     });
     await page.route("https://fixture.images.invalid/**", (r) =>
@@ -170,6 +174,20 @@ try {
       await page.evaluate(() => getComputedStyle(document.body).backgroundColor),
       "rgb(250, 247, 239)",
     );
+    await page.evaluate(
+      (inset) => document.documentElement.style.setProperty("--native-safe-top", `${inset}px`),
+      safeTop,
+    );
+    await page.evaluate(async () => {
+      await window.fixtureTransitionFinished;
+      await Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => Number.isFinite(a.effect?.getComputedTiming().endTime))
+          .map((a) => a.finished.catch(() => {})),
+      );
+    });
+    await page.screenshot({ path: resolve(output, `home-${width}.png`) });
     const primary = page.getByRole("navigation", { name: "Primary", exact: true });
     await primary.getByRole("button", { name: "Open categories", exact: true }).click();
     const menu = page.getByRole("list", { name: "Main categories", exact: true });
@@ -206,7 +224,7 @@ try {
           }),
         );
       send("touchstart", 250);
-      send("touchmove", 440);
+      send("touchmove", 550);
     });
     await page.waitForFunction(
       () =>
@@ -215,6 +233,24 @@ try {
     );
     const movingHeader = await page.locator(".native-brand-row").boundingBox();
     assert(movingHeader && movingHeader.y > 50, "The page and header move with the pull");
+    const arrow = await page.locator(".native-refresh-indicator").boundingBox();
+    const pageTop = await page
+      .locator("#native-page-surface")
+      .evaluate((node) => node.getBoundingClientRect().top);
+    assert(
+      arrow && arrow.y >= safeTop && arrow.y + arrow.height <= pageTop,
+      "The complete refresh arrow clears the iPhone inset and moved page",
+    );
+    await page.evaluate(async () => {
+      await window.fixtureTransitionFinished;
+      await Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => Number.isFinite(a.effect?.getComputedTiming().endTime))
+          .map((a) => a.finished.catch(() => {})),
+      );
+    });
+    await page.screenshot({ path: resolve(output, `pull-${width}.png`) });
     const navDuringPull = await primary.boundingBox();
     assert(
       navBeforePull && navDuringPull && Math.abs(navBeforePull.y - navDuringPull.y) < 1,
@@ -231,6 +267,17 @@ try {
       if (Date.now() > end) throw Error("Pull refresh did not request the latest pool");
       await pause(20);
     }
+    await page.waitForFunction(() =>
+      document.querySelector(".native-refresh-indicator")?.textContent.includes("Refreshing"),
+    );
+    const spinner = await page.locator(".native-refresh-indicator").boundingBox();
+    const busyTop = await page
+      .locator("#native-page-surface")
+      .evaluate((node) => node.getBoundingClientRect().top);
+    assert(
+      spinner && spinner.y >= safeTop && spinner.y + spinner.height <= busyTop,
+      "The loading wheel remains exposed after release",
+    );
     homeRelease();
     holdHome = false;
     await page.waitForFunction(
@@ -263,6 +310,32 @@ try {
     await page
       .getByRole("heading", { name: "2024 Ford F-150 XLT", exact: true, level: 1 })
       .waitFor();
+    assert.equal(
+      await page.getByRole("region", { name: "Asking price", exact: true }).isVisible(),
+      false,
+    );
+    const facts = page.getByRole("region", { name: "Key vehicle facts", exact: true });
+    const factColumns = await facts.evaluate(
+      (node) => getComputedStyle(node).gridTemplateColumns.split(" ").length,
+    );
+    assert.equal(factColumns, 2);
+    const info = page.getByRole("tablist", { name: "Listing information", exact: true });
+    const infoBox = await info.boundingBox();
+    const bodyBox = await page.locator(".native-detail-grid").boundingBox();
+    assert(
+      infoBox && bodyBox && infoBox.width >= bodyBox.width - 4,
+      "Information tabs use the complete centered content width",
+    );
+    await page.evaluate(async () => {
+      await window.fixtureTransitionFinished;
+      await Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => Number.isFinite(a.effect?.getComputedTiming().endTime))
+          .map((a) => a.finished.catch(() => {})),
+      );
+    });
+    await page.screenshot({ path: resolve(output, `detail-${width}.png`), fullPage: true });
     const photos = page.getByRole("region", { name: "Listing photos", exact: true });
     await photos.getByRole("button", { name: "Next listing photo", exact: true }).click();
     await photos.getByRole("status").getByText("2 / 2", { exact: true }).waitFor();
@@ -314,6 +387,52 @@ try {
       1,
       "Navigation preparation is reused by results",
     );
+    const filterBox = await page
+      .getByRole("button", { name: "Filters", exact: true })
+      .boundingBox();
+    const sortBox = await page
+      .getByRole("region", { name: "Car listings", exact: true })
+      .getByRole("combobox")
+      .boundingBox();
+    assert(
+      filterBox && sortBox && Math.abs(filterBox.y - sortBox.y) < 8,
+      "Filters and sort share a row",
+    );
+    const tiles = page.locator("[data-native-browse-tile]");
+    const positions = await tiles.evaluateAll((nodes) =>
+      nodes.slice(0, 5).map((node) => {
+        const b = node.getBoundingClientRect();
+        return { x: b.x, y: b.y, width: b.width, height: b.height };
+      }),
+    );
+    const columns = width >= 768 ? 4 : 3;
+    assert.equal(positions.filter((p) => Math.abs(p.y - positions[0].y) < 2).length, columns);
+    assert(positions[0].height < 260, "Native preview cards are compact");
+    assert.equal(await tiles.getByRole("link", { name: "Apply now", exact: true }).count(), 0);
+    const meta = await tiles
+      .first()
+      .locator(".native-browse-card-meta")
+      .evaluate((node) => {
+        const b = node.getBoundingClientRect();
+        return {
+          height: b.height,
+          children: [...node.children].map((n) => n.getBoundingClientRect().y),
+        };
+      });
+    assert(
+      meta.height <= 17 && Math.abs(meta.children[0] - meta.children[1]) < 1,
+      "City and posted age share a line",
+    );
+    await page.evaluate(async () => {
+      await window.fixtureTransitionFinished;
+      await Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => Number.isFinite(a.effect?.getComputedTiming().endTime))
+          .map((a) => a.finished.catch(() => {})),
+      );
+    });
+    await page.screenshot({ path: resolve(output, `vehicles-${width}.png`) });
     await page.getByRole("button", { name: "Filters", exact: true }).click();
     const filters = page.getByRole("dialog");
     await filters.getByRole("button", { name: "Close filters", exact: true }).waitFor();
@@ -338,6 +457,45 @@ try {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await pause(100);
     assert.equal(searches.filter((q) => q.page === 2).length, 1);
+    await page.getByText("Loading more listings…", { exact: true }).waitFor();
+    await page.evaluate(() => {
+      const target = document.querySelector(".native-browse-page");
+      const send = (type, y) =>
+        target.dispatchEvent(
+          new TouchEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            touches:
+              type === "touchend"
+                ? []
+                : [new Touch({ identifier: 2, target, clientX: 120, clientY: y })],
+          }),
+        );
+      send("touchstart", 650);
+      send("touchmove", 500);
+    });
+    assert.equal(
+      await page
+        .locator("#native-page-surface")
+        .evaluate((node) => node.style.getPropertyValue("--native-bottom-translate")),
+      "0 -48px",
+    );
+    await page.evaluate(() =>
+      document
+        .querySelector(".native-browse-page")
+        .dispatchEvent(new TouchEvent("touchend", { bubbles: true, touches: [] })),
+    );
+    assert.equal(
+      await page
+        .locator("#native-page-surface")
+        .evaluate((node) => node.style.getPropertyValue("--native-bottom-translate")),
+      "",
+    );
+    assert.equal(
+      searches.filter((q) => q.page === 2).length,
+      1,
+      "Bottom gestures cannot duplicate a pending page request",
+    );
     pageRelease();
     holdPage = false;
     await page.getByRole("button", { name: "Retry loading listings", exact: true }).waitFor();
@@ -361,6 +519,48 @@ try {
       await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
       false,
     );
+    await page.goto(`${origin}/#/search?state=ID`);
+    await page.getByRole("heading", { name: "All classifieds", exact: true }).waitFor();
+    assert.equal(await page.getByText("Bluebird classifieds", { exact: true }).count(), 0);
+    const genericFilter = await page.getByRole("button", { name: /^Filters/ }).boundingBox();
+    const genericSort = await page.getByLabel("Sort", { exact: true }).boundingBox();
+    assert(
+      genericFilter && genericSort && Math.abs(genericFilter.y - genericSort.y) < 8,
+      "Classified filters and sort share a row",
+    );
+    assert(
+      genericFilter.x + genericFilter.width + 8 <= genericSort.x,
+      "Sort cannot cover the filter count or button",
+    );
+    assert.equal(
+      await page
+        .getByText("Local listings from sellers across Idaho.", { exact: true })
+        .evaluate((n) => getComputedStyle(n).fontSize),
+      "12px",
+    );
+    await page.evaluate(async () => {
+      await window.fixtureTransitionFinished;
+      await Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => Number.isFinite(a.effect?.getComputedTiming().endTime))
+          .map((a) => a.finished.catch(() => {})),
+      );
+    });
+    await page.screenshot({ path: resolve(output, `classifieds-${width}.png`) });
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    assert(
+      parseFloat(
+        await page
+          .locator("#native-page-surface")
+          .evaluate((n) => getComputedStyle(n).transitionDuration),
+      ) <= 0.001,
+      "Reduced motion removes elastic settling",
+    );
     results.push({
       width,
       cream: true,
@@ -373,6 +573,16 @@ try {
       filtersAlwaysClosable: true,
       automaticPagination: true,
       paginationRetryRetainsCards: true,
+      safeTop,
+      fullRefreshIndicator: true,
+      compactFacts: true,
+      centeredInformation: true,
+      threePhoneColumns: true,
+      shortPreviewCards: true,
+      cityDateSameLine: true,
+      filterSortSameRow: true,
+      bottomSpinner: true,
+      elasticBottom: true,
     });
     await page.close();
   }
