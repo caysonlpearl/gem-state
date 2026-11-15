@@ -423,6 +423,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         pageSize: 24,
       };
     let preferredIds: string[] = [];
+    let feedModel = "category-mix-v1";
     if (
       !filters.sort &&
       mobileSaleScope(filters) &&
@@ -433,7 +434,10 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         const rows = await (
           await import("./mobile-shopping.server")
         ).handleMobileShopping(request, "recommendations", await database(), user);
-        if ("recommended" in rows) preferredIds = rows.recommended.map((card: any) => card.id);
+        if ("recommended" in rows) {
+          preferredIds = rows.recommended.map((card: any) => card.id);
+          if (preferredIds.length) feedModel = `category-mix-v1:${rows.model}`;
+        }
       } catch {
         // Public shopping remains available when history/permissions are unavailable.
       }
@@ -447,12 +451,14 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         filters,
       );
     } catch {
+      feedModel = "category-mix-v1";
       page = mobileCachedSearch(
         await (await import("./homepage-snapshot.server")).readHomepageSnapshot(),
         filters,
       );
     }
     return {
+      ...(!filters.sort && mobileSaleScope(filters) ? { feedModel } : {}),
       items: page.listings.filter(mobileListingAllowed).map(dto),
       nextPage: page.page * page.pageSize < page.total ? page.page + 1 : null,
       incomplete: page.incomplete === true,

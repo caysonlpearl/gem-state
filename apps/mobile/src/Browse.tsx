@@ -254,7 +254,8 @@ export function NativeBrowse({
         view={view}
         card={cardsById.get(listing.id)!}
         position={position}
-        placement="browse"
+        placement={mobileSaleScope(search) && !search.sort ? "for_you" : "browse"}
+        model={result?.feedModel ?? "browse-v1"}
         learning={learning && active}
         onOpen={(id) => onNavigate(`/listings/${id}`)}
       />

@@ -92,6 +92,7 @@ export function mobileMediaUrl(value: unknown): string | null {
   }
 }
 export type MobileBrowse = {
+  feedModel?: string;
   items: MobileListing[];
   nextPage: number | null;
   incomplete: boolean;
