@@ -1,0 +1,15 @@
+{
+  "projectRef": "udxxfuticbxwiehoepeg",
+  "capturedAt": "2026-11-15T11:44:07.525422+00:00",
+  "metadataOnly": true,
+  "function": {
+    "acl": "{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",
+    "config": [
+      "search_path=public, pg_temp"
+    ],
+    "bodyMd5": "51dae1114f14e9e65ff69d4408a851f8",
+    "signature": "sourcing_request_media(uuid,uuid)",
+    "definition": "CREATE OR REPLACE FUNCTION public.sourcing_request_media(_request_id uuid, _caller uuid)\n RETURNS TABLE(media_id uuid, storage_path text, caption text, sort_position integer)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'pg_temp'\nAS $function$BEGIN\n PERFORM public.assert_current_account_access(); -- bluebird-account-boundary-v1\n\nDECLARE\n  r public.sourcing_requests; is_staff boolean; allowed boolean := false;\nBEGIN\n  IF _caller IS NULL THEN RAISE EXCEPTION 'Sign in required'; END IF;\n  SELECT * INTO r FROM public.sourcing_requests WHERE id = _request_id;\n  IF r.id IS NULL THEN RAISE EXCEPTION 'Sourcing request not found'; END IF;\n\n  is_staff := public.has_role(_caller,'moderator') OR public.has_role(_caller,'admin');\n\n  IF r.buyer_id = _caller THEN\n    allowed := true;\n  ELSIF is_staff THEN\n    allowed := true;\n    INSERT INTO public.admin_audit_log (actor_id, action, entity, entity_id, note)\n    VALUES (_caller, 'sourcing_request_media_accessed', 'sourcing_requests', r.id,\n            'Moderator or administrator opened the private reference photos on a sourcing request.');\n  ELSIF public.has_role(_caller,'shopper') THEN\n    IF r.status = 'open' AND r.expires_at > now() THEN\n      allowed := true;\n    ELSE\n      allowed := EXISTS (\n        SELECT 1 FROM public.shopper_quotes q\n         WHERE q.id = r.accepted_quote_id AND q.shopper_id = _caller AND q.status = 'accepted');\n    END IF;\n  END IF;\n\n  IF NOT allowed THEN RAISE EXCEPTION 'You are not permitted to view this reference media'; END IF;\n\n  RETURN QUERY\n    SELECT m.id, m.storage_path, m.caption, m.\"position\"\n      FROM public.request_media m\n     WHERE m.request_id = r.id\n     ORDER BY m.\"position\", m.created_at;\nEND;\nEND;$function$\n",
+    "securityDefiner": true
+  }
+}
