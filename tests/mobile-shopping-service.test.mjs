@@ -121,7 +121,9 @@ function fixture({ onVisual } = {}) {
           return q;
         },
         eq(key, val) {
-          rows = rows.filter((r) => r[key] === val);
+          rows = rows.filter(
+            (r) => (key === "card->home->>mode" ? r.card.home?.mode : r[key]) === val,
+          );
           return q;
         },
         gt(key, val) {
@@ -297,7 +299,7 @@ test("Recently viewed resolves an older newly revisited listing independently of
   assert.equal(result.recent[0].id, revisited.id);
   assert.equal(
     result.model,
-    "rules-v1:category-seeds-v1:engagement-v1",
+    "rules-v1:category-seeds-v2:engagement-v1",
     "Missing vectors do not block useful history; exposure identifies the new selection strategy",
   );
   assert.equal(
@@ -498,4 +500,33 @@ test("signed-in app learning needs explicit native terms while withdrawal and hi
     user,
   );
   assert.equal(f.rpc.at(-1).args._allowed, true);
+});
+
+test("interested categories remain recommendable beyond the newest global page when vectors are missing", async () => {
+  const f = fixture({ onVisual: () => ({ data: [] }) });
+  const seed = {
+    ...f.car,
+    id: "dealerfeed-older-desk",
+    title: "Desk",
+    categorySlug: "home-garden",
+    priceCents: 5000,
+  };
+  const match = { ...seed, id: "dealerfeed-related-desk" };
+  f.tables.shopping_inventory.splice(
+    0,
+    Infinity,
+    ...Array.from({ length: 220 }, (_, n) => inventoryRow({ ...f.car, id: `dealerfeed-new-${n}` })),
+    inventoryRow(seed),
+    inventoryRow(match),
+  );
+  f.tables.shopping_events.splice(0, Infinity, view(f.subject, seed.id));
+  const result = await shared.shoppingRecommendations(f.db, f.subject, {
+    eligible: mobileContract.mobileListingAllowed,
+  });
+  assert(result.recommended.some((card) => card.id === match.id));
+  assert(
+    f.rpc.every((r) =>
+      ["shopping_visual_candidates", "read_published_dealer_inventory"].includes(r.name),
+    ),
+  );
 });

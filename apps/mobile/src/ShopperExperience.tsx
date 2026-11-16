@@ -15,6 +15,7 @@ import { isShoppingForeground, shoppingOverlayOpen } from "./shopping-activity";
 import {
   applyShopperStatus,
   clearShoppingHistory,
+  flushShopping,
   shopperStatus,
   trackShopping,
   updatePersonalization,
@@ -140,17 +141,22 @@ export function ShoppingRows({
   revision,
   similarId,
   fallbackCards = [],
+  active = true,
+  onPersonalize,
 }: {
   learning: boolean;
   onOpen: (id: string) => void;
   revision: number;
   similarId?: string;
   fallbackCards?: MobileListing[];
+  active?: boolean;
+  onPersonalize?: () => void;
 }) {
   const scope = `${revision}:${learning}:${similarId ?? ""}`;
   const [loaded, setRows] = useState<{ scope: string; rows: RecommendationRows } | null>(null);
   useEffect(() => {
     setRows(null);
+    if (!active) return;
     if (!learning && !similarId) return;
     const controller = new AbortController();
     const load = similarId
@@ -160,7 +166,10 @@ export function ShoppingRows({
           undefined,
           controller.signal,
         ).then((r) => ({ recent: [], continuing: [], recommended: r.cards, model: r.model }))
-      : api<RecommendationRows>("recommendations", "GET", undefined, controller.signal);
+      : flushShopping().then(() => {
+          controller.signal.throwIfAborted();
+          return api<RecommendationRows>("recommendations", "GET", undefined, controller.signal);
+        });
     load
       .then((rows) => {
         if (!controller.signal.aborted) setRows({ scope, rows });
@@ -169,7 +178,7 @@ export function ShoppingRows({
         /* Browsing remains the useful fallback. */
       });
     return () => controller.abort();
-  }, [learning, revision, similarId]);
+  }, [active, learning, revision, similarId, scope]);
   const byId = new Map(fallbackCards.map((card) => [card.id, card]));
   const fallback = mixMobileSaleFeed(fallbackCards.map(listingPresentation), [], 8).map((card) =>
     byId.get(card.id)!,
@@ -200,7 +209,16 @@ export function ShoppingRows({
             density="compact"
             eyebrow=""
             title={label}
-            action={null}
+            action={
+              placement === "home:for-you-fallback" && !learning && onPersonalize ? (
+                <button
+                  onClick={onPersonalize}
+                  className="min-h-11 text-[12.5px] font-semibold text-primary"
+                >
+                  Personalize
+                </button>
+              ) : null
+            }
           >
             <div className="native-listing-rail no-scrollbar mt-2 flex gap-2.5 overflow-x-auto pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible">
               {items.map((card, position) => (

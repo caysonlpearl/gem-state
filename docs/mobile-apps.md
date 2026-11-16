@@ -1247,3 +1247,37 @@ changing the email. These use intercepted Auth requests and never send email.
 An accepted real resend request does not prove inbox delivery. Provider logs and
 owner receipt are still needed before reporting a delivery issue as resolved;
 this source change is not evidence of an updated installed iPhone build.
+
+## November 16 Home discovery fixes
+
+Member cards use a stable, publication-checked cover address instead of relying
+on expiring signed thumbnail addresses in the homepage snapshot. The card-size
+resolver prefers the existing thumbnail and falls back to an available original;
+missing/removed/private listings retain the existing visibility and error gates.
+The native renderer and API also repair older cached cards whose image is null.
+No provider refresh is introduced.
+
+Compact Home and shopping rails stretch each card/caption to its row's common
+bottom while keeping natural one/two-line titles and title → price → location.
+When personalization is off, For you offers a Personalize action opening the
+existing privacy dialog. It does not enable learning implicitly.
+
+Recommendations refresh when returning Home, after a successful pull refresh,
+and through the existing native foreground revision. A read waits for in-flight
+and newly queued activity writes. Identity changes and withdrawal still discard
+queued activity; there is no persistent replay. Shared ranking additionally
+retrieves up to 80 valid cached candidates per seeded category/home intent,
+with at most eight intents, four concurrent queries and a shared six-second
+deadline. This avoids dependence on the newest global 200 rows when vectors are
+missing. The model marker changes to category-seeds-v2. Actual results depend on
+permitted history and inventory; a fresh read need not reorder identical inputs.
+
+Validation: 1,684 tests passed and four skipped; TypeScript and website/mobile
+builds passed. Changed-file lint passed with one existing hook warning; the full
+repository lint has unrelated existing errors. UI checks cover 320/390/768/1280
+where applicable, including equal card bottoms, Home return refresh, privacy
+withdrawal and a loaded stable member-photo address. A separate candidate-app
+render used the public production Home response and visibly loaded the real
+saucer, rain-suit and Minnie photos. These previews do not prove authenticated
+recommendation quality, native foreground delivery or phone installation.
+Evidence: output/mobile-discovery-fixes-20261116/ and the local verification logs.

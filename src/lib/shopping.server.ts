@@ -260,9 +260,46 @@ export async function shoppingRecommendations(
       : { data: [] },
   ]);
   if (references.error || visualRows.error) throw Error("Recommendation candidates unavailable.");
+  // The newest global page can be entirely unrelated to a shopper's interests.
+  // Reserve a bounded cache-only candidate pool for each seeded category/intent,
+  // including installations whose background vectors are not available yet.
+  const scopes = [
+    ...new Map(
+      seedIds.flatMap((id) => {
+        const context = contexts.get(id);
+        return context
+          ? [[JSON.stringify([context.category, context.mode]), context] as const]
+          : [];
+      }),
+    ).values(),
+  ];
+  const categoryRows: any[] = [];
+  const candidateDeadline = AbortSignal.timeout(6000);
+  for (let offset = 0; offset < scopes.length; offset += 4) {
+    const results = await Promise.all(
+      scopes.slice(offset, offset + 4).map(async (context) => {
+        let query = db
+          .from("shopping_inventory")
+          .select("card,content_hash,valid_until")
+          .eq("category", context.category)
+          .gt("valid_until", new Date().toISOString());
+        if (context.mode !== null) query = query.eq("card->home->>mode", context.mode);
+        return query
+          .order("first_seen_at", { ascending: false })
+          .limit(80)
+          .abortSignal(candidateDeadline)
+          .retry(false);
+      }),
+    );
+    candidateDeadline.throwIfAborted();
+    if (results.some((result) => result.error || !Array.isArray(result.data)))
+      throw Error("Recommendation category candidates unavailable.");
+    categoryRows.push(...results.flatMap((result) => result.data));
+  }
   const current = new Map<string, ShoppingCard>(
     [
       ...(inventory.data ?? []),
+      ...categoryRows,
       ...(references.data ?? []).filter((r: any) => Date.parse(r.valid_until) > Date.now()),
       ...(visualRows.data ?? []),
     ]

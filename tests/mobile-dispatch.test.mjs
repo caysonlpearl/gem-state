@@ -22,6 +22,7 @@ import ts from "typescript";
 import { z } from "zod";
 import * as contract from "../src/lib/mobile-contract.ts";
 import * as protocol from "../src/lib/mobile-api.ts";
+import * as cardImages from "../src/lib/listing-card-image.ts";
 import * as mobileWrite from "../src/lib/mobile-write.ts";
 import * as catalog from "../src/lib/mobile-catalog.ts";
 const compiled = ts.transpileModule(
@@ -52,6 +53,7 @@ function harness({
   scopedDealerConversation = false,
   legacySavedCount = 0,
   listingManagement = false,
+  nativeSnapshot = false,
 } = {}) {
   const user = "11111111-1111-4111-8111-111111111111",
     nativeListing = "22222222-2222-4222-8222-222222222222",
@@ -179,6 +181,7 @@ function harness({
     },
   };
   const modules = {
+    "./listing-card-image.ts": cardImages,
     "./account-deletion-access.server": deletionAccess,
     "@supabase/supabase-js": {
       createClient: () => ({
@@ -367,7 +370,7 @@ function harness({
             updatedAt: Date.now(),
             cards: [
               {
-                id: "dealerfeed-snapshot",
+                id: nativeSnapshot ? "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" : "dealerfeed-snapshot",
                 title: "A car",
                 categorySlug: "cars-trucks",
                 priceCents: 100,
@@ -1625,4 +1628,16 @@ test("native edit requests validate full website fields and normalize SQL detail
   ])
     assert.equal((await request({ ...input, ...changes }, crypto.randomUUID())).status, 400);
   assert.equal(h.writes.filter((w) => w.kind === "manage-listing").length, 1);
+});
+
+test("cached native cards with missing preview links receive a stable public photo address", async () => {
+  const h = harness({ nativeSnapshot: true });
+  const result = await h.request("listings");
+  assert.equal(result.status, 200);
+  const body = await result.json();
+  assert.equal(
+    body.data.items[0].imageUrl,
+    "https://onbluebird.com/media/listings/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/0?size=card",
+  );
+  assert.equal(h.writes.length, 0);
 });
