@@ -227,29 +227,47 @@ function FeaturedBadge() {
  */
 function DirectoryRating({
   directory,
+  compact = false,
 }: {
   directory: NonNullable<ListingCardSummary["directory"]>;
+  compact?: boolean;
 }) {
   return (
-    <div className="min-h-[34px]">
+    <div className={compact ? "h-7" : "min-h-[34px]"}>
       {directory.rating != null ? (
-        <p className="flex items-baseline gap-1.5 leading-none">
-          <span className="text-[17px] text-brand-warm" aria-hidden="true">
+        <p
+          aria-label={`${directory.rating.toFixed(1)} out of 5${directory.reviewCount != null ? ` from ${directory.reviewCount} Google reviews` : ""}`}
+          className={`flex items-baseline ${compact ? "gap-1 leading-[14px]" : "gap-1.5 leading-none"}`}
+        >
+          <span
+            className={`${compact ? "text-[12px]" : "text-[17px]"} text-brand-warm`}
+            aria-hidden="true"
+          >
             ★
           </span>
-          <span className="numeric text-[19px] font-bold text-foreground">
+          <span
+            className={`numeric font-bold text-foreground ${compact ? "text-[14px]" : "text-[19px]"}`}
+          >
             {directory.rating.toFixed(1)}
           </span>
           {directory.reviewCount != null ? (
-            <span className="text-[11.5px] text-muted-foreground">
-              {directory.reviewCount.toLocaleString()} Google review
-              {directory.reviewCount === 1 ? "" : "s"}
+            <span
+              className={`${compact ? "min-w-0 truncate text-[10px]" : "text-[11.5px]"} text-muted-foreground`}
+            >
+              {compact ? (
+                `(${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(directory.reviewCount)}) Google`
+              ) : (
+                <>
+                  {directory.reviewCount.toLocaleString()} Google review
+                  {directory.reviewCount === 1 ? "" : "s"}
+                </>
+              )}
             </span>
           ) : null}
         </p>
       ) : null}
       <p
-        className={`text-[12px] font-semibold text-primary ${directory.rating != null ? "mt-1.5" : "pt-1"}`}
+        className={`font-semibold text-primary ${compact ? "text-[11px] leading-[14px]" : `text-[12px] ${directory.rating != null ? "mt-1.5" : "pt-1"}`}`}
       >
         Call for a quote
       </p>
@@ -576,9 +594,15 @@ export function ListingCardView({
                   .join(" ") || listing.title
               : listing.title}
           </h3>
-          <div className="mt-1 numeric text-[17px] font-bold leading-5 text-primary">
+          <div
+            className={
+              listing.directory
+                ? "native-directory-summary"
+                : "mt-1 numeric text-[17px] font-bold leading-5 text-primary"
+            }
+          >
             {listing.directory ? (
-              "Call for a quote"
+              <DirectoryRating directory={listing.directory} compact />
             ) : (
               <Price listing={listing} showRetail={false} />
             )}
@@ -598,7 +622,9 @@ export function ListingCardView({
               </span>
             </div>
           ) : (
-            <p className="mt-1 truncate text-[11px] leading-4 text-muted-foreground">
+            <p
+              className={`${listing.directory ? "" : "mt-1"} truncate text-[11px] leading-4 text-muted-foreground`}
+            >
               {listing.externalMerchandise
                 ? "Shipping Only"
                 : placeLabel(listing.city, listing.state)}

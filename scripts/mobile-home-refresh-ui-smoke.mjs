@@ -222,15 +222,16 @@ try {
     );
     await page.evaluate(() => window.scrollTo(0, 0));
     const headings = await page.locator(".mobile-home h2").allTextContents();
-    assert.deepEqual(headings.slice(0, 5), [
+    assert.deepEqual(headings.slice(0, 6), [
       "For you",
+      "Vehicles we think you'll like",
       "Vehicles",
       "Fresh local finds",
       "Homes for sale",
       "New vehicle arrivals",
     ]);
     assert(headings.length >= 13, `Expected a longer real feed, got ${headings.length} sections`);
-    await page.getByText("Find your next gem in the gem state", { exact: true }).waitFor();
+    await page.getByText("Find your next gem in the gem state 😁", { exact: true }).waitFor();
     assert.equal(
       await page
         .locator(".mobile-home")

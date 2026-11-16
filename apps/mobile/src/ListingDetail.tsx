@@ -418,6 +418,10 @@ export function NativeListingDetail({
           <div className="mx-auto max-w-[1360px] px-4 pb-12 sm:px-7 lg:px-10">
             <ShoppingRows
               similarId={data.listing.id}
+              sourceCreditsCovered={{
+                pets: Boolean(data.listing.externalPet),
+                vehicles: data.listing.id.startsWith("marketcheck-"),
+              }}
               learning={learning}
               revision={revision}
               onOpen={(next) => {

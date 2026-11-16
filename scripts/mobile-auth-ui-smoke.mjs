@@ -133,6 +133,8 @@ try {
       parseFloat(getComputedStyle(field).fontSize),
     );
     assert(iosHomeFieldSize >= 16, "Native iPhone search fields must avoid focus zoom");
+    await homeSearch.blur();
+    await page.evaluate(() => window.scrollTo(0, 0));
     assert.equal(await page.getByRole("searchbox").count(), 1, "The homepage has one search field");
     assert.equal(
       await page.locator(".classifieds-hero-shell, .homepage-featured-categories").count(),
@@ -150,7 +152,7 @@ try {
       "The inventory section starts near the top",
     );
     const shortcuts = page.getByRole("navigation", { name: "Shop by category", exact: true });
-    const tagline = page.getByText("Find your next gem in the gem state", { exact: true });
+    const tagline = page.getByText("Find your next gem in the gem state 😁", { exact: true });
     const taglineBox = await tagline.boundingBox(),
       shortcutsBox = await shortcuts.boundingBox();
     assert(taglineBox && shortcutsBox && taglineBox.y >= shortcutsBox.y + shortcutsBox.height - 1);

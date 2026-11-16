@@ -561,7 +561,9 @@ try {
           .getByRole("navigation", { name: "Account sections", exact: true })
           .getByRole("button", { name: "Account & security", exact: true })
           .click();
-      await page.getByRole("heading", { name: "Control your account", exact: true }).waitFor();
+      await page.getByRole("heading", { name: "Account details", exact: true }).waitFor();
+      assert.equal(await page.getByText("Control your account", { exact: true }).count(), 0);
+      assert.equal(await page.getByText("Member center", { exact: true }).count(), 0);
     }
     await selectSettings();
     assert.equal(
@@ -603,6 +605,11 @@ try {
     await page.getByRole("status").filter({ hasText: "Password reset email sent." }).waitFor();
     assert.equal(authCalls[0].body.email, "first@example.invalid");
     assert.equal(authCalls[0].redirect, origin + "/#/auth/callback");
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: resolve(output, `settings-top-${viewport.width}.png`),
+      animations: "disabled",
+    });
     await page.screenshot({
       path: resolve(output, `shared-settings-${viewport.width}.png`),
       fullPage: true,

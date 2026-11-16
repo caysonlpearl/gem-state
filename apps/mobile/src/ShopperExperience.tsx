@@ -6,6 +6,7 @@ import {
 } from "../../../src/components/classifieds/ListingCardView";
 import { listingPresentation } from "./listing-presentation";
 import { ListingSourceCredits } from "./ListingSourceCredits";
+import { mobileRecommendationVehicle } from "../../../src/lib/mobile-shopping";
 import { MarketplaceListingSection } from "../../../src/components/classifieds/MarketplaceListingSection";
 import { mobileSaleItem, mixMobileSaleFeed } from "../../../src/lib/mobile-sale-feed";
 import { CardSaveButton } from "./SavedCards";
@@ -143,6 +144,7 @@ export function ShoppingRows({
   fallbackCards = [],
   active = true,
   onPersonalize,
+  sourceCreditsCovered = {},
 }: {
   learning: boolean;
   onOpen: (id: string) => void;
@@ -151,6 +153,7 @@ export function ShoppingRows({
   fallbackCards?: MobileListing[];
   active?: boolean;
   onPersonalize?: () => void;
+  sourceCreditsCovered?: { pets?: boolean; vehicles?: boolean };
 }) {
   const scope = `${revision}:${learning}:${similarId ?? ""}`;
   const [loaded, setRows] = useState<{ scope: string; rows: RecommendationRows } | null>(null);
@@ -172,7 +175,29 @@ export function ShoppingRows({
         });
     load
       .then((rows) => {
-        if (!controller.signal.aborted) setRows({ scope, rows });
+        if (controller.signal.aborted) return;
+        setRows({ scope, rows });
+        if (!similarId) {
+          void api<RecommendationRows>(
+            "recommendations?scope=vehicles",
+            "GET",
+            undefined,
+            controller.signal,
+          )
+            .then((vehicles) => {
+              if (!controller.signal.aborted)
+                setRows({
+                  scope,
+                  rows: {
+                    ...rows,
+                    vehicles: vehicles.recommended.filter(mobileRecommendationVehicle),
+                  },
+                });
+            })
+            .catch(() => {
+              /* General recommendations remain available. */
+            });
+        }
       })
       .catch(() => {
         /* Browsing remains the useful fallback. */
@@ -187,6 +212,10 @@ export function ShoppingRows({
   if (similarId && !rows) return null;
   const current = rows ?? { recent: [], continuing: [], recommended: [], model: "category-mix-v1" };
   const recommended = current.recommended.filter(mobileSaleItem);
+  const vehicles = current.vehicles?.filter(mobileRecommendationVehicle) ?? [];
+  const vehicleFallback = fallbackCards
+    .filter((card) => mobileListingAllowed(card) && mobileRecommendationVehicle(card))
+    .slice(0, 8);
   const groups: [string, string, MobileListing[]][] = similarId
     ? [["More like this", "similar", current.recommended]]
     : [
@@ -194,6 +223,11 @@ export function ShoppingRows({
           "For you",
           recommended.length ? "recommended" : "home:for-you-fallback",
           recommended.length ? recommended : fallback,
+        ],
+        [
+          "Vehicles we think you'll like",
+          vehicles.length ? "recommended:vehicles" : "home:vehicles-fallback",
+          vehicles.length ? vehicles : vehicleFallback,
         ],
         ["Recently viewed", "recent", current.recent],
         ["Continue shopping", "continuing", current.continuing],
@@ -210,7 +244,9 @@ export function ShoppingRows({
             eyebrow=""
             title={label}
             action={
-              placement === "home:for-you-fallback" && !learning && onPersonalize ? (
+              ["home:for-you-fallback", "home:vehicles-fallback"].includes(placement) &&
+              !learning &&
+              onPersonalize ? (
                 <button
                   onClick={onPersonalize}
                   className="min-h-11 text-[12.5px] font-semibold text-primary"
@@ -228,16 +264,22 @@ export function ShoppingRows({
                     card={card}
                     position={position}
                     placement={placement}
-                    model={
-                      placement === "home:for-you-fallback" ? "category-mix-v1" : current.model
-                    }
+                    model={placement.startsWith("home:") ? "category-mix-v1" : current.model}
                     learning={learning}
                     onOpen={onOpen}
                   />
                 </div>
               ))}
             </div>
-            {similarId && <ListingSourceCredits cards={items} />}
+            {similarId && (
+              <ListingSourceCredits
+                cards={items.filter(
+                  (card) =>
+                    !(sourceCreditsCovered.pets && card.id.startsWith("rescuegroups-")) &&
+                    !(sourceCreditsCovered.vehicles && card.id.startsWith("marketcheck-")),
+                )}
+              />
+            )}
           </MarketplaceListingSection>
         ) : null;
       })}

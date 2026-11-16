@@ -37,6 +37,7 @@ export function AccountLayoutView({
   availableSections = navItems.map((item) => item.section),
   signOutBusy = false,
   as: Container = "main",
+  compact = false,
 }: {
   section: AccountSection;
   onSelect: (section: AccountSection) => void;
@@ -50,19 +51,26 @@ export function AccountLayoutView({
   availableSections?: readonly AccountSection[];
   signOutBusy?: boolean;
   as?: "main" | "section";
+  compact?: boolean;
 }) {
   return (
     <Container
       id={Container === "main" ? "main-content" : undefined}
-      className="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 lg:px-8"
+      className={`mx-auto max-w-[1320px] px-4 ${compact ? "py-4" : "py-8"} sm:px-6 lg:px-8`}
     >
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 lg:hidden">
-        <div>
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-            Member center
-          </p>
-          <h1 className="mt-1 text-[24px] font-bold tracking-tight">Your account</h1>
-        </div>
+      <div
+        className={`${compact ? "mb-4 justify-end" : "mb-6 justify-between"} flex flex-wrap items-center gap-4 lg:hidden`}
+      >
+        {compact ? (
+          <h1 className="sr-only">Account</h1>
+        ) : (
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+              Member center
+            </p>
+            <h1 className="mt-1 text-[24px] font-bold tracking-tight">Your account</h1>
+          </div>
+        )}
         <select
           aria-label="Account section"
           value={section}

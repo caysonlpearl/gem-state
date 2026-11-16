@@ -189,7 +189,7 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
 }
 
 function SellerCard({ listing }: { listing: ClassifiedDetail }) {
-  const { onContact: trackSellerContact } = useListingDetailRuntime();
+  const { onContact: trackSellerContact, photoFirst } = useListingDetailRuntime();
   const seller = listing.seller;
   if (!seller) return null;
   const contactLinkClass =
@@ -218,7 +218,7 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           <span className="font-semibold">On Bluebird since:</span> {seller.memberSince}
         </p>
       ) : null}
-      {seller.managedByBluebird ? (
+      {seller.managedByBluebird && !photoFirst ? (
         <p className="mt-2 text-xs text-muted-foreground">Managed by Bluebird</p>
       ) : null}
       {seller.sellerType ? (
@@ -2210,7 +2210,7 @@ function HomeListingDetail({
   description: string;
   handleShare: () => Promise<void>;
 }) {
-  const { onPrint } = useListingDetailRuntime();
+  const { onPrint, photoFirst } = useListingDetailRuntime();
   const details = homeRentalDetails(listing, description);
   const mapLocation = homeMapLocation(listing);
   const priceCut = homePriceCut(listing.priceCents, details.priceHistory);
@@ -2292,8 +2292,8 @@ function HomeListingDetail({
         <HomePhotoCollage listing={listing} />
       </div>
 
-      <div className="native-detail-grid mt-7 grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <div className="native-detail-body min-w-0 space-y-7">
+      <div className="native-detail-grid native-home-detail-grid mt-7 grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <div className={`native-detail-body min-w-0 ${photoFirst ? "" : "space-y-7"}`}>
           <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border/70 pb-6">
             <div className="min-w-0">
               {details.community && (
@@ -2320,15 +2320,15 @@ function HomeListingDetail({
                   ) : null}
                 </p>
               ) : null}
-              <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
-                <p className="numeric text-[36px] font-extrabold tracking-[-0.035em] leading-none sm:text-[42px]">
+              <div className="home-price-summary flex flex-wrap items-end gap-x-7 gap-y-3">
+                <p className="home-main-price numeric text-[36px] font-extrabold tracking-[-0.035em] leading-none sm:text-[42px]">
                   {price}
                   {details.isRental ? (
                     <span className="text-[18px] font-semibold text-muted-foreground">/mo</span>
                   ) : null}
                 </p>
                 {stats.length ? (
-                  <dl className="flex items-end gap-5">
+                  <dl className="home-summary-stats flex items-end gap-5">
                     {stats.map(([value, label]) => (
                       <div key={label || value} className="flex flex-col-reverse">
                         <dt className="mt-1 text-[12px] text-muted-foreground">{label}</dt>
@@ -3433,7 +3433,7 @@ function GeneralListingDetail({
   locationQuery: string;
   handleShare: () => Promise<void>;
 }) {
-  const { onPrint } = useListingDetailRuntime();
+  const { onPrint, photoFirst } = useListingDetailRuntime();
   const [activeTab, setActiveTab] = useState<"description" | "location">("description");
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
@@ -3567,9 +3567,11 @@ function GeneralListingDetail({
               )}
             </div>
           </div>
-          <div className="mt-3 lg:hidden">
-            <GeneralListingPrice listing={listing} />
-          </div>
+          {!photoFirst && (
+            <div className="mt-3 lg:hidden">
+              <GeneralListingPrice listing={listing} />
+            </div>
+          )}
         </header>
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">
           <Gallery listing={listing} />

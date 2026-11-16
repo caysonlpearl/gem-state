@@ -230,6 +230,60 @@ const view = (subject, id, at = new Date().toISOString()) => ({
   occurred_at: at,
 });
 
+test("the vehicle recommendation scope learns from eligible vehicle history and excludes other inventory", async () => {
+  const f = fixture();
+  const desk = {
+    ...f.car,
+    id: "native-desk",
+    title: "Oak desk",
+    categorySlug: "furniture",
+    vehicle: null,
+  };
+  f.tables.shopping_inventory.push(inventoryRow(desk));
+  f.tables.shopping_events.push(view(f.subject, desk.id));
+  const result = await handle(
+    new Request("https://onbluebird.com/api/mobile/v1/recommendations?scope=vehicles", {
+      headers: { "X-Bluebird-Install": f.subject.slice(2) },
+    }),
+    "recommendations",
+    f.db,
+    null,
+  );
+  assert(result.recommended.some((c) => c.id === "dealerfeed-other"));
+  for (const card of [...result.recent, ...result.continuing, ...result.recommended])
+    assert.equal(card.categorySlug, "cars-trucks");
+  assert(
+    !f.rpc.find((r) => r.name === "shopping_visual_candidates").args.seed_ids.includes(desk.id),
+  );
+  assert(
+    f.rpc.every((r) =>
+      ["shopping_visual_candidates", "read_published_dealer_inventory"].includes(r.name),
+    ),
+  );
+  f.tables.shopping_privacy[0].personalization = false;
+  const withdrawn = await handle(
+    new Request("https://onbluebird.com/api/mobile/v1/recommendations?scope=vehicles", {
+      headers: { "X-Bluebird-Install": f.subject.slice(2) },
+    }),
+    "recommendations",
+    f.db,
+    null,
+  );
+  assert.deepEqual(withdrawn.recommended, []);
+  await assert.rejects(
+    () =>
+      handle(
+        new Request("https://onbluebird.com/api/mobile/v1/recommendations?scope=unknown", {
+          headers: { "X-Bluebird-Install": f.subject.slice(2) },
+        }),
+        "recommendations",
+        f.db,
+        null,
+      ),
+    /recommendation category/,
+  );
+});
+
 test("shared app and website ranking retain a lighter category alongside a dominant vehicle interest", async () => {
   let desk, similar;
   const f = fixture({

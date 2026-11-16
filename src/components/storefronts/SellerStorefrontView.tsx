@@ -6,11 +6,13 @@ export function SellerStorefrontView({
   seller,
   userId,
   focusReview = false,
+  showManagedBadge = true,
   runtime,
 }: {
   seller: PublicSeller;
   userId?: string;
   focusReview?: boolean;
+  showManagedBadge?: boolean;
   runtime: {
     Link: ComponentType<StorefrontLinkProps>;
     Listings: ComponentType<{ listings: PublicListing[]; showProduct?: boolean }>;
@@ -49,7 +51,7 @@ export function SellerStorefrontView({
           <div className="min-w-0">
             <h1 className="flex flex-wrap items-center gap-2 [overflow-wrap:anywhere] font-editorial text-[38px] font-normal tracking-[-0.035em]">
               {seller.displayName}
-              {seller.managedByBluebird && (
+              {seller.managedByBluebird && showManagedBadge && (
                 <span className="rounded-full bg-secondary px-2 py-1 text-xs font-semibold">
                   Managed by Bluebird
                 </span>

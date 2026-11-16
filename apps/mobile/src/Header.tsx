@@ -120,7 +120,7 @@ export function NativeHeader({
           <form
             role="search"
             aria-label="Search Bluebird"
-            className="flex h-12 min-w-0 flex-1 items-center rounded-full bg-secondary/70"
+            className="native-search-field flex h-12 min-w-0 flex-1 items-center rounded-full bg-secondary/70"
             onSubmit={(event) => {
               event.preventDefault();
               const current = browseLocation(window.location.hash);
@@ -180,7 +180,7 @@ export function NativeHeader({
               )
             }
           />
-          <p className="native-home-tagline">Find your next gem in the gem state</p>
+          <p className="native-home-tagline">Find your next gem in the gem state 😁</p>
         </>
       )}
     </>

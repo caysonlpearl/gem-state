@@ -284,6 +284,7 @@ export function NativeAccount({
   return (
     <AccountLayoutView
       as="section"
+      compact
       section={section}
       onSelect={selectSection}
       onSignOut={() => void onSignOut()}
@@ -486,6 +487,7 @@ function NativeSettings({
   useEffect(() => setNotifications(data.notifications), [data.notifications]);
   return (
     <AccountSettingsView
+      showIntroduction={false}
       account={data.member.account}
       contact={contact}
       setContact={setContact}

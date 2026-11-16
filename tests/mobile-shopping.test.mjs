@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
-import { mobileShoppingEvent, mobileGuestSubject } from "../src/lib/mobile-shopping.ts";
+import {
+  mobileShoppingEvent,
+  mobileGuestSubject,
+  mobileRecommendationVehicle,
+} from "../src/lib/mobile-shopping.ts";
 import { shoppingDatabaseFixture } from "./helpers/shopping-database.mjs";
 
 test("native activity drops fingerprinting, hardware, private data and forged outcomes", () => {
@@ -225,4 +229,24 @@ test("a fresh recommendation read can await an in-flight activity write and the 
     [["dealerfeed-first"], ["dealerfeed-second"]],
   );
   h.client.applyShopperStatus(null);
+});
+
+test("vehicle rows exclude parts, merchandise, homes and missing categories", () => {
+  for (const categorySlug of [
+    "cars-trucks",
+    "motorcycles",
+    "rvs-campers",
+    "powersports",
+    "trailers",
+  ])
+    assert.equal(mobileRecommendationVehicle({ categorySlug }), true);
+  for (const categorySlug of [
+    "auto-parts",
+    "furniture",
+    "services",
+    "pets",
+    "other-real-estate",
+    undefined,
+  ])
+    assert.equal(mobileRecommendationVehicle({ categorySlug }), false);
 });

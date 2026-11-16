@@ -361,13 +361,25 @@ try {
     });
     const open = async (name) => {
       await page.goto(origin + "/#/listings/" + f[name].listing.id);
-      await page
-        .getByRole("heading", {
-          name: name === "vehicle" ? "2024 Ford F-150 XLT" : f[name].listing.title,
-          exact: true,
-        })
-        .first()
-        .waitFor();
+      try {
+        await page
+          .getByRole("heading", {
+            name: name === "vehicle" ? "2024 Ford F-150 XLT" : f[name].listing.title,
+            exact: true,
+          })
+          .first()
+          .waitFor();
+      } catch (error) {
+        console.error(
+          JSON.stringify({
+            scene: name,
+            url: page.url(),
+            errors,
+            body: (await page.locator("body").innerText()).slice(0, 300),
+          }),
+        );
+        throw error;
+      }
     };
     for (const name of [
       "general",
@@ -387,6 +399,16 @@ try {
     ]) {
       await open(name);
       await page.getByText("Page stats", { exact: true }).first().waitFor();
+      await page.waitForFunction(
+        () =>
+          !document
+            .getAnimations()
+            .some(
+              (animation) =>
+                animation.playState === "running" &&
+                Number.isFinite(animation.effect?.getComputedTiming().endTime),
+            ),
+      );
       const navigation = page.getByRole("navigation", { name: "Primary", exact: true });
       assert(
         await navigation.getByRole("button", { name: "Open categories", exact: true }).isVisible(),
@@ -402,13 +424,76 @@ try {
         );
       }
       assert.equal(await page.locator("main main").count(), 0, "Native keeps one main landmark");
+      await page.locator("#bluebird-launch").waitFor({ state: "detached" });
+      if (["general", "pet", "rescue"].includes(name)) {
+        const heading = page.locator("[data-photo-first] .native-detail-grid > header");
+        assert.doesNotMatch(
+          await heading.innerText(),
+          /\$\s*[\d,]|Up for Adoption/,
+          "Price appears once in the seller price card, not again in the heading",
+        );
+      }
+      if (viewport.width < 1024 && ["rent", "partnerHome"].includes(name)) {
+        const geometry = await page.evaluate(() => {
+          const header = document
+            .querySelector(".native-home-detail-grid .native-detail-body > header")
+            .getBoundingClientRect();
+          const seller = document
+            .querySelector(".native-home-detail-grid > aside")
+            .getBoundingClientRect();
+          const price = document.querySelector(".home-main-price").getBoundingClientRect();
+          const fact = document.querySelector(".home-summary-stats dd").getBoundingClientRect();
+          return {
+            gap: seller.top - header.bottom,
+            price: { x: price.x, y: price.y },
+            fact: { x: fact.x, y: fact.y },
+          };
+        });
+        assert(
+          geometry.gap >= 0 && geometry.gap <= 20,
+          "The listing agent follows the home summary without a dead gap",
+        );
+        if (geometry.fact.x > geometry.price.x + 20)
+          assert(
+            Math.abs(geometry.price.y - geometry.fact.y) < 2,
+            "Home price and specification numbers align: " + JSON.stringify(geometry),
+          );
+      }
+      if (name === "rent" && viewport.width < 1024) {
+        await navigation.getByRole("button", { name: "Account", exact: true }).click();
+        const menu = page.getByRole("menu");
+        await menu.waitFor();
+        assert.equal(
+          await contactBar.isVisible(),
+          false,
+          "The contact price bar cannot cover an open account menu",
+        );
+        const settings = menu.getByRole("menuitem").filter({ hasText: "Account settings" });
+        await settings.scrollIntoViewIfNeeded();
+        assert(
+          await settings.evaluate((element) => {
+            const r = element.getBoundingClientRect();
+            const top = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+            return element === top || element.contains(top);
+          }),
+          "Account settings remains tappable above listing actions",
+        );
+        await page.screenshot({
+          path: resolve(output, `account-menu-${viewport.width}.png`),
+          animations: "disabled",
+        });
+        await page.keyboard.press("Escape");
+      }
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
         false,
         name + " overflows at " + viewport.width,
       );
       if (process.env.BLUEBIRD_SKIP_DETAIL_SCREENSHOTS !== "true")
-        await page.screenshot({ path: resolve(output, `${name}-${viewport.width}.png`) });
+        await page.screenshot({
+          path: resolve(output, `${name}-${viewport.width}.png`),
+          animations: "disabled",
+        });
     }
     await open("general");
     const photos = page.getByRole("region", { name: "Listing photos", exact: true });

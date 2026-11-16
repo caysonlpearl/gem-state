@@ -14,7 +14,7 @@ export function NativeHomeShortcuts({ onBrowse }: { onBrowse: (scope: Partial<Se
   return (
     <nav
       aria-label="Shop by category"
-      className="no-scrollbar flex gap-2 overflow-x-auto px-[calc(12px+env(safe-area-inset-left))] pb-3 pr-[calc(12px+env(safe-area-inset-right))] pt-1"
+      className="native-home-shortcuts no-scrollbar flex gap-2 overflow-x-auto px-[calc(12px+env(safe-area-inset-left))] pb-3 pr-[calc(12px+env(safe-area-inset-right))] pt-1"
     >
       <button
         type="button"

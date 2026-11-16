@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- private shared tables and domain actor. */
 import { MobileApiError, mobileJson } from "./mobile-api";
 import { MOBILE_POLICY_VERSION, mobileListingAllowed } from "./mobile-contract";
-import { mobileGuestSubject, mobileShoppingEvent } from "./mobile-shopping";
+import {
+  mobileGuestSubject,
+  mobileShoppingEvent,
+  mobileRecommendationVehicle,
+} from "./mobile-shopping";
 import { mobileShoppingConsent } from "./mobile-shopping-consent";
 import {
   shoppingPermission,
@@ -67,9 +71,17 @@ export async function handleMobileShopping(
     };
   }
   if (request.method === "GET" && path === "recommendations") {
+    const scope = new URL(request.url).searchParams.get("scope");
+    if (scope !== null && scope !== "vehicles")
+      throw new MobileApiError(400, "invalid_scope", "Choose a recommendation category.");
     if (!(await acceptedTerms()))
       return { recent: [], continuing: [], recommended: [], model: "rules-v1" };
-    return shoppingRecommendations(db, subject, { eligible: mobileListingAllowed });
+    return shoppingRecommendations(db, subject, {
+      eligible:
+        scope === "vehicles"
+          ? (card) => mobileListingAllowed(card) && mobileRecommendationVehicle(card)
+          : mobileListingAllowed,
+    });
   }
   if (request.method === "GET" && path === "similar") {
     const id = new URL(request.url).searchParams.get("listingId");
