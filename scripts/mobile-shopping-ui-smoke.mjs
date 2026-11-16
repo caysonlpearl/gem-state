@@ -203,6 +203,7 @@ try {
             ? cards.filter(
                 (card) =>
                   !dismissed.get(id)?.has(card.id) &&
+                  (!url.searchParams.has("scope") || card.categorySlug === "cars-trucks") &&
                   (!onlyWorkRecommendations || card.categorySlug === "jobs"),
               )
             : [],
@@ -382,6 +383,18 @@ try {
       geometry.push({ title, columns, boxes });
     }
     await page.screenshot({ path: resolve(output, "recommendations-" + viewport.width + ".png") });
+    const vehicleRecommendations = page.getByRole("region", {
+      name: "Vehicles we think you'll like",
+      exact: true,
+    });
+    await vehicleRecommendations
+      .getByRole("heading", { name: "2024 Ford Explorer", exact: true })
+      .waitFor();
+    assert.equal(await vehicleRecommendations.getByText("Luna", { exact: true }).count(), 0);
+    assert.equal(
+      await vehicleRecommendations.getByText("Third fixture home", { exact: true }).count(),
+      0,
+    );
     onlyWorkRecommendations = true;
     await page.reload();
     await page.waitForFunction(

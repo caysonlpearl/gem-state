@@ -1,5 +1,11 @@
 import { shoppingEvent, type ShoppingEvent } from "./shopping-contract.ts";
 import { mobileCategoryAllowed } from "./mobile-contract.ts";
+import { isMotorsCategory } from "./classifieds-display.ts";
+/** Vehicle taxonomy, excluding parts/accessories; never infer a vehicle from its title. */
+export const mobileRecommendationVehicle = (card: { categorySlug?: unknown }) =>
+  typeof card.categorySlug === "string" &&
+  card.categorySlug !== "auto-parts" &&
+  isMotorsCategory(card.categorySlug);
 const contextKeys = new Set([
   "position",
   "placement",

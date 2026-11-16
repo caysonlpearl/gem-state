@@ -222,6 +222,7 @@ try {
     console.log("Opening fixture", viewport.width);
     await page.goto(origin + "/#/post");
     await page.getByRole("heading", { name: "Set up your shop", exact: true }).waitFor();
+    assert.equal(await page.getByText("Storefront", { exact: true }).count(), 0);
     assert.equal(
       await page
         .getByRole("link", { name: "Create your first listing", exact: true })
@@ -239,7 +240,11 @@ try {
     assert.equal(saves.length, 1);
     assert.equal(saves[0].shipFromName, "Fixture shipping name");
     assert.equal(saves[0].defaultHandlingDays, 3);
-    await page.screenshot({ path: resolve(output, `shared-seller-setup-${viewport.width}.png`) });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({
+      path: resolve(output, `shared-seller-setup-${viewport.width}.png`),
+      animations: "disabled",
+    });
     await page.getByRole("link", { name: "Create your first listing", exact: true }).click();
     await page.getByRole("heading", { name: "Create a listing", exact: true }).waitFor();
     const form = page.locator("form").last();

@@ -18,6 +18,7 @@ export function AccountSettingsView({
   deletionControls,
   nativeControls,
   showBillingPreferences = true,
+  showIntroduction = true,
 }: {
   account: MyAccount;
   contact: ContactPreferences;
@@ -32,14 +33,17 @@ export function AccountSettingsView({
   deletionControls: ReactNode;
   nativeControls?: ReactNode;
   showBillingPreferences?: boolean;
+  showIntroduction?: boolean;
 }) {
   return (
     <div className="space-y-8">
-      <SectionHeader
-        eyebrow="Account settings"
-        title="Control your account"
-        body="Manage your sign-in, contact visibility, and the updates Bluebird sends you."
-      />
+      {showIntroduction && (
+        <SectionHeader
+          eyebrow="Account settings"
+          title="Control your account"
+          body="Manage your sign-in, contact visibility, and the updates Bluebird sends you."
+        />
+      )}
       <div className="rounded-2xl border border-border bg-card shadow-sm">
         <SettingsBlock icon={UserCircle} title="Account details">
           <SettingLine label="Email address" value={account.email ?? "Not available"}>

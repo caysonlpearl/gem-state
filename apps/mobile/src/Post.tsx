@@ -223,6 +223,7 @@ function NativeSellerSetup({
   return (
     <SellerSetupView
       as="section"
+      compact
       draft={draft}
       avatarFile={avatarFile}
       setAvatarFile={setAvatarFile}

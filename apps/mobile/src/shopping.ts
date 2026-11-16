@@ -14,6 +14,7 @@ export type RecommendationRows = {
   continuing: MobileListing[];
   recommended: MobileListing[];
   model: string;
+  vehicles?: MobileListing[];
 };
 let userId: string | null | undefined,
   allowed = false,

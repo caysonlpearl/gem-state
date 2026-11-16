@@ -663,6 +663,44 @@ html[data-native-platform].has-mobile-contact-bar body {
 .native-home-section {
   margin-top: 8px;
 }
+.native-search-field,
+.native-search-header a[aria-label="Saved listings"],
+.native-home-shortcuts button {
+  box-shadow: 0 2px 6px rgb(20 35 50 / 10%);
+}
+.native-floating-navigation:has([role="menu"]) {
+  z-index: 70;
+}
+body:has(.native-floating-navigation [role="menu"]) .native-listing-contact {
+  visibility: hidden;
+  pointer-events: none;
+}
+.native-directory-summary {
+  height: 28px;
+}
+.native-rail-card > .listing-card > a:last-child > h3 + .native-directory-summary {
+  padding-top: 0;
+}
+@media (max-width: 1023px) {
+  [data-photo-first] .native-home-detail-grid {
+    gap: 16px;
+  }
+  [data-photo-first] .native-home-detail-grid header {
+    padding-bottom: 16px;
+  }
+  [data-photo-first] .home-price-summary {
+    align-items: flex-start;
+    column-gap: 20px;
+  }
+  [data-photo-first] .home-summary-stats {
+    align-items: flex-start;
+  }
+  [data-photo-first] .home-main-price,
+  [data-photo-first] .home-summary-stats dd {
+    font-size: 28px;
+    line-height: 1;
+  }
+}
 .native-recommendations:empty {
   display: none;
 }

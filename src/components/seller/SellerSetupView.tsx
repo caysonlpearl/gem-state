@@ -16,6 +16,7 @@ export function SellerSetupView({
   error,
   notice,
   as: Container = "main",
+  compact = false,
 }: {
   draft: Record<string, string | boolean> | null;
   avatarFile: File | null;
@@ -30,6 +31,7 @@ export function SellerSetupView({
   error?: string;
   notice?: string;
   as?: "main" | "section";
+  compact?: boolean;
 }) {
   const [avatarPreview, setAvatarPreview] = useState("");
   useEffect(() => {
@@ -42,12 +44,14 @@ export function SellerSetupView({
     return () => URL.revokeObjectURL(url);
   }, [avatarFile]);
   return (
-    <Container className="mx-auto max-w-[940px] px-4 py-10 sm:px-6">
+    <Container className={`mx-auto max-w-[940px] px-4 ${compact ? "py-4" : "py-10"} sm:px-6`}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
-            Seller center
-          </p>
+          {!compact && (
+            <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
+              Seller center
+            </p>
+          )}
           <h1 className="mt-1 font-editorial text-[38px] font-normal tracking-[-0.035em]">
             Set up your shop
           </h1>
@@ -65,13 +69,15 @@ export function SellerSetupView({
         <SetupStep number="2" label="First listing" complete={false} />
       </ol>
 
-      <div className="mt-7 max-w-[280px]">
-        <div className="border border-border bg-card p-4">
-          <Storefront size={20} className="text-primary" />
-          <p className="mt-3 text-[11px] text-muted-foreground">Storefront</p>
-          <p className="mt-0.5 text-[13px] font-semibold">{exists ? "Complete" : "Required"}</p>
+      {!compact && (
+        <div className="mt-7 max-w-[280px]">
+          <div className="border border-border bg-card p-4">
+            <Storefront size={20} className="text-primary" />
+            <p className="mt-3 text-[11px] text-muted-foreground">Storefront</p>
+            <p className="mt-0.5 text-[13px] font-semibold">{exists ? "Complete" : "Required"}</p>
+          </div>
         </div>
-      </div>
+      )}
 
       {error && (
         <p role="alert" className="mt-5 text-sm text-destructive">

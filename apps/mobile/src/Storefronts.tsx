@@ -290,6 +290,7 @@ function StorefrontPage({
       <div onClickCapture={handleNativePublicLink}>
         {kind === "sellers" ? (
           <SellerStorefrontView
+            showManagedBadge={false}
             seller={q.data as PublicSeller}
             userId={owner}
             focusReview={search.get("review") === "true"}

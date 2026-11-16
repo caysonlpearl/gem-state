@@ -1281,3 +1281,58 @@ render used the public production Home response and visibly loaded the real
 saucer, rain-suit and Minnie photos. These previews do not prove authenticated
 recommendation quality, native foreground delivery or phone installation.
 Evidence: output/mobile-discovery-fixes-20261116/ and the local verification logs.
+
+## Scoped mobile review refinements — November 16, 2026
+
+This pass preserves the incumbent cream surface, actual Bluebird logo, type,
+rounded cards and navigation layout. Home adds the requested smiley to its
+existing tagline and a soft shadow to search, Saved and category shortcuts.
+Native detail pages show the general-item price/adoption status once, retain one
+pet-provider credit when similar listings share that provider, and hide the
+Managed by Bluebird label on seller details/storefronts. Required source links
+remain present; this is not a provider-distribution approval.
+
+Home adds Vehicles we think you'll like through the existing recommendation
+service's vehicle scope. Both server eligibility and client fallback use vehicle
+taxonomy and exclude auto-parts; titles do not determine category. The extra
+request reads Bluebird's existing recommendation data, not listing providers.
+Terms acknowledgement and shopping-learning permission remain authoritative;
+Personalize opens the existing privacy choice rather than enabling learning.
+This batch adds no provider refresh, location permission, advertising SDK,
+consent migration or new tracking collection.
+
+Local-service rail cards now show the rating and compact Google review count
+already present in their payload, followed by Call for a quote and location.
+Unrated services keep the quote action without an invented rating. Against the
+incumbent browser fixtures, service-card height decreased by 20 pixels at 320
+and 390 pixels and stayed unchanged at 768 and 1280 pixels. Home-detail price
+and facts align at the top with a tighter gap on smaller screens. Native account
+and settings introductions are compact, seller setup omits the redundant
+Storefront status tile, and an open Account menu sits above navigation while
+temporarily hiding the listing contact bar so its options remain tappable.
+Shared website variants retain their default introductions and badges.
+
+Evidence is in `output/mobile-review-refinements-20261116/`: `simulator-home.png`
+is an actual iOS Simulator build-21 capture; `home/baseline-services-*.png`,
+`home/services-*.png` and `home/verification.json` record the incumbent comparison.
+The `details/results.json`, `account/account-results.json`,
+`posting/posting-results.json`, `shopping/shopping-results.json`,
+`auth/auth-results.json` and `refresh/results.json` files record the browser
+journeys. These use synthetic requests and accounts: they cover 14 detail types,
+account/menu actions, posting, permission withdrawal, auth recovery, shared
+search area and Home refresh/retry at the recorded viewport sizes. They do not
+prove real messages, uploads, email delivery or account deletion.
+
+Validation recorded 1,696 tests passed/four skipped, then 18 focused shopping
+tests passed. Type checking, website/mobile bundles, signed iOS build 21,
+iOS Simulator build 21 and Android debug compilation passed. Changed-file lint
+has zero errors and four existing warnings. The DOM detector returned no
+findings; that is not native-runtime evidence. Independent finish review found
+no material defect within its iOS Simulator/browser scope.
+
+Build 21 (version 1.0) was installed on the connected iPhone and its installed
+version read back with device tooling. Physical-device journeys and Android
+runtime checks remain unverified. At this documentation pass, commit/push and
+backend/web publication are still pending; installation is not evidence that
+those occurred. Broader Terms, launch and voice work stays paused, and the
+existing provider, real push, Apple-login and store-release gates remain open.
