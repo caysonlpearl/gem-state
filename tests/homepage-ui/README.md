@@ -15,3 +15,5 @@ The real location sheet and map controls are mounted; map tile images become tra
 Query-level regressions run with `node --experimental-strip-types --test tests/homepage-cars-trucks.test.mjs tests/classifieds-home-lead.test.mjs tests/homepage-category-pairing.test.mjs`. The full suite also includes these tests.
 
 Git history review found a broad Motors homepage request in the original `61e8d13`, curated row `50fdef3`, geography change `c885ec6`, and independent lead-query change `1c9e5bc`. No earlier Cars & Trucks-only server query was identified. This branch implements the subsequently confirmed product scope rather than claiming to revert to an unverified historical query.
+
+The `card-layout` fixture enables the production personalized recommendation row with synthetic merchandise, a rescue pet with an internal ID, a salaried job, and a rental home. It checks a single mobile rail with a partial third card, compact mixed-card heights, two-line titles, deduplicated pet copy, city/age metadata, and no source-credit blocks among previews. Desktop retains the standard card bodies. All shopping calls and impression observers are inert fixture adapters.

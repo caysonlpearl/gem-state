@@ -21,11 +21,17 @@ export function ShoppingListingRowView<T extends { id: string }>({
   return (
     <section className={className}>
       <h2 className="mb-4 text-lg font-semibold">{title}</h2>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div
+        role="list"
+        aria-label={`${title} listings`}
+        tabIndex={0}
+        className="shopping-listing-rail no-scrollbar flex gap-2.5 overflow-x-auto pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible"
+      >
         {visible.map((card, position) => (
           <div
             key={card.id}
-            className="flex min-w-0 flex-col [&>article]:flex-1"
+            role="listitem"
+            className="shopping-rail-card flex min-w-0 shrink-0 flex-col [&>article]:flex-1"
             onClick={onCardClick ? () => onCardClick(card, position) : undefined}
           >
             {renderCard(card, position)}

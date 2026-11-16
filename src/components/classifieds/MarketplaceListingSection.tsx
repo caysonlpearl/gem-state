@@ -18,7 +18,7 @@ export function MarketplaceListingSection({
   const id = `${title.toLowerCase().replaceAll(" ", "-")}-heading`;
   return (
     <section
-      className={`${density === "compact" ? "mt-4" : "mt-16"} ${className}`}
+      className={`${density === "compact" ? "mt-4" : "mt-7 sm:mt-16"} ${className}`}
       aria-labelledby={id}
     >
       <div
@@ -29,7 +29,7 @@ export function MarketplaceListingSection({
         }
       >
         <div>
-          {density !== "compact" && (
+          {density !== "compact" && eyebrow && (
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
               {eyebrow}
             </p>
@@ -39,7 +39,7 @@ export function MarketplaceListingSection({
             className={
               density === "compact"
                 ? "text-[18px] font-bold tracking-tight"
-                : "mt-1 text-[26px] font-bold tracking-tight"
+                : `${eyebrow ? "mt-1" : ""} text-[22px] font-bold tracking-tight sm:text-[26px]`
             }
           >
             {title}

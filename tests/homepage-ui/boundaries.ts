@@ -54,6 +54,51 @@ const make = (id: string, categorySlug: string): ClassifiedCard => ({
         }
       : null,
 });
+const previewItems = [
+  {
+    ...make("preview-saucer", "collectibles"),
+    title: "Vintage Leaf Saucer",
+    priceCents: 700,
+    city: "Star",
+    imageUrl: "/category-icons/collectibles.webp",
+  },
+  {
+    ...make("rescuegroups-preview", "pets"),
+    title: "A124890 · Longhaired Rabbit (medium coat)",
+    priceCents: 0,
+    imageUrl: "/category-icons/pets.webp",
+    pet: {
+      name: "A124890",
+      species: "Rabbit",
+      breed: "Longhaired Rabbit (medium coat)",
+      placementType: "adoption",
+      age: "Adult",
+      sex: "Female",
+      subcategory: "other-pets",
+    },
+    externalPet: { sourceUrl: "https://example.invalid/pet", orgName: "Synthetic Rescue" },
+  },
+  {
+    ...make("adzuna-preview", "jobs"),
+    title: "Occupational Therapist — Paying up to $129k",
+    imageUrl: "/category-icons/jobs.webp",
+    job: {
+      employerName: "Synthetic Health",
+      employmentType: "Full-time",
+      payType: "Salary",
+      payMin: 116000,
+      payMax: 129000,
+    },
+    externalJob: { logoUrl: "/category-icons/jobs.webp" },
+  },
+  {
+    ...make("preview-home", "other-real-estate"),
+    title: "225 S 6th St #309",
+    priceCents: 140000,
+    imageUrl: "/category-icons/other-real-estate.webp",
+    home: { mode: "rent", propertyType: "Apartment", bedrooms: 0, bathrooms: 1, squareFeet: 364 },
+  },
+] as ClassifiedCard[];
 // More than a full newer Motors page precedes the cars. Client-side filtering
 // after a broad page would leave the featured row empty or filled with noise.
 const noise = Array.from({ length: 40 }, (_, i) =>
@@ -130,7 +175,12 @@ export const getClassifiedsHome = async () =>
     : {
         ...categoryData,
         motors: allocation ? cars.slice(0, 24) : [...noise.slice(0, 2), ...cars],
-        recent: allocation ? cars.slice(0, 24) : [...noise.slice(0, 2), ...cars],
+        recent:
+          mode === "card-layout"
+            ? [...previewItems, ...cars]
+            : allocation
+              ? cars.slice(0, 24)
+              : [...noise.slice(0, 2), ...cars],
       };
 export const browseClassifieds = async ({
   data,
@@ -164,3 +214,22 @@ export const NotificationBell = () => null;
 export const loadSupabase = async () => {
   throw new Error("Offline fixture refuses database access");
 };
+
+// Shopping stays an offline boundary; the card-layout fixture enables one real recommendation row.
+export const shoppingPrivacy = () => ({
+  personalization: mode === "card-layout",
+  advertising: false,
+});
+export const shoppingFetch = async () => ({
+  recent: [],
+  continuing: [],
+  recommended: previewItems,
+  model: "offline-card-layout",
+});
+export const shoppingTrack = () => {};
+export const shoppingAnalytics = () => {};
+export const startShopping = () => () => {};
+export const observeShoppingCard = () => () => {};
+export const hasShoppingPrivacyChoice = () => true;
+export const setShoppingPrivacy = async () => {};
+export const trackActiveListing = () => {};

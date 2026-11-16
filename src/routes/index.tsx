@@ -403,8 +403,6 @@ function Home() {
       />
       <PersonalizedShopping />
 
-      <HomepageFeaturedCategories withLocation={where.withLocation} />
-
       {/* All initial rows are ready before rendering; photos below the first
           row remain lazy-loaded so they do not compete with its main image. */}
       <QueryErrorResetBoundary>
@@ -421,43 +419,6 @@ function Home() {
   );
 }
 
-function HomepageFeaturedCategories({
-  withLocation,
-}: {
-  withLocation: (search: HomepageBrowseSearch) => HomepageBrowseSearch;
-}) {
-  return (
-    <section
-      aria-label="Explore pets and firearms"
-      className="homepage-featured-categories mt-5 grid grid-cols-2 gap-2.5 sm:gap-4"
-    >
-      {[
-        { slug: "pets", title: "Pets & adoption", tone: "bg-brand-blue/7" },
-        { slug: "firearms", title: "Firearms & gear", tone: "bg-brand-warm/10" },
-      ].map((category) => (
-        <Link
-          key={category.slug}
-          to="/browse"
-          search={withLocation({ category: category.slug })}
-          className={`group flex min-w-0 flex-col items-start gap-2.5 rounded-[20px] border border-primary/15 p-3.5 shadow-sm transition-colors hover:border-primary/40 hover:bg-card/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:min-h-[60px] sm:flex-row sm:items-center sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-2 ${category.tone}`}
-        >
-          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-card/70 sm:size-10">
-            <CategoryArtwork slug={category.slug} size={40} />
-          </span>
-          <span className="flex w-full min-w-0 items-center gap-1 text-[15px] font-bold leading-tight tracking-tight sm:flex-1 sm:gap-3 sm:text-[16px]">
-            <span className="min-w-0">{category.title}</span>
-            <ArrowRight
-              size={14}
-              weight="bold"
-              className="shrink-0 text-primary sm:ml-auto"
-              aria-hidden="true"
-            />
-          </span>
-        </Link>
-      ))}
-    </section>
-  );
-}
 /** Everything the page derives from the visitor's chosen location. */
 function homeLocation(location: string, mapPoint: LocationPoint | undefined, radiusMiles: number) {
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
@@ -582,9 +543,12 @@ function HomepageLeadVehicles({
     <section ref={sectionRef} className="homepage-lead-vehicles mt-6 sm:mt-14">
       <HomepageLeadHeader where={where} />
       {leadMotors.length > 0 ? (
-        <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
+        <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto pb-2 sm:mt-5 sm:gap-4 lg:grid lg:grid-cols-4 lg:overflow-visible">
           {leadMotors.map((listing, index) => (
-            <div key={listing.id} className="min-w-[235px] lg:min-w-0">
+            <div
+              key={listing.id}
+              className="flex w-[235px] shrink-0 flex-col lg:w-auto lg:min-w-0 [&>article]:flex-1"
+            >
               <ListingCard listing={listing} priority={index === 0} />
             </div>
           ))}
@@ -808,7 +772,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   return (
     <>
       {/* Everything else */}
-      <section className="mt-16">
+      <section className="mt-6 sm:mt-16">
         <h2 className="text-[26px] font-bold tracking-tight">Browse other classifieds</h2>
         <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-6">
           {homepageCategoryHighlights.map((option) => (
@@ -830,7 +794,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       </section>
 
       <HomepageListingRow
-        eyebrow="Bluebird picks"
+        eyebrow=""
         title="Fresh local finds"
         listings={freshListings}
         search={withLocation({ allCategories: true })}
@@ -838,7 +802,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       />
 
       <HomepageListingRow
-        eyebrow="Bluebird distance"
+        eyebrow=""
         title={distanceRow.title}
         listings={fartherAwayListings}
         search={distanceRow.search}
@@ -1026,7 +990,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       />
 
       <HomepageListingRow
-        eyebrow="Bluebird picks"
+        eyebrow=""
         title="More from local sellers"
         listings={localSellerPicks}
         search={withLocation({ allCategories: true })}
@@ -1083,9 +1047,12 @@ function HomepageListingRow({
       }
     >
       {listings.length > 0 ? (
-        <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
+        <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto pb-2 sm:mt-5 sm:gap-4 lg:grid lg:grid-cols-4 lg:overflow-visible">
           {listings.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
-            <div key={listing.id} className="min-w-[235px] lg:min-w-0">
+            <div
+              key={listing.id}
+              className="flex w-[235px] shrink-0 flex-col lg:w-auto lg:min-w-0 [&>article]:flex-1"
+            >
               <ListingCard listing={listing} />
             </div>
           ))}

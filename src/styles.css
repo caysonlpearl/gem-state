@@ -772,3 +772,51 @@
     padding-bottom: calc(60px + env(safe-area-inset-bottom));
   }
 }
+
+/* Match the app's swipe cue while keeping website recommendation cards in one row. */
+@media (max-width: 767px) {
+  .shopping-listing-rail > .shopping-rail-card {
+    flex-basis: calc((100% - 20px) / 2.5);
+  }
+  .shopping-listing-rail [data-listing-density] .numeric {
+    font-size: clamp(11px, 3.5vw, 14px);
+    line-height: 20px;
+    white-space: nowrap;
+  }
+}
+@media (max-width: 639px) {
+  .listing-preview-body {
+    padding: 10px 11px 11px;
+  }
+  .listing-preview-title {
+    min-height: 0;
+    margin-top: 5px;
+  }
+  .listing-preview-location {
+    margin-top: 6px;
+  }
+}
+
+.shopping-rail-card > article {
+  display: flex;
+  flex-direction: column;
+}
+@media (max-width: 767px) {
+  .shopping-rail-card > article > .shopping-preview-compact {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+  }
+  .shopping-preview-compact > h3 + div {
+    margin-top: auto;
+    padding-top: 4px;
+  }
+}
+
+@media (max-width: 767px) {
+  .shopping-listing-rail [data-preview-kind="job"] .numeric {
+    font-size: clamp(10.5px, 3.3vw, 13px);
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+}

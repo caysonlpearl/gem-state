@@ -4,14 +4,16 @@ import { readFile } from "node:fs/promises";
 
 const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
 
-test("homepage keeps Firearms beside Pets in the two featured category tiles", () => {
-  const component = homeSource.match(/function HomepageFeaturedCategories\([\s\S]*?\n}\n/);
-  assert.ok(component, "HomepageFeaturedCategories component not found");
-  assert.match(component[0], /grid-cols-2/);
-  assert.match(
-    component[0],
-    /\{ slug: "pets", title: "Pets & adoption"[^}]*\},\s*\{ slug: "firearms", title: "Firearms & gear"/,
+test("homepage moves Pets and Firearms into the app-style category strip beside Vehicles", async () => {
+  const strip = await readFile(
+    new URL("../src/components/classifieds/HomeCategoryShortcuts.tsx", import.meta.url),
+    "utf8",
   );
+  assert.match(
+    strip,
+    /\["cars-trucks", "pets", "firearms", "other-real-estate", "jobs", "services"\]/,
+  );
+  assert.doesNotMatch(homeSource, /HomepageFeaturedCategories|Explore pets and firearms/);
 });
 
 test("homepage browse-category cards keep Firearms and Pets in adjacent grid positions", () => {

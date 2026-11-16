@@ -39,11 +39,13 @@ export function ListingCard({
   soldAt,
   priority,
   shoppingContext,
+  density = "standard",
 }: {
   listing: ListingCardSummary;
   soldAt?: string;
   priority?: boolean;
   shoppingContext?: Record<string, unknown>;
+  density?: "standard" | "compact" | "browse" | "mobile-compact";
 }) {
   const shoppingRef = useRef<HTMLElement>(null);
   const shoppingKey = JSON.stringify(shoppingContext ?? {});
@@ -75,6 +77,7 @@ export function ListingCard({
   return (
     <ListingCardView
       listing={listing}
+      density={density}
       soldAt={soldAt}
       priority={priority}
       shoppingContext={shoppingContext}
