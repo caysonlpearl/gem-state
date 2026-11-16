@@ -58,7 +58,7 @@ export function createAppleTokenRevoker(
         });
         signal.throwIfAborted();
         if (response.redirected || response.status !== 200) {
-          await response.body?.cancel().catch(() => {});
+          void response.body?.cancel().catch(() => {});
           throw unavailable();
         }
         // Apple documents an empty 200, including repeated revocation. Never
@@ -83,7 +83,7 @@ export function createAppleTokenRevoker(
             if (!finished) throw unavailable();
           } finally {
             signal.removeEventListener("abort", cancel);
-            await reader.cancel().catch(() => {});
+            void reader.cancel().catch(() => {});
             reader.releaseLock();
           }
         }

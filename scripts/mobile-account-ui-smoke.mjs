@@ -854,6 +854,25 @@ try {
     await page.getByText("First account activity", { exact: true }).waitFor();
     await selectSettings();
     await page.getByRole("button", { name: "Delete account", exact: true }).click();
+    const appleInstructions = page.getByRole("link", { name: "Apple’s instructions", exact: true });
+    await appleInstructions.waitFor();
+    assert.equal(
+      await appleInstructions.getAttribute("href"),
+      "https://support.apple.com/en-us/102571",
+    );
+    assert.equal(await appleInstructions.getAttribute("target"), "_blank");
+    await page
+      .getByText("Your Bluebird account deletion continues even if you don’t complete this step.", {
+        exact: false,
+      })
+      .waitFor();
+    await page
+      .getByRole("button", { name: "Request account deletion", exact: true })
+      .scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: resolve(output, `deletion-${viewport.width}.png`),
+      fullPage: true,
+    });
     await page.getByLabel("Type DELETE to confirm", { exact: true }).fill("NO");
     await page.getByRole("button", { name: "Request account deletion", exact: true }).click();
     assert.equal(deletions.size, 0);
@@ -867,6 +886,11 @@ try {
       .filter({ hasText: "Bluebird will confirm completion." })
       .waitFor();
     assert.deepEqual([...deletions], [a]);
+    await appleInstructions.waitFor();
+    await page.screenshot({
+      path: resolve(output, `deletion-pending-${viewport.width}.png`),
+      fullPage: true,
+    });
     await page.getByRole("button", { name: "Sign out of all devices", exact: true }).click();
     await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     assert.deepEqual(revocations, [a]);

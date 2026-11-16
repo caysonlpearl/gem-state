@@ -246,3 +246,39 @@ test("invalid clocks do not mint a secret or send user tokens", async () => {
   }
   assert.equal(calls, 0);
 });
+
+test("an error or cancelled body cannot hold the transport open waiting for provider cancellation", async () => {
+  for (const status of [200, 500]) {
+    const controller = new AbortController();
+    let timer, watchdog;
+    const revoker = createAppleTokenRevoker(
+      config(),
+      async () =>
+        new Response(
+          new ReadableStream({
+            start() {
+              timer = setTimeout(() => controller.abort(), 10);
+            },
+            cancel() {
+              return new Promise(() => {});
+            },
+          }),
+          { status },
+        ),
+    );
+    try {
+      await assert.rejects(
+        Promise.race([
+          revoker.revoke(token(), controller.signal),
+          new Promise((_, reject) => {
+            watchdog = setTimeout(() => reject(Error("Ignored transport cancellation")), 1000);
+          }),
+        ]),
+        coded,
+      );
+    } finally {
+      clearTimeout(timer);
+      clearTimeout(watchdog);
+    }
+  }
+});
