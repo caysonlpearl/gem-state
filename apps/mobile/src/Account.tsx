@@ -19,6 +19,8 @@ import {
 import { AccountSettingsView } from "../../../src/components/account/AccountSettingsView";
 import { useAccountProfileDraft } from "../../../src/components/account/useAccountProfileDraft";
 import { AccountAppControls } from "../../../src/components/account/AccountViewParts";
+import { AppleDeletionNotice } from "../../../src/components/account/AppleDeletionNotice";
+import { handleNativePublicLink } from "./public-links";
 import { ShoppingAlertPreferenceView } from "../../../src/components/community/ShoppingAlertPreferenceView";
 import { MOBILE_AUTH_REDIRECT } from "../../../src/lib/mobile-contract";
 import type { MyAccount } from "../../../src/lib/account.functions";
@@ -563,9 +565,12 @@ function DeleteAccount({ ownerId }: { ownerId: string }) {
           )}
         </>
       ) : requested ? (
-        <p role="status">
-          Your deletion request has been received. Bluebird will confirm completion.
-        </p>
+        <>
+          <p role="status">
+            Your deletion request has been received. Bluebird will confirm completion.
+          </p>
+          <AppleDeletionNotice onClick={handleNativePublicLink} />
+        </>
       ) : !open ? (
         <button
           type="button"
@@ -608,6 +613,7 @@ function DeleteAccount({ ownerId }: { ownerId: string }) {
               onChange={(e) => setConfirmation(e.target.value)}
             />
           </label>
+          <AppleDeletionNotice onClick={handleNativePublicLink} />
           <button disabled={busy} className="mr-4 font-semibold text-destructive">
             {busy ? "Requesting…" : "Request account deletion"}
           </button>

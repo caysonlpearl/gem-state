@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { loadSupabase } from "@/integrations/supabase/lazy-client";
+import { AppleDeletionNotice } from "@/components/account/AppleDeletionNotice";
 export const Route = createFileRoute("/delete-account")({
   head: () => ({
     meta: [
@@ -82,6 +83,9 @@ function DeleteAccountPage() {
           {notice}
         </p>
       )}
+      <div className="mt-6">
+        <AppleDeletionNotice />
+      </div>
       <p className="mt-8">
         <Link to="/policies">Read the privacy policy</Link> ·{" "}
         <Link to="/contact">Contact Bluebird</Link>
