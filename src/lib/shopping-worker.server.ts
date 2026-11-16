@@ -458,6 +458,12 @@ export async function deliverShoppingAlerts(db: any, limit = 20) {
               if (!(await shoppingControls(db)).notifications) return false;
               const latest = await deliveryCandidates(db, delivery);
               if (latest.account.delivery_blocked) return false;
+              if (
+                campaign === "search_match" &&
+                account.marketing_preferences?.dailySearches === true &&
+                latest.account.marketing_preferences?.dailySearches !== true
+              )
+                return false;
               return emailItems.every((item) =>
                 latest.eligible.some(
                   (e) =>

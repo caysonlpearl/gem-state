@@ -382,6 +382,18 @@ test("a disabled email type is rechecked at handoff without muting website notif
   assert.equal(h.emails.length, 0);
   assert.equal(h.tables.notifications.length, 1);
 });
+
+test("withdrawing the daily-search exception while rendering suppresses that send", async () => {
+  const h = harness({
+    requested: true,
+    beforeHandoff: (tables) => {
+      tables.shopping_accounts[0].marketing_preferences = { dailySearches: false };
+    },
+  });
+  h.tables.shopping_accounts[0].marketing_preferences = { dailySearches: true };
+  await h.worker.deliverShoppingAlerts(h.db);
+  assert.equal(h.emails.length, 0);
+});
 test("unsubscribe while an email is being rendered prevents provider handoff and suppresses its queue", async () => {
   const h = harness({
     beforeHandoff: (tables) => {
