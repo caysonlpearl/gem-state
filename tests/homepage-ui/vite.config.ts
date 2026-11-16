@@ -108,6 +108,7 @@ export default defineConfig({
         "@tanstack/react-start",
         "@/lib/classifieds.functions",
         "@/lib/analytics",
+        "@/lib/shopping-client",
         "@/lib/service-directory.functions",
         "@/lib/account-center.functions",
         "@/hooks/useAuth",

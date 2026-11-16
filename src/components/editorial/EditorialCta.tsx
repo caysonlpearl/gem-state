@@ -2,12 +2,7 @@ import { ArrowRight, PlusCircle } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  ListingCard,
-  PartnerHomesCredit,
-  PartnerJobsCredit,
-  PartnerVehiclesCredit,
-} from "@/components/classifieds/ListingCard";
+import { ListingCard } from "@/components/classifieds/ListingCard";
 import { useHydrated } from "@/hooks/useHydrated";
 import { editorialDestinations } from "@/lib/editorial-contract";
 import { getNewsRelatedListings } from "@/lib/editorial.functions";
@@ -169,9 +164,6 @@ function HydratedRelatedListings({
           <ListingCard key={listing.id} listing={listing} />
         ))}
       </div>
-      <PartnerJobsCredit listings={listings} />
-      <PartnerHomesCredit listings={listings} />
-      <PartnerVehiclesCredit listings={listings} />
     </section>
   );
 }

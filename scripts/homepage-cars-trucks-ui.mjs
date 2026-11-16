@@ -106,9 +106,7 @@ try {
         await lead.getByRole("link", { name: /View listing: Synthetic noise/ }).count(),
         0,
       );
-      await lead
-        .getByRole("heading", { name: "Cars & trucks for sale in Idaho", exact: true })
-        .waitFor();
+      await lead.getByRole("heading", { name: "Vehicles in Idaho", exact: true }).waitFor();
       const calls = await page.evaluate(() => window.__bluebirdHomepageFixture.calls);
       assert.ok(calls.length > 0);
       assert.ok(
@@ -268,6 +266,56 @@ try {
       assert.equal((await page.evaluate(() => window.__bluebirdHomepageFixture.calls)).length, 2);
       check.checks.push(
         "request failure is distinct from empty; Try again recovers to real synthetic car results",
+      );
+      await page.goto(origin + "/?fixture=card-layout");
+      const recommendations = page
+        .getByRole("heading", { name: "Recommended for you", exact: true })
+        .locator("..");
+      await recommendations.waitFor();
+      const previewCopy = await recommendations.innerText();
+      assert.doesNotMatch(
+        previewCopy,
+        /A124890|medium coat|Rabbit · Longhaired Rabbit|Jobs by|Logo.dev|RescueGroups.org/,
+      );
+      assert.equal((previewCopy.match(/Adoption/g) || []).length, 1);
+      assert.equal(await recommendations.locator("article").count(), 4);
+      if (viewport.width < 640) {
+        const boxes = await recommendations.locator("article").evaluateAll((cards) =>
+          cards.map((card) => ({
+            top: card.getBoundingClientRect().top,
+            width: card.getBoundingClientRect().width,
+            height: card.getBoundingClientRect().height,
+          })),
+        );
+        assert.ok(
+          boxes.every((box) => Math.abs(box.top - boxes[0].top) < 1),
+          "recommendations stay on one row",
+        );
+        const railWidth = await recommendations
+          .locator(".shopping-listing-rail")
+          .evaluate((el) => el.clientWidth);
+        assert.ok(
+          railWidth / boxes[0].width > 2.5 && railWidth / boxes[0].width < 2.8,
+          "two cards and part of the third invite scrolling",
+        );
+        assert.ok(
+          Math.max(...boxes.map((box) => box.height)) < 260,
+          "mixed preview cards stay compact",
+        );
+        const saucer = page
+          .locator(".listing-preview-card")
+          .filter({ hasText: "Vintage Leaf Saucer" })
+          .first();
+        assert.doesNotMatch(await saucer.innerText(), /Local pickup/);
+        assert.match(
+          await saucer.locator(".listing-preview-location").innerText(),
+          /Star, ID[\s\S]*ago/,
+        );
+      }
+      await noOverflow();
+      await capture("compact-cards");
+      check.checks.push(
+        "mixed recommendations form one compact mobile rail with a partial third card; no provider IDs, repeated adoption copy, or row credits",
       );
     }
 

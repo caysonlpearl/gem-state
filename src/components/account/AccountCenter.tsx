@@ -39,11 +39,7 @@ import { SavedListingsSectionView, type SavedListingLinkProps } from "./SavedLis
 import { SavedSearchesSectionView } from "./SavedSearchesSectionView";
 import { useAccountProfileDraft } from "./useAccountProfileDraft";
 
-import {
-  ListingCard,
-  PartnerJobsCredit,
-  PartnerVehiclesCredit,
-} from "@/components/classifieds/ListingCard";
+import { ListingCard } from "@/components/classifieds/ListingCard";
 import { formatUsd } from "@/config/fees";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -795,7 +791,6 @@ function SavedPartnerJobsSection({ jobs }: { jobs: ClassifiedCard[] }) {
       kind="jobs"
       items={jobs}
       renderCard={(job) => <ListingCard key={job.id} listing={job} />}
-      credit={<PartnerJobsCredit listings={jobs} />}
     />
   );
 }
@@ -814,7 +809,6 @@ function SavedPartnerVehiclesSection({ vehicles }: { vehicles: ClassifiedCard[] 
       kind="vehicles"
       items={vehicles}
       renderCard={(vehicle) => <ListingCard key={vehicle.id} listing={vehicle} />}
-      credit={<PartnerVehiclesCredit listings={vehicles} />}
     />
   );
 }

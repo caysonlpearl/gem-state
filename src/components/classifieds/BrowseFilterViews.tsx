@@ -1,9 +1,4 @@
 /** Actual website category filter views. Navigation, cards and preview reads are adapters. */
-import {
-  PartnerHomesCredit,
-  PartnerJobsCredit,
-  PartnerVehiclesCredit,
-} from "@/components/classifieds/ListingCardView";
 import { LocationOptions } from "@/components/classifieds/LocationOptions";
 import {
   type LocationPoint,
@@ -983,9 +978,6 @@ export function JobsFilterPage({
                   <Fragment key={listing.id}>{renderListing(listing, index)}</Fragment>
                 ))}
               </div>
-              <PartnerJobsCredit listings={sortedListings} />
-              <PartnerHomesCredit listings={sortedListings} />
-              <PartnerVehiclesCredit listings={sortedListings} />
             </>
           )}
         </section>

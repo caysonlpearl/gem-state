@@ -3081,7 +3081,7 @@ function DirectoryBusinessCard({ listing }: { listing: ClassifiedDetail }) {
 }
 
 /** Attribution for directory data (Foursquare OS Places, Apache 2.0). */
-function DirectoryCredit() {
+function DirectoryCredit({ withLogo = false }: { withLogo?: boolean }) {
   return (
     <footer className="mt-12 border-t border-border/70 py-5 text-center text-[11px] text-muted-foreground">
       Business details from{" "}
@@ -3094,6 +3094,11 @@ function DirectoryCredit() {
         Foursquare Open Source Places
       </a>{" "}
       (Apache 2.0). Confirm hours, prices and licensing directly with the business.
+      {withLogo ? (
+        <span className="ml-2">
+          <LogoDevCredit />
+        </span>
+      ) : null}
     </footer>
   );
 }
@@ -3411,7 +3416,7 @@ function ServiceListingDetail({
           <TrustSafetyCard listing={listing} />
         </aside>
       </div>
-      {listing.directory ? <DirectoryCredit /> : null}
+      {listing.directory ? <DirectoryCredit withLogo={Boolean(listing.directory.logoUrl)} /> : null}
     </DetailPage>
   );
 }

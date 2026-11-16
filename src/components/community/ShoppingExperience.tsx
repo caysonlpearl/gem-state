@@ -4,7 +4,6 @@ import { SignupShoppingChoices } from "./SignupShoppingChoices";
 export { SignupShoppingChoices } from "./SignupShoppingChoices";
 import { ShoppingPrivacyDialog } from "./ShoppingPrivacyDialog";
 import { ShoppingListingRowView } from "./ShoppingListingRowView";
-import { ListingSourceCreditsView } from "@/components/classifieds/ListingSourceCreditsView";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -235,7 +234,7 @@ export function PersonalizedShopping() {
     ["Recommended for you", result.data.recommended],
   ];
   return (
-    <div className="mt-8 space-y-8">
+    <div className="mt-6 space-y-6 sm:mt-8 sm:space-y-8">
       {groups.map(([title, items]) =>
         Array.isArray(items) ? (
           <ShoppingListingRowView
@@ -251,6 +250,7 @@ export function PersonalizedShopping() {
             }
             renderCard={(card, index) => (
               <ListingCard
+                density="mobile-compact"
                 listing={card as unknown as ListingCardSummary}
                 shoppingContext={{
                   placement: title,
@@ -260,9 +260,6 @@ export function PersonalizedShopping() {
                   ...((card.shoppingFeatures as Record<string, number | string>) ?? {}),
                 }}
               />
-            )}
-            renderFooter={(visible) => (
-              <ListingSourceCreditsView listings={visible as unknown as ListingCardSummary[]} />
             )}
           />
         ) : null,
@@ -294,9 +291,6 @@ export function VisualSimilarShopping({ listingId }: { listingId: string }) {
             position: index,
           }}
         />
-      )}
-      renderFooter={(visible) => (
-        <ListingSourceCreditsView listings={visible as unknown as ListingCardSummary[]} />
       )}
     />
   );

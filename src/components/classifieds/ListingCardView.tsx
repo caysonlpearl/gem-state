@@ -1,3 +1,4 @@
+import { listingPreviewTitle, petPreviewFacts } from "@/lib/listing-preview";
 import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
 import { VehiclePrice } from "@/components/dealers/VehiclePrice";
@@ -408,7 +409,7 @@ export function ListingCardPhoto({
         src={listingCardImageUrl(listing.imageUrl)}
         decoding="async"
         onError={(event) => recoverPhoto(event.currentTarget)}
-        alt={listing.title}
+        alt={listingPreviewTitle(listing)}
         // The first cards on a landing page are its largest paint; load them
         // right away instead of waiting for layout to decide they're visible.
         loading={priority ? "eager" : "lazy"}
@@ -449,13 +450,10 @@ function Facts({ listing }: { listing: ListingCardSummary }) {
     );
   }
   if (listing.pet) {
-    return (
-      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
-        {[listing.pet.species, listing.pet.breed, petPlacementLabels[listing.pet.placementType]]
-          .filter(Boolean)
-          .join(" · ")}
-      </p>
-    );
+    const facts = petPreviewFacts(listing);
+    return facts.length ? (
+      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{facts.join(" · ")}</p>
+    ) : null;
   }
   if (listing.home) {
     const modeLabel =
@@ -561,19 +559,30 @@ export function ListingCardView({
   /** Load this card's photo eagerly at high priority (the first cards above the fold). */
   priority?: boolean;
   /** Native home discovery uses the same photos/actions with a shorter body. */
-  density?: "standard" | "compact" | "browse";
+  density?: "standard" | "compact" | "browse" | "mobile-compact";
 }) {
   return (
     <article
       ref={elementRef}
+      data-preview-kind={
+        listing.vehicle
+          ? "vehicle"
+          : listing.job
+            ? "job"
+            : listing.pet
+              ? "pet"
+              : listing.home
+                ? "home"
+                : "item"
+      }
       data-listing-density={density === "standard" ? undefined : density}
-      className={`group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md ${className}`}
+      className={`group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md ${density === "standard" || density === "mobile-compact" ? "listing-preview-card" : ""} ${className}`}
     >
       <div className="relative">
         <ListingLink
           listing={listing}
           className="block"
-          ariaLabel={"View listing: " + listing.title}
+          ariaLabel={"View listing: " + listingPreviewTitle(listing)}
         >
           <ListingCardPhoto listing={listing} priority={priority} short={density === "browse"} />
         </ListingLink>
@@ -586,13 +595,16 @@ export function ListingCardView({
         )}
       </div>
       {density !== "standard" ? (
-        <ListingLink listing={listing} className="block px-2.5 pb-2.5 pt-2">
+        <ListingLink
+          listing={listing}
+          className={`shopping-preview-compact block px-2.5 pb-2.5 pt-2 ${density === "mobile-compact" ? "md:hidden" : ""}`}
+        >
           <h3 className="line-clamp-2 text-[12.5px] font-semibold leading-4 group-hover:text-primary">
             {listing.vehicle
               ? [listing.vehicle.year, listing.vehicle.make, listing.vehicle.model]
                   .filter(Boolean)
                   .join(" ") || listing.title
-              : listing.title}
+              : listingPreviewTitle(listing)}
           </h3>
           <div
             className={
@@ -631,74 +643,94 @@ export function ListingCardView({
             </p>
           )}
         </ListingLink>
-      ) : listing.home ? (
-        <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">
-          <HomeCardBody listing={listing} soldAt={soldAt} />
-        </ListingLink>
-      ) : (
-        <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">
-          {listing.directory ? (
-            <DirectoryRating directory={listing.directory} />
-          ) : (
-            <div className="numeric text-[17px] font-bold leading-none text-foreground">
-              {soldAt ? (
-                <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
-              ) : null}
-              {listing.vehicle ? (
-                <VehiclePrice listing={listing} compact />
-              ) : (
-                <Price listing={listing} />
-              )}
-            </div>
-          )}
-          <h3
-            className={`mt-1.5 line-clamp-2 font-semibold leading-[1.3] group-hover:text-primary ${listing.externalMerchandise ? "min-h-[39px] text-[15px]" : "min-h-[34px] text-[13px]"}`}
+      ) : null}
+      {density === "standard" || density === "mobile-compact" ? (
+        listing.home ? (
+          <ListingLink
+            listing={listing}
+            className={`listing-preview-body ${density === "mobile-compact" ? "hidden md:block" : "block"} px-3.5 pb-4 pt-3.5`}
           >
-            {listing.title}
-          </h3>
-          <Facts listing={listing} />
-          {vehicleSourceLabel(listing) ? (
-            <p className="mt-1 flex min-w-0 items-center gap-1 text-[11.5px] font-medium text-primary">
-              <span className="truncate">{vehicleSourceLabel(listing)}</span>
-              {hasApprovedDealer(listing) ? <VerifiedDealerBadge size={15} /> : null}
-            </p>
-          ) : null}
-          <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
-            {listing.externalMerchandise ? (
-              <>
-                <Truck size={12} weight="fill" className="shrink-0 text-primary" />
-                Shipping Only
-                <span className="ml-auto shrink-0 text-[10.5px]">
-                  {postedAge(soldAt ?? listing.createdAt)}
-                </span>
-              </>
+            <HomeCardBody listing={listing} soldAt={soldAt} />
+          </ListingLink>
+        ) : (
+          <ListingLink
+            listing={listing}
+            className={`listing-preview-body ${density === "mobile-compact" ? "hidden md:block" : "block"} px-3.5 pb-4 pt-3.5`}
+          >
+            {listing.directory ? (
+              <DirectoryRating directory={listing.directory} />
             ) : (
-              <>
-                <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-                {placeLabel(listing.city, listing.state)}
-              </>
+              <div className="numeric text-[17px] font-bold leading-none text-foreground">
+                {soldAt ? (
+                  <span className="mr-1 text-[11px] font-semibold text-muted-foreground">
+                    Asked
+                  </span>
+                ) : null}
+                {listing.vehicle ? (
+                  <VehiclePrice listing={listing} compact />
+                ) : (
+                  <Price listing={listing} />
+                )}
+              </div>
             )}
-          </p>
-          {!listing.externalMerchandise ? (
-            <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
-              <span className="truncate">
-                {soldAt
-                  ? "Sold"
-                  : listing.directory
-                    ? (listing.directory.phone ?? "Call for details")
-                    : cardActionLabel(listing)}
-              </span>
-              <span className="shrink-0">
-                {listing.directory
-                  ? listing.directory.claimed
-                    ? "Owner verified"
-                    : "Local business"
-                  : postedAge(soldAt ?? listing.createdAt)}
-              </span>
-            </div>
-          ) : null}
-        </ListingLink>
-      )}
+            <h3
+              className={`listing-preview-title mt-1.5 line-clamp-2 font-semibold leading-[1.3] group-hover:text-primary ${listing.externalMerchandise ? "min-h-[39px] text-[15px]" : "min-h-[34px] text-[13px]"}`}
+            >
+              {listingPreviewTitle(listing)}
+            </h3>
+            <Facts listing={listing} />
+            {vehicleSourceLabel(listing) ? (
+              <p className="mt-1 flex min-w-0 items-center gap-1 text-[11.5px] font-medium text-primary">
+                <span className="truncate">{vehicleSourceLabel(listing)}</span>
+                {hasApprovedDealer(listing) ? <VerifiedDealerBadge size={15} /> : null}
+              </p>
+            ) : null}
+            <p className="listing-preview-location mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
+              {listing.externalMerchandise ? (
+                <>
+                  <Truck size={12} weight="fill" className="shrink-0 text-primary" />
+                  Shipping Only
+                  <span className="ml-auto shrink-0 text-[10.5px]">
+                    {postedAge(soldAt ?? listing.createdAt)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
+                  <span className="min-w-0 truncate">
+                    {placeLabel(listing.city, listing.state)}
+                  </span>
+                  {!listing.vehicle && (
+                    <span className="ml-auto shrink-0 text-[10px] sm:hidden">
+                      {postedAge(soldAt ?? listing.createdAt)}
+                    </span>
+                  )}
+                </>
+              )}
+            </p>
+            {!listing.externalMerchandise ? (
+              <div className="hidden mt-2 items-center justify-between gap-2 text-[10.5px] text-muted-foreground sm:flex">
+                <span className="truncate">
+                  {soldAt
+                    ? "Sold"
+                    : listing.directory
+                      ? (listing.directory.phone ?? "Call for details")
+                      : listing.pet
+                        ? null
+                        : cardActionLabel(listing)}
+                </span>
+                <span className="shrink-0">
+                  {listing.directory
+                    ? listing.directory.claimed
+                      ? "Owner verified"
+                      : "Local business"
+                    : postedAge(soldAt ?? listing.createdAt)}
+                </span>
+              </div>
+            ) : null}
+          </ListingLink>
+        )
+      ) : null}
     </article>
   );
 }

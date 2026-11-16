@@ -65,7 +65,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
-import { ListingCard, ListingRow, LogoDevCredit } from "@/components/classifieds/ListingCard";
+import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
 import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -1094,11 +1094,6 @@ function Browse() {
             rows={jobsShowcaseRows}
             jobSearch={search}
           />
-          {/* Partner job credits live on each job's own page; logo.dev's
-              free plan asks for one visible link where its logos show. */}
-          <p className="mt-12 text-center">
-            <LogoDevCredit />
-          </p>
         </>
       )}
 
