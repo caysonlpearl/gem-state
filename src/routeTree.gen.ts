@@ -94,6 +94,7 @@ import { Route as AuthenticatedAdminOrdersOrderIdRouteImport } from './routes/_a
 import { Route as AuthenticatedListingsListingIdEditRouteImport } from './routes/_authenticated/listings.$listingId.edit'
 import { Route as ApiMobileV1SplatRouteImport } from './routes/api/mobile/v1/$'
 import { Route as ApiPublicCatalogMediaSplatRouteImport } from './routes/api/public/catalog-media.$'
+import { Route as ApiShoppingEmailImageTokenItemRouteImport } from './routes/api/shopping-email-image.$token.$item'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -553,6 +554,12 @@ const ApiPublicCatalogMediaSplatRoute =
     path: '/api/public/catalog-media/$',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiShoppingEmailImageTokenItemRoute =
+  ApiShoppingEmailImageTokenItemRouteImport.update({
+    id: '/api/shopping-email-image/$token/$item',
+    path: '/api/shopping-email-image/$token/$item',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   id: '/lovable/email/auth/preview',
   path: '/lovable/email/auth/preview',
@@ -661,6 +668,7 @@ export interface FileRoutesByFullPath {
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
   '/api/mobile/v1/$': typeof ApiMobileV1SplatRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
+  '/api/shopping-email-image/$token/$item': typeof ApiShoppingEmailImageTokenItemRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -750,6 +758,7 @@ export interface FileRoutesByTo {
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
   '/api/mobile/v1/$': typeof ApiMobileV1SplatRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
+  '/api/shopping-email-image/$token/$item': typeof ApiShoppingEmailImageTokenItemRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -842,6 +851,7 @@ export interface FileRoutesById {
   '/_authenticated/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
   '/api/mobile/v1/$': typeof ApiMobileV1SplatRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
+  '/api/shopping-email-image/$token/$item': typeof ApiShoppingEmailImageTokenItemRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -934,6 +944,7 @@ export interface FileRouteTypes {
     | '/listings/$listingId/edit'
     | '/api/mobile/v1/$'
     | '/api/public/catalog-media/$'
+    | '/api/shopping-email-image/$token/$item'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
@@ -1023,6 +1034,7 @@ export interface FileRouteTypes {
     | '/listings/$listingId/edit'
     | '/api/mobile/v1/$'
     | '/api/public/catalog-media/$'
+    | '/api/shopping-email-image/$token/$item'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
@@ -1114,6 +1126,7 @@ export interface FileRouteTypes {
     | '/_authenticated/listings/$listingId/edit'
     | '/api/mobile/v1/$'
     | '/api/public/catalog-media/$'
+    | '/api/shopping-email-image/$token/$item'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
@@ -1173,6 +1186,7 @@ export interface RootRouteChildren {
   IdahoMarketReportIndexRoute: typeof IdahoMarketReportIndexRoute
   ApiMobileV1SplatRoute: typeof ApiMobileV1SplatRoute
   ApiPublicCatalogMediaSplatRoute: typeof ApiPublicCatalogMediaSplatRoute
+  ApiShoppingEmailImageTokenItemRoute: typeof ApiShoppingEmailImageTokenItemRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
@@ -1776,6 +1790,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCatalogMediaSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/shopping-email-image/$token/$item': {
+      id: '/api/shopping-email-image/$token/$item'
+      path: '/api/shopping-email-image/$token/$item'
+      fullPath: '/api/shopping-email-image/$token/$item'
+      preLoaderRoute: typeof ApiShoppingEmailImageTokenItemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/auth/preview': {
       id: '/lovable/email/auth/preview'
       path: '/lovable/email/auth/preview'
@@ -1950,6 +1971,7 @@ const rootRouteChildren: RootRouteChildren = {
   IdahoMarketReportIndexRoute: IdahoMarketReportIndexRoute,
   ApiMobileV1SplatRoute: ApiMobileV1SplatRoute,
   ApiPublicCatalogMediaSplatRoute: ApiPublicCatalogMediaSplatRoute,
+  ApiShoppingEmailImageTokenItemRoute: ApiShoppingEmailImageTokenItemRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,

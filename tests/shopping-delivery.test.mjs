@@ -6,6 +6,7 @@ import ts from "typescript";
 import { shoppingActivity } from "../src/lib/shopping.server.ts";
 import * as contract from "../src/lib/shopping-contract.ts";
 import * as deliveryEligibility from "../src/lib/shopping-delivery-eligibility.ts";
+import * as marketing from "../src/lib/shopping-marketing.ts";
 const source = readFileSync(
   new URL("../src/lib/shopping-worker.server.ts", import.meta.url),
   "utf8",
@@ -16,6 +17,7 @@ const compiled = ts.transpileModule(source, {
 function harness({
   alerts = true,
   requested = false,
+  confirmed = true,
   beforeHandoff = () => {},
   duringActivity = () => {},
 } = {}) {
@@ -225,7 +227,13 @@ function harness({
     auth: {
       admin: {
         getUserById: async () => ({
-          data: { user: { id: user, email: "shopper@example.test", email_confirmed_at: now } },
+          data: {
+            user: {
+              id: user,
+              email: "shopper@example.test",
+              email_confirmed_at: confirmed ? now : null,
+            },
+          },
           error: null,
         }),
       },
@@ -306,6 +314,7 @@ function harness({
   const exports = {};
   new Function("require", "exports", compiled)((name) => {
     if (name === "./shopping-contract") return contract;
+    if (name === "./shopping-marketing.ts") return marketing;
     if (name === "./shopping-delivery-eligibility.ts") return deliveryEligibility;
     if (name === "./shopping.server")
       return {
@@ -336,6 +345,54 @@ test("the delivery worker preserves an explicitly requested saved-search email w
   assert.equal(h.emails.length, 1);
   assert.equal(h.tables.notifications.length, 1);
   assert.equal(h.tables.shopping_queue[0].status, "sent");
+});
+
+test("an unknown current price cannot be advertised as a price drop", async () => {
+  const h = harness();
+  h.tables.shopping_inventory[0].price_cents = 0;
+  h.tables.shopping_inventory[0].card.priceCents = 0;
+  await h.worker.deliverShoppingAlerts(h.db);
+  assert.equal(h.emails.length, 0);
+});
+
+test("unconfirmed recipients keep their eligible email pending for a later verified send", async () => {
+  const h = harness({ requested: true, confirmed: false });
+  await h.worker.deliverShoppingAlerts(h.db);
+  assert.equal(h.emails.length, 0);
+  assert.equal(h.tables.shopping_queue[0].status, "pending");
+  assert.ok(Date.parse(h.tables.shopping_queue[0].available_at) > Date.now());
+});
+
+test("website notifications can publish without claiming a frequency-limited email", async () => {
+  const h = harness({ requested: true });
+  await h.worker.publishPendingShoppingNotifications(h.db);
+  assert.equal(h.tables.notifications.length, 1);
+  assert.equal(h.emails.length, 0);
+  assert.equal(h.tables.shopping_queue[0].status, "pending");
+});
+
+test("a disabled email type is rechecked at handoff without muting website notifications", async () => {
+  const h = harness({
+    beforeHandoff: (tables) => {
+      tables.shopping_accounts[0].marketing_preferences = { searches: false };
+    },
+    requested: true,
+  });
+  await h.worker.deliverShoppingAlerts(h.db);
+  assert.equal(h.emails.length, 0);
+  assert.equal(h.tables.notifications.length, 1);
+});
+
+test("withdrawing the daily-search exception while rendering suppresses that send", async () => {
+  const h = harness({
+    requested: true,
+    beforeHandoff: (tables) => {
+      tables.shopping_accounts[0].marketing_preferences = { dailySearches: false };
+    },
+  });
+  h.tables.shopping_accounts[0].marketing_preferences = { dailySearches: true };
+  await h.worker.deliverShoppingAlerts(h.db);
+  assert.equal(h.emails.length, 0);
 });
 test("unsubscribe while an email is being rendered prevents provider handoff and suppresses its queue", async () => {
   const h = harness({

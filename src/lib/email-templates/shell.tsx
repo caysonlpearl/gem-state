@@ -27,7 +27,7 @@ import {
   wordmark,
 } from "./theme";
 
-export const SITE_URL = "https://gemstateclassifieds.com";
+export const SITE_URL = brand.urls.siteUrl;
 
 const factRow = {
   fontSize: "13.5px",

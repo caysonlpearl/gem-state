@@ -1,4 +1,5 @@
 import { ShoppingAlertPreferenceView } from "./ShoppingAlertPreferenceView";
+import type { MarketingPreferences } from "@/lib/shopping-marketing";
 import { SignupShoppingChoices } from "./SignupShoppingChoices";
 export { SignupShoppingChoices } from "./SignupShoppingChoices";
 import { ShoppingPrivacyDialog } from "./ShoppingPrivacyDialog";
@@ -152,6 +153,7 @@ export function ShoppingExperience() {
   );
 }
 export function ShoppingAlertPreference() {
+  const [emailPreferences, setEmailPreferences] = useState<MarketingPreferences>({});
   const [busy, setBusy] = useState(false);
   const [enabled, setEnabled] = useState(false),
     [ready, setReady] = useState(false),
@@ -160,6 +162,7 @@ export function ShoppingAlertPreference() {
     void shoppingFetch("status")
       .then((r) => {
         setEnabled(r.account?.shopping_alerts === true);
+        setEmailPreferences(r.account?.marketing_preferences ?? {});
         setReady(r.signedIn);
       })
       .catch(() => undefined);
@@ -170,6 +173,20 @@ export function ShoppingAlertPreference() {
       enabled={enabled}
       error={error}
       busy={busy}
+      emailPreferences={emailPreferences}
+      onEmailPreferences={async (next) => {
+        if (busy) return;
+        setBusy(true);
+        try {
+          await shoppingFetch("email-preferences", { preferences: next });
+          setEmailPreferences(next);
+          setError("");
+        } catch {
+          setError("Your email preferences could not be saved. Please retry.");
+        } finally {
+          setBusy(false);
+        }
+      }}
       onChange={async (next) => {
         if (busy) return;
         setBusy(true);

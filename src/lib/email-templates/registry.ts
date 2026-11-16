@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- registry entries share heterogeneous email payloads */
 import { template as dealerInquiry } from "./dealer-inquiry";
-import { template as shoppingAlert } from "./shopping-alert";
+import { template as shoppingAlert, marketingTemplate } from "./shopping-alert";
+import { MARKETING_CAMPAIGNS, type MarketingCampaign } from "../shopping-marketing";
 import type { ComponentType } from "react";
 
 import { template as purchaseConfirmed } from "./purchase-confirmed";
@@ -32,6 +33,12 @@ export interface TemplateEntry {
  * Import and register new templates here after creating them in this directory.
  */
 export const TEMPLATES: Record<string, TemplateEntry> = {
+  ...Object.fromEntries(
+    (Object.keys(MARKETING_CAMPAIGNS) as MarketingCampaign[]).map((name) => [
+      `marketing-${name.replaceAll("_", "-")}`,
+      marketingTemplate(name),
+    ]),
+  ),
   "shopping-alert": shoppingAlert,
   "dealer-inquiry": dealerInquiry,
   "purchase-confirmed": purchaseConfirmed,

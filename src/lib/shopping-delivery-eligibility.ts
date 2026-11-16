@@ -1,4 +1,5 @@
 import { accountDeletionPending } from "./account-deletion-access.server.ts";
+import { campaignForItem, marketingAllowed, lastMarketingActivity } from "./shopping-marketing.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- shared private queue rows */
 import {
   interests,
@@ -81,8 +82,13 @@ export async function shoppingDeliveryCandidates(
   const profile = interests(permission?.personalization ? activity : []);
   const eligible: any[] = [];
   for (const item of items) {
+    const campaign = campaignForItem(item);
     if (Date.parse(item.created_at) < Date.parse(account.history_after)) continue;
-    if (!item.requested && (account.shopping_alerts !== true || !permission?.personalization))
+    if (item.payload.expires_at && Date.parse(item.payload.expires_at) <= Date.now()) continue;
+    if (
+      !item.requested &&
+      (account.shopping_alerts !== true || (campaign !== "welcome" && !permission?.personalization))
+    )
       continue;
     const inv = byId.get(item.listing_id);
     if (
@@ -93,6 +99,19 @@ export async function shoppingDeliveryCandidates(
       continue;
     const interest = profile.get(item.listing_id);
     if (interest?.dismissed || interest?.purchased) continue;
+    if (
+      campaign === "welcome" &&
+      Date.parse(account.alerts_updated_at ?? "") !== item.payload.anchor
+    )
+      continue;
+    if (
+      campaign === "comeback" &&
+      (lastMarketingActivity(activity) !== item.payload.anchor ||
+        Date.now() - item.payload.anchor < 14 * 86400000)
+    )
+      continue;
+    if (campaign === "saved_reminder" && item.payload.campaign && !interest?.favorite) continue;
+    if (campaign === "viewed_reminder" && item.payload.campaign && interest?.favorite) continue;
     if (
       item.kind === "reminder" &&
       (!interest ||
@@ -115,11 +134,12 @@ export async function shoppingDeliveryCandidates(
     if (
       item.kind === "price_drop" &&
       (!shoppingPriceInterest(interest) ||
+        inv.price_cents <= 0 ||
         inv.price_version !== item.payload.price_version ||
         inv.price_cents >= item.payload.previous_price_cents)
     )
       continue;
-    let email = true;
+    let email = marketingAllowed(account, campaign);
     if (item.requested) {
       const matching = searches.data.filter(
         (s: any) =>
@@ -131,7 +151,9 @@ export async function shoppingDeliveryCandidates(
       );
       if (!matching.length) continue;
       email =
-        matching.some((s: any) => s.email_alerts) && prefs.data?.saved_search_matches !== false;
+        email &&
+        matching.some((s: any) => s.email_alerts) &&
+        prefs.data?.saved_search_matches !== false;
     }
     eligible.push({ ...item, card: inv.card, email });
   }

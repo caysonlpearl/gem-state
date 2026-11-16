@@ -57,7 +57,11 @@ async function handle(request: Request, token: string) {
     );
   }
   const item = url.searchParams.get("item");
-  if (action !== "click" || !item || !delivery.data.queue_ids.includes(item))
+  if (
+    !["click", "updates"].includes(action ?? "") ||
+    !item ||
+    !delivery.data.queue_ids.includes(item)
+  )
     return new Response("Not found", { status: 404, headers });
   const row = await db
     .from("shopping_queue")
@@ -89,7 +93,7 @@ async function handle(request: Request, token: string) {
         user_id: delivery.data.user_id,
         session_id: delivery.data.id,
         kind: "notification_click",
-        listing_id: row.data.listing_id,
+        listing_id: action === "updates" ? null : row.data.listing_id,
         context: { source: "shopping_email" },
       },
       { onConflict: "id", ignoreDuplicates: true },
@@ -98,7 +102,10 @@ async function handle(request: Request, token: string) {
     status: 302,
     headers: {
       ...headers,
-      Location: `${brand.urls.siteUrl}/listings/${encodeURIComponent(row.data.listing_id)}`,
+      Location:
+        action === "updates"
+          ? `${brand.urls.siteUrl}/notifications`
+          : `${brand.urls.siteUrl}/listings/${encodeURIComponent(row.data.listing_id)}`,
     },
   });
 }

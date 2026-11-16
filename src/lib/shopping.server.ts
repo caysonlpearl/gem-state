@@ -418,10 +418,11 @@ export async function handleShoppingRequest(request: Request) {
       const account = actor.user
         ? await db
             .from("shopping_accounts")
-            .select("terms_version,shopping_alerts")
+            .select("terms_version,shopping_alerts,marketing_preferences")
             .eq("user_id", actor.user.id)
             .maybeSingle()
         : { data: null };
+      if ("error" in account && account.error) throw Error("Account preferences unavailable.");
       return Response.json(
         {
           account: account.data,
@@ -450,6 +451,26 @@ export async function handleShoppingRequest(request: Request) {
       }
     if (action === "consent")
       return Response.json(await updateShoppingConsent(db, actor, body), { headers });
+    if (action === "email-preferences") {
+      if (!actor.user) return new Response("Please sign in.", { status: 401, headers });
+      const preferences = body.preferences;
+      const allowed = ["dailySearches", "prices", "searches", "followups", "discovery"];
+      if (
+        !preferences ||
+        typeof preferences !== "object" ||
+        Array.isArray(preferences) ||
+        Object.entries(preferences).some(
+          ([key, value]) => !allowed.includes(key) || typeof value !== "boolean",
+        )
+      )
+        return new Response("Invalid email preferences.", { status: 400, headers });
+      const result = await db.rpc("set_shopping_marketing_preferences", {
+        member_id: actor.user.id,
+        preferences,
+      });
+      if (result.error) throw Error("Email preferences could not be saved.");
+      return Response.json({ ok: true }, { headers });
+    }
     if (action === "clear") {
       const { error } = await db.rpc("clear_shopping_history", { subject_key: actor.subject });
       if (error) throw Error("History could not be cleared.");
