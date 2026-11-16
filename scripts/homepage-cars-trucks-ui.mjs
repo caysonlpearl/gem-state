@@ -169,6 +169,31 @@ try {
       check.checks.push(
         "pending and slow loading are honest; success replaces skeleton without false empty state",
       );
+      if (viewport.width < 640) {
+        const hero = page.locator(".homepage-hero-shell");
+        assert.equal(await hero.getByRole("combobox", { name: "Category" }).isVisible(), false);
+        assert.equal(
+          await page.getByRole("navigation", { name: "Shop by category" }).isVisible(),
+          true,
+        );
+        for (let rotation = 0; rotation < 9; rotation++) {
+          await page.clock.runFor(6501);
+          await page.waitForFunction(() => {
+            const heading = document.querySelector(".homepage-hero-headline");
+            return heading.scrollHeight <= heading.clientHeight + 1;
+          });
+        }
+        const boxes = await hero.evaluate((el) => ({
+          hero: el.getBoundingClientRect().height,
+          field: el.querySelector("input[type=search]").getBoundingClientRect().top,
+          submit: el.querySelector("button[type=submit]").getBoundingClientRect().top,
+        }));
+        assert.ok(boxes.hero < 270, "closed mobile hero stays compact");
+        assert.ok(Math.abs(boxes.field - boxes.submit) < 2, "search field and action share a row");
+        check.checks.push(
+          "compact category pills; two-line rotating headline; single search row; hero under 270px",
+        );
+      }
       if (viewport.width >= 1024) {
         const header = page.locator("header");
         await header.getByRole("link", { name: "Vehicles", exact: true }).first().waitFor();
@@ -185,10 +210,12 @@ try {
       const beforeLocation = await cards().evaluateAll((links) =>
         links.map((link) => link.getAttribute("href")),
       );
+      await page.getByRole("button", { name: "City or ZIP", exact: true }).click();
       await page
         .getByRole("combobox", { name: "City or ZIP code", exact: true })
         .fill("Twin Falls");
       await page.getByRole("combobox", { name: "City or ZIP code", exact: true }).press("Tab");
+      await page.getByRole("button", { name: "Use search area", exact: true }).click();
       const local = new URL(
         await lead
           .getByRole("link", { name: "All cars & trucks", exact: true })
@@ -209,7 +236,7 @@ try {
 
       await page
         .locator("form")
-        .filter({ has: page.getByRole("combobox", { name: "City or ZIP code", exact: true }) })
+        .filter({ has: page.getByRole("searchbox", { name: "Search listings", exact: true }) })
         .getByRole("button", { name: "Search", exact: true })
         .click();
       await page.waitForURL((url) => url.pathname === "/browse");

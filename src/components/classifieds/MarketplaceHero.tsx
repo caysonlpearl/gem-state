@@ -12,7 +12,7 @@ export function MarketplaceHero({
   children: ReactNode;
 }) {
   return (
-    <section className="classifieds-hero-shell homepage-hero-shell relative mt-6 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-4 py-4 shadow-lg sm:px-10 sm:py-8">
+    <section className="classifieds-hero-shell homepage-hero-shell relative mt-1.5 sm:mt-6 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-4 py-4 shadow-lg sm:px-10 sm:py-8">
       <span
         className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-blue/12"
         aria-hidden="true"
@@ -32,9 +32,9 @@ export function MarketplaceHero({
               ref={headlineRef}
               className="homepage-hero-headline block max-w-[34ch] text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]"
             >
-              {/* Phones: fixed three lines "Find A to / B to C / to D."
-                Tablet/desktop: two lines "Find A to B to / C to D." */}
-              <span className="whitespace-nowrap sm:whitespace-normal">
+              {/* Phones wrap naturally into the reserved two-line shape.
+                Wider layouts retain the deliberate break after the second item. */}
+              <span>
                 Find{" "}
                 <span
                   key={headlineItems.join("|")}
@@ -43,16 +43,10 @@ export function MarketplaceHero({
                 >
                   {headlineItems[0]}
                 </span>{" "}
-                to
-                <br className="sm:hidden" />
-                <span className="hidden sm:inline"> </span>
-                {headlineItems[1]} to
+                to {headlineItems[1]} to
                 <br className="hidden sm:inline" />
                 <span className="sm:hidden"> </span>
-                {headlineItems[2]}
-                <br className="sm:hidden" />
-                <span className="hidden sm:inline"> </span>
-                to {headlineItems[3]}.
+                {headlineItems[2]} to {headlineItems[3]}.
               </span>
             </h1>
             <p className="mt-1 max-w-[56ch] text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:whitespace-nowrap sm:leading-relaxed">

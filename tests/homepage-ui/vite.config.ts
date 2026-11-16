@@ -27,6 +27,15 @@ export default defineConfig({
         if (id === "virtual:production-home-query") return homeQueryId;
         return null;
       },
+      transform(source, id) {
+        if (id.endsWith("/src/components/classifieds/LocationRadiusPicker.tsx")) {
+          // Keep the real map controls offline, using a local transparent tile.
+          return source.replace(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+          );
+        }
+      },
       load(id) {
         if (id === homeQueryId) {
           const source = readFileSync(resolve(repo, "src/lib/classifieds.functions.ts"), "utf8");
@@ -132,4 +141,3 @@ export default defineConfig({
     },
   },
 });
-

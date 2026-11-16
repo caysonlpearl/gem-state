@@ -981,7 +981,8 @@ test("main homepage presents category-curated listing rows", async () => {
   assert.match(allocationSource, /localRecent\.filter\(\s*\(listing\) => listing\.home/);
   assert.match(allocationSource, /localRecent\.filter\(\(listing\) => listing\.job\)/);
   assert.match(allocationSource, /localRecent\.filter\(\(listing\) => listing\.service\)/);
-  assert.match(homeSource, /City or ZIP code/);
+  assert.match(homeSource, /HomeLocationSheet/);
+  assert.match(await read("src/components/classifieds/HomeLocationSheet.tsx"), /City or ZIP code/);
   assert.match(homeSource, /Search area:/);
   assert.match(allocationSource, /homepageDistanceRow/);
   assert.match(homeSource, /allocateHomepageRows/);
