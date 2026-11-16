@@ -5,6 +5,7 @@ import {
   rankShopping,
   shoppingRankingVersion,
   shoppingEvent,
+  shoppingImageInput,
   SHOPPING_MODEL,
   SHOPPING_POLICY_VERSION,
   type ShoppingCard,
@@ -615,7 +616,7 @@ export async function syncShoppingInventory(db: any) {
       const old = prior.get(card.id),
         priceChanged = old && old.price_cents !== card.priceCents;
       const hash = await contentHash(
-        `${card.title}|${JSON.stringify(card.vehicle ?? card.home ?? {})}|${(card.imageUrl ?? "").split("?")[0]}`,
+        `${card.title}|${JSON.stringify(card.vehicle ?? card.home ?? {})}|${shoppingImageInput(card.imageUrl).identity}`,
       );
       const row: any = {
         listing_id: card.id,

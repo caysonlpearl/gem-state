@@ -14,6 +14,7 @@ import { matchesLandingCard } from "./landing-card-pool.ts";
 import { mixPetSpecies } from "./pet-mix.ts";
 import { getPhotoStorageModule } from "./photo-storage-access";
 import { nativeListingCoverUrl } from "./listing-card-image";
+import { listingCoverRevision } from "./listing-cover-revision.server";
 import { selectLandingCoverage } from "./landing-coverage";
 import { withCatalogReadDeadline } from "./catalog-read-deadline";
 import { listingCardSummary, type ListingCardSummary } from "./listing-card-summary";
@@ -2813,13 +2814,19 @@ export async function loadNativeHomepageInventory(fullOffset?: number) {
     (fullOffset === undefined ? selectLandingCoverage(cards, 400) : cards).map((card) => card.id),
   );
   const selected = rows.filter((row) => selectedIds.has(row["id"] as string));
-  const listings = selected.map((row) => {
-    const r = { ...row } as unknown as Record<string, any>;
-    if (r.dealer_profiles?.status !== "ready" || !r.dealer_profiles?.agreements_accepted_at)
-      r.dealer_profiles = null;
-    const card = toCard(r, new Map());
-    return { ...card, imageUrl: sortedMedia(r).length ? nativeListingCoverUrl(card.id) : null };
-  });
+  const listings = await Promise.all(
+    selected.map(async (row) => {
+      const r = { ...row } as unknown as Record<string, any>;
+      if (r.dealer_profiles?.status !== "ready" || !r.dealer_profiles?.agreements_accepted_at)
+        r.dealer_profiles = null;
+      const card = toCard(r, new Map());
+      const cover = sortedMedia(r)[0];
+      return {
+        ...card,
+        imageUrl: cover ? nativeListingCoverUrl(card.id, await listingCoverRevision(cover)) : null,
+      };
+    }),
+  );
   return { listings, total: count ?? rows.length, categoryCounts };
 }
 

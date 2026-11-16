@@ -190,3 +190,28 @@ actual review component at 320px and 1280px across eligible, insufficient, stale
 paused, unavailable, applied and pending states. Browser screenshots use synthetic
 evaluation evidence, never private shopper activity. Required CI also runs the
 PostgreSQL transaction and review-screen checks.
+
+## Native cover refresh and worker image addresses — November 16, 2026
+
+Native snapshot covers carry an opaque SHA-256 revision of the selected storage
+object key. Normal uploads use fresh random object keys. Replacing or reordering
+the first photo therefore changes the cache address without publishing private
+storage paths or making storage signing/download calls during snapshot creation.
+The public resolver keeps its existing publication, retention and error gates.
+
+The catalog content hash retains this owned-cover revision while ignoring
+expiring signatures and presentation-size parameters. A changed cover invalidates
+the old vector through the existing content-hash checks. Signature renewal alone
+does not schedule needless inference. The embedding endpoint resolves relative
+public image addresses to canonical HTTPS addresses before giving them to the
+worker; otherwise the existing worker rejects a relative URL and falls back to
+text. Its DNS/redirect, byte, image-decoding and inference bounds remain intact.
+
+No new data category, sensor access, third-party shopper profile, advertising
+export, ranking weight, model checkpoint, migration, scheduler or paid capacity
+is added. Existing public-content background jobs process changed hashes under
+the same budget. Failed/unavailable images still permit text-only matching; this
+batch does not add indefinite image-download retries or claim all vectors contain
+photos. Source tests cover address safety, opaque revisions, the actual private
+endpoint and catalog-sweep invalidation. Deployment and a later real background
+run remain separate verification steps.

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- server-only vector projection */
 import { createFileRoute } from "@tanstack/react-router";
-import { SHOPPING_MODEL } from "@/lib/shopping-contract";
+import { SHOPPING_MODEL, shoppingImageInput } from "@/lib/shopping-contract";
 import { shoppingDb, shoppingControls } from "@/lib/shopping.server";
 async function handle(request: Request) {
   const { serverEnv } = await import("@/lib/runtime-env.server");
@@ -24,7 +24,7 @@ async function handle(request: Request) {
         items: (r.data ?? []).map((r: any) => ({
           id: r.listing_id,
           hash: r.content_hash,
-          image: r.card.imageUrl,
+          image: shoppingImageInput(r.card.imageUrl).url,
           text: [
             r.card.title,
             r.card.categorySlug,
