@@ -20,7 +20,7 @@ const MAX_PHOTOS = 20;
 export const Route = createFileRoute("/media/listings/$listingId/$photo")({
   server: {
     handlers: {
-      GET: async ({ params }) => {
+      GET: async ({ params, request }) => {
         const notFound = () =>
           new Response("Not found", {
             status: 404,
@@ -111,7 +111,14 @@ export const Route = createFileRoute("/media/listings/$listingId/$photo")({
           if (!path) return notFound();
 
           const { signPrivatePhotoUrls } = await getPhotoStorageModule();
-          const signed = (await signPrivatePhotoUrls("listing-media", [path])).get(path);
+          // Prefer the small card copy, but a missing preview must not hide an
+          // available original. Both reads retain the same public visibility gate.
+          const thumbnail =
+            new URL(request.url).searchParams.get("size") === "card"
+              ? (await signPrivatePhotoUrls("listing-media", [path], 3600, true)).get(path)
+              : undefined;
+          const signed =
+            thumbnail || (await signPrivatePhotoUrls("listing-media", [path])).get(path);
           if (!signed) throw new Error("Listing photo signing is unavailable.");
           return new Response(null, {
             status: 302,

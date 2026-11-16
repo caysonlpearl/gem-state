@@ -642,6 +642,24 @@ html[data-native-platform].has-mobile-contact-bar body {
 .native-listing-rail > .native-rail-card {
   flex-basis: calc((100% - 20px) / 2.5);
 }
+.native-rail-card {
+  display: flex;
+  flex-direction: column;
+}
+.native-rail-card > .listing-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.native-rail-card > .listing-card > a:last-child {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.native-rail-card > .listing-card > a:last-child > h3 + div {
+  margin-top: auto;
+  padding-top: 4px;
+}
 .native-home-section {
   margin-top: 8px;
 }

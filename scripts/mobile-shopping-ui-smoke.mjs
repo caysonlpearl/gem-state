@@ -48,7 +48,8 @@ try {
       choices = new Map(),
       dismissed = new Map();
     let consentUnavailable = false,
-      onlyWorkRecommendations = false;
+      onlyWorkRecommendations = false,
+      recommendationReads = 0;
     const cards = [
       {
         id: "dealerfeed-fixture-car",
@@ -191,7 +192,8 @@ try {
       } else if (path === "shopping/clear") {
         dismissed.delete(id);
         data = { cleared: true };
-      } else if (path === "recommendations")
+      } else if (path === "recommendations") {
+        recommendationReads++;
         data = {
           recent: choices.get(id) ? cards.filter((card) => !dismissed.get(id)?.has(card.id)) : [],
           continuing: choices.get(id)
@@ -206,7 +208,7 @@ try {
             : [],
           model: "fixture-v1",
         };
-      else if (path === "activity") {
+      } else if (path === "activity") {
         const batch = request.postDataJSON().events;
         events.push(...batch.map((event) => ({ ...event, install: id })));
         for (const event of batch)
@@ -372,6 +374,11 @@ try {
         await page.locator("body").evaluate((node) => getComputedStyle(node).color),
         "The app's legacy link color must not replace the website card-title color",
       );
+      assert(
+        Math.max(...boxes.map((box) => box.bottom)) - Math.min(...boxes.map((box) => box.bottom)) <
+          1,
+        "Short and long titles keep a common card bottom",
+      );
       geometry.push({ title, columns, boxes });
     }
     await page.screenshot({ path: resolve(output, "recommendations-" + viewport.width + ".png") });
@@ -420,11 +427,22 @@ try {
     await page.locator("#sort").selectOption("price_high");
     await page.getByRole("heading", { name: "For you", exact: true }).waitFor({ state: "hidden" });
     await page.locator("#sort").selectOption("newest");
+    const readsBeforeReturn = recommendationReads;
+    const refreshedRecommendations = page.waitForResponse(
+      (response) => response.url().endsWith("/recommendations") && response.status() === 200,
+    );
     await page
       .getByRole("navigation", { name: "Primary", exact: true })
       .getByRole("link", { name: "Home", exact: true })
       .click();
+    await refreshedRecommendations;
     await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
+    await page.waitForFunction(
+      () =>
+        document.querySelector("#for-you-heading")?.closest("section")?.querySelectorAll("article")
+          .length === 3,
+    );
+    assert(recommendationReads > readsBeforeReturn, "Returning Home reads recommendations again");
     await openPrivacy();
     await dialog.getByRole("checkbox").click();
     await page.waitForFunction(() => document.querySelector("dialog input")?.checked === false);

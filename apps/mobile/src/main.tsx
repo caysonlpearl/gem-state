@@ -636,6 +636,7 @@ function Application() {
                         active={path === "/"}
                         learning={learning}
                         startupHome={startupHome.current}
+                        onPersonalize={() => setPrivacyOpen(true)}
                       />
                     </div>
                   )}
@@ -979,6 +980,7 @@ function Feed({
   learning = false,
   searchMode = false,
   startupHome,
+  onPersonalize,
 }: {
   bootstrap: Bootstrap;
   saved?: boolean;
@@ -987,6 +989,7 @@ function Feed({
   searchMode?: boolean;
   learning?: boolean;
   startupHome?: StartupHome | null;
+  onPersonalize?: () => void;
 }) {
   const { area } = useSearchArea();
   const scroll = useRef(0);
@@ -1177,7 +1180,9 @@ function Feed({
         <ShoppingRows
           learning={learning}
           fallbackCards={home ? [...home.recent, ...home.motors] : items}
-          revision={revision}
+          revision={revision + refreshSequence}
+          active={active}
+          onPersonalize={onPersonalize}
           onOpen={(id) => go(`/listings/${id}`)}
         />
       )}

@@ -54,6 +54,8 @@ const recent = [
     card(n, "services", { service: { subcategory: "Home cleaning" } }),
   ),
 ];
+recent[0].id = "11111111-2222-4333-8444-555555555555";
+recent[0].title = "Actual member photo fixture";
 // Reproduce production: no pets in Home, but category search has Idaho-border
 // rescue inventory. These public fixtures never create actual listings.
 const pets = [
@@ -124,6 +126,16 @@ try {
         "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
       };
       if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
+      const mediaPath = new URL(req.url()).pathname;
+      if (mediaPath === "/media/listings/11111111-2222-4333-8444-555555555555/0")
+        return route.fulfill({
+          status: 200,
+          headers: { ...headers, "Content-Type": "image/png" },
+          body: Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+            "base64",
+          ),
+        });
       const path = new URL(req.url()).pathname.split("/v1/")[1];
       calls.push({ path, method: req.method(), headers: await req.allHeaders() });
       let data;
@@ -199,6 +211,16 @@ try {
       await page.screenshot({ path: resolve(output, "pets-cache-fallback-390.png") });
       await page.evaluate(() => window.scrollTo(0, 0));
     }
+    const freshPhotos = page.getByRole("region", { name: "Fresh local finds", exact: true });
+    await freshPhotos.scrollIntoViewIfNeeded();
+    const realPhoto = freshPhotos.locator('img[src*="11111111-2222-4333-8444-555555555555"]');
+    await realPhoto.waitFor();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('img[src*="11111111-2222-4333-8444-555555555555"]')].some(
+        (img) => img.complete && img.naturalWidth > 0,
+      ),
+    );
+    await page.evaluate(() => window.scrollTo(0, 0));
     const headings = await page.locator(".mobile-home h2").allTextContents();
     assert.deepEqual(headings.slice(0, 5), [
       "For you",

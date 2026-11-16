@@ -129,14 +129,14 @@ const compiled = ts.transpileModule(
   readFileSync(new URL("../apps/mobile/src/shopping.ts", import.meta.url), "utf8"),
   { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
 ).outputText;
-function collector() {
+function collector(send = async () => ({})) {
   let install = randomUUID();
   const calls = [];
   const modules = {
     "./client": {
       api: async (...args) => {
         calls.push(args);
-        return {};
+        return send(...args);
       },
     },
     "./identity": {
@@ -191,5 +191,38 @@ test("native impressions deduplicate and carry only the current actor and resett
   h.client.trackShopping("view", "dealerfeed-car");
   await h.client.flushShopping();
   assert.notEqual(h.calls[1][2].events[0].session, before);
+  h.client.applyShopperStatus(null);
+});
+
+test("a fresh recommendation read can await an in-flight activity write and the next queued batch", async () => {
+  let release;
+  const first = new Promise((resolve) => {
+    release = resolve;
+  });
+  let count = 0;
+  const h = collector(async () => {
+    if (++count === 1) await first;
+    return {};
+  });
+  h.client.setShopperIdentity(randomUUID());
+  h.client.applyShopperStatus({ personalization: true, trackingAvailable: true });
+  h.client.trackShopping("view", "dealerfeed-first");
+  const background = h.client.flushShopping();
+  await new Promise((resolve) => setImmediate(resolve));
+  h.client.trackShopping("view", "dealerfeed-second");
+  let ready = false;
+  const foreground = h.client.flushShopping().then(() => {
+    ready = true;
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(ready, false);
+  assert.equal(h.calls.length, 1);
+  release();
+  await Promise.all([background, foreground]);
+  assert.equal(ready, true);
+  assert.deepEqual(
+    h.calls.map((call) => call[2].events.map((event) => event.listingId)),
+    [["dealerfeed-first"], ["dealerfeed-second"]],
+  );
   h.client.applyShopperStatus(null);
 });

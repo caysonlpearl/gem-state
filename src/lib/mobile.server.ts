@@ -6,6 +6,7 @@ import {
 import { mobileSavedSearchAllowed } from "./mobile-saved-search-contract";
 import { mobileSearchInput } from "./mobile-search";
 import { mobileSaleScope } from "./mobile-sale-feed.ts";
+import { nativeListingCoverUrl } from "./listing-card-image.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- existing domain handlers retain their own runtime validators. */
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -239,7 +240,7 @@ function dto(card: any): MobileListing {
     currency: card.currency ?? "USD",
     city: card.city,
     state: card.state,
-    imageUrl: mobileMediaUrl(card.imageUrl),
+    imageUrl: mobileMediaUrl(card.imageUrl || nativeListingCoverUrl(card.id)),
     createdAt: card.createdAt,
     ...(typeof card.description === "string" ? { description: card.description } : {}),
     ...(card.images

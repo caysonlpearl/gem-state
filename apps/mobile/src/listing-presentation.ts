@@ -1,5 +1,7 @@
 import type { MobileListing } from "../../../src/lib/mobile-contract";
 import type { ListingCardSummary } from "../../../src/lib/listing-card-summary";
+import { nativeListingCoverUrl } from "../../../src/lib/listing-card-image.ts";
+import { mobileMediaUrl } from "../../../src/lib/mobile-contract.ts";
 
 /** Adapt the stable phone contract to the website's shared rendering model. */
 export function listingPresentation(card: MobileListing): ListingCardSummary {
@@ -21,6 +23,6 @@ export function listingPresentation(card: MobileListing): ListingCardSummary {
     categorySlug: card.categorySlug,
     categoryName: card.categoryName,
     createdAt: card.createdAt,
-    imageUrl: card.imageUrl,
+    imageUrl: card.imageUrl || mobileMediaUrl(nativeListingCoverUrl(card.id)),
   };
 }

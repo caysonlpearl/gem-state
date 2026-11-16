@@ -6,7 +6,7 @@ import type { ListingCardSummary } from "./listing-card-summary";
 export const SHOPPING_POLICY_VERSION = "2026-11-12";
 export const SHOPPING_RANKING_SCHEMA = "engagement-v1";
 export const shoppingRankingVersion = (version: string) =>
-  `${version}:category-seeds-v1:${SHOPPING_RANKING_SCHEMA}`;
+  `${version}:category-seeds-v2:${SHOPPING_RANKING_SCHEMA}`;
 export const SHOPPING_MODEL = "siglip2-base-patch16-224-v1";
 export const SHOPPING_WEIGHTS = {
   purchase: 20,

@@ -21,6 +21,7 @@ let userId: string | null | undefined,
   session = crypto.randomUUID();
 let queue: ReturnType<typeof mobileShoppingEvent>[] = [];
 let timer: ReturnType<typeof setTimeout> | undefined;
+let sending: Promise<void> | undefined;
 const seen = new Set<string>();
 export function setShopperIdentity(next: string | null) {
   if (userId !== undefined && next === userId) return;
@@ -29,6 +30,7 @@ export function setShopperIdentity(next: string | null) {
   allowed = false;
   generation++;
   queue = [];
+  sending = undefined;
   seen.clear();
   session = crypto.randomUUID();
   if (timer) clearTimeout(timer);
@@ -39,6 +41,7 @@ export function applyShopperStatus(status: ShopperStatus | null) {
   if (!allowed) {
     generation++;
     queue = [];
+    sending = undefined;
     seen.clear();
     if (timer) clearTimeout(timer);
     timer = undefined;
@@ -91,20 +94,32 @@ export function trackShopping(
   if (queue.length > 50) queue.shift();
   if (!timer) timer = setTimeout(() => void flushShopping(), 2500);
 }
-export async function flushShopping() {
+export function flushShopping(): Promise<void> {
   if (timer) clearTimeout(timer);
   timer = undefined;
-  if (!allowed || !queue.length) return;
-  const batch = queue;
-  queue = [];
-  const current = generation,
-    expected = actor();
-  try {
-    if (current === generation)
-      await api("activity", "POST", { events: batch }, undefined, expected);
-  } catch {
-    /* no persistent queue or replay after privacy/account changes */
-  }
+  const current = generation;
+  // A foreground recommendation read must wait for a timer/background flush
+  // already underway as well as the latest queued views. Serialize each flush.
+  const task = (sending ?? Promise.resolve())
+    .then(async () => {
+      if (current !== generation || !allowed || !queue.length) return;
+      const batch = queue,
+        expected = actor();
+      queue = [];
+      try {
+        await api("activity", "POST", { events: batch }, undefined, expected);
+      } catch {
+        /* no persistent queue or replay after privacy/account changes */
+      }
+    })
+    .catch(() => {
+      /* Activity remains best effort; never block browsing. */
+    });
+  sending = task;
+  void task.finally(() => {
+    if (sending === task) sending = undefined;
+  });
+  return task;
 }
 export function resetShoppingSession() {
   session = crypto.randomUUID();

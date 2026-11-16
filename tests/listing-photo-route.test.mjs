@@ -22,6 +22,7 @@ function fixture({
   error = null,
   signFailure = false,
   signMissing = false,
+  thumbnailMissing = false,
   stalled = false,
   partnerListing = null,
   partnerFailure = false,
@@ -106,12 +107,17 @@ function fixture({
       if (name === "@/lib/photo-storage-access")
         return {
           getPhotoStorageModule: async () => ({
-            signPrivatePhotoUrls: async (bucket, paths) => {
-              state.signs.push({ bucket, paths });
+            signPrivatePhotoUrls: async (bucket, paths, _expiry, thumbnail = false) => {
+              state.signs.push({ bucket, paths, thumbnail });
               if (signFailure) throw new Error("Offline signing detail must stay private");
-              return signMissing
+              return signMissing || (thumbnail && thumbnailMissing)
                 ? new Map()
-                : new Map(paths.map((path) => [path, "https://storage.invalid/" + path]));
+                : new Map(
+                    paths.map((path) => [
+                      path,
+                      "https://storage.invalid/" + (thumbnail ? "thumb/" : "") + path,
+                    ]),
+                  );
             },
           }),
         };
@@ -121,11 +127,17 @@ function fixture({
     console: { error() {} },
     Date,
     Number,
+    URL,
   });
   return {
     state,
-    render: (listingId = id, photo = "0") =>
-      exports.Route.server.handlers.GET({ params: { listingId, photo } }),
+    render: (listingId = id, photo = "0", query = "") =>
+      exports.Route.server.handlers.GET({
+        params: { listingId, photo },
+        request: new Request(
+          "https://onbluebird.com/media/listings/" + listingId + "/" + photo + query,
+        ),
+      }),
   };
 }
 test("malformed stable photo identifiers and invalid indexes perform zero source reads", async () => {
@@ -266,4 +278,24 @@ test("a stalled stable-photo SELECT aborts once under the real eight-second dead
   assert.equal(f.state.retry, false);
   assert.equal(f.state.signal.aborted, true);
   assert.equal(f.state.signs.length, 0);
+});
+
+test("card photos prefer previews and fall back to available originals without bypassing visibility", async () => {
+  for (const thumbnailMissing of [false, true]) {
+    const f = fixture({ thumbnailMissing });
+    const response = await f.render(id, "0", "?size=card");
+    assert.equal(response.status, 302);
+    assert.equal(
+      response.headers.get("location"),
+      "https://storage.invalid/" + (thumbnailMissing ? "" : "thumb/") + "seller/first.jpg",
+    );
+    assert.deepEqual(
+      f.state.signs.map((s) => s.thumbnail),
+      thumbnailMissing ? [true, false] : [true],
+    );
+    assert.equal(f.state.reads, 1);
+  }
+  const privateListing = fixture({ row: null });
+  assert.equal((await privateListing.render(id, "0", "?size=card")).status, 404);
+  assert.equal(privateListing.state.signs.length, 0);
 });
