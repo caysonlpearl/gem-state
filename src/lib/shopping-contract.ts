@@ -6,7 +6,7 @@ import type { ListingCardSummary } from "./listing-card-summary";
 export const SHOPPING_POLICY_VERSION = "2026-11-12";
 export const SHOPPING_RANKING_SCHEMA = "engagement-v1";
 export const shoppingRankingVersion = (version: string) =>
-  `${version}:category-seeds-v2:search-intents-v1:${SHOPPING_RANKING_SCHEMA}`;
+  `${version}:category-seeds-v2:search-intents-v1:balanced-feed-v1:${SHOPPING_RANKING_SCHEMA}`;
 export const SHOPPING_MODEL = "siglip2-base-patch16-224-v1";
 export const SHOPPING_WEIGHTS = {
   purchase: 20,
@@ -387,6 +387,93 @@ export function matchesShoppingSearch(
     filters,
   );
 }
+/** Compose a feed, rather than treating the strongest matching category as the
+ * entire feed. A first view is weak evidence; saves and repeated visits earn
+ * more personalized slots. Signal weights and model scores stay unchanged. */
+export function balancedShoppingFeed(
+  ranked: ReturnType<typeof rankShopping>,
+  activity: ShoppingEvent[],
+  now = Date.now(),
+  limit = 8,
+) {
+  const strength =
+    [...interests(activity, now).values()]
+      .filter((interest) => !interest.dismissed && !interest.purchased)
+      .reduce((sum, interest) => sum + interest.score, 0) +
+    activity
+      .filter(
+        (event) => event.kind === "search" && now - Date.parse(event.at ?? "") <= 30 * 86400000,
+      )
+      .reduce(
+        (sum, event) =>
+          sum +
+          SHOPPING_WEIGHTS.search *
+            2 ** (-Math.max(0, now - Date.parse(event.at!)) / (14 * 86400000)),
+        0,
+      );
+  const personalLimit = Math.min(limit, strength >= 10 ? 6 : strength >= 3 ? 4 : 2);
+  const group = (row: (typeof ranked)[number]) =>
+    JSON.stringify([
+      row.card.categorySlug,
+      (row.card.home as { mode?: string } | null)?.mode ?? null,
+    ]);
+  const weights = new Map<string, number>();
+  for (const row of ranked)
+    weights.set(group(row), Math.max(weights.get(group(row)) ?? 0, row.features.rank_intent));
+  const result: typeof ranked = [],
+    used = new Set<string>();
+  const categoryCounts = new Map<string, number>(),
+    sellerCounts = new Map<string, number>();
+  const seller = (row: (typeof ranked)[number]) =>
+    String(row.card.discoverySellerKey ?? row.card.id);
+  const append = (personal: boolean, target: number) => {
+    while (result.length < target) {
+      const candidates = ranked.filter(
+        (row) =>
+          !used.has(row.card.id) &&
+          (sellerCounts.get(seller(row)) ?? 0) < 2 &&
+          (!personal || row.features.rank_intent > 0),
+      );
+      candidates.sort((a, b) => {
+        const load = (row: (typeof ranked)[number]) =>
+          (categoryCounts.get(group(row)) ?? 0) /
+          (personal ? Math.sqrt(Math.max(0.0001, weights.get(group(row)) ?? 0)) : 1);
+        return (
+          load(a) - load(b) ||
+          (personal ? b.score - a.score : b.features.rank_freshness - a.features.rank_freshness) ||
+          b.score - a.score ||
+          a.card.id.localeCompare(b.card.id)
+        );
+      });
+      const next = candidates[0];
+      if (!next) break;
+      result.push(next);
+      used.add(next.card.id);
+      categoryCounts.set(group(next), (categoryCounts.get(group(next)) ?? 0) + 1);
+      sellerCounts.set(seller(next), (sellerCounts.get(seller(next)) ?? 0) + 1);
+    }
+  };
+  append(true, personalLimit);
+  append(false, limit);
+  // Put variety in the first visible cards too, rather than hiding discovery
+  // after a long block of same-category matches in a horizontal rail.
+  const remaining = [...result],
+    display: typeof ranked = [];
+  const positions = new Map(result.map((row, index) => [row.card.id, index]));
+  const shown = new Map<string, number>();
+  while (remaining.length) {
+    remaining.sort(
+      (a, b) =>
+        (shown.get(group(a)) ?? 0) - (shown.get(group(b)) ?? 0) ||
+        positions.get(a.card.id)! - positions.get(b.card.id)!,
+    );
+    const next = remaining.shift()!;
+    display.push(next);
+    shown.set(group(next), (shown.get(group(next)) ?? 0) + 1);
+  }
+  return display;
+}
+
 export function rankShopping(
   cards: ShoppingCard[],
   activity: ShoppingEvent[],

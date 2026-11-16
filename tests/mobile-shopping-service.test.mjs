@@ -361,7 +361,7 @@ test("Recently viewed resolves an older newly revisited listing independently of
   assert.equal(result.recent[0].id, revisited.id);
   assert.equal(
     result.model,
-    "rules-v1:category-seeds-v2:search-intents-v1:engagement-v1",
+    "rules-v1:category-seeds-v2:search-intents-v1:balanced-feed-v1:engagement-v1",
     "Missing vectors do not block useful history; exposure identifies the new selection strategy",
   );
   assert.equal(
@@ -626,6 +626,54 @@ test("a search-only shopper retrieves related cached inventory beyond the newest
   assert(
     f.rpc.every((r) =>
       ["shopping_visual_candidates", "read_published_dealer_inventory"].includes(r.name),
+    ),
+  );
+});
+
+test("cat then car remains mixed through repeated reads of persisted history", async () => {
+  const f = fixture({ onVisual: () => ({ data: [] }) });
+  const seed = {
+    ...f.car,
+    id: "fixture-pet-seed",
+    title: "Cat",
+    categorySlug: "pets",
+    priceCents: 0,
+    vehicle: null,
+  };
+  const pool = [
+    seed,
+    ...["pets", "cars-trucks", "furniture", "other-real-estate"].flatMap((categorySlug) =>
+      Array.from({ length: 10 }, (_, n) => ({
+        ...f.car,
+        id: `fixture-${categorySlug}-${n}`,
+        title: `Public ${categorySlug} ${n}`,
+        categorySlug,
+        vehicle: null,
+        priceCents: categorySlug === "pets" ? 0 : 10000,
+      })),
+    ),
+  ];
+  f.tables.shopping_inventory = pool.map(inventoryRow);
+  f.tables.shopping_events = [view(f.subject, seed.id)];
+  const request = () =>
+    new Request("https://onbluebird.com/api/mobile/v1/recommendations", {
+      headers: { "X-Bluebird-Install": f.subject.slice(2) },
+    });
+  const first = await handle(request(), "recommendations", f.db, null);
+  assert.equal(first.recommended.length, 8);
+  assert(first.recommended.filter((card) => card.categorySlug === "pets").length <= 2);
+  f.tables.shopping_events.push(view(f.subject, "fixture-cars-trucks-0"));
+  const next = await handle(request(), "recommendations", f.db, null);
+  const reopened = await handle(request(), "recommendations", f.db, null);
+  for (const category of ["pets", "cars-trucks"])
+    assert(next.recommended.some((card) => card.categorySlug === category));
+  assert.deepEqual(
+    reopened.recommended.map((card) => card.id),
+    next.recommended.map((card) => card.id),
+  );
+  assert(
+    f.rpc.every((call) =>
+      ["shopping_visual_candidates", "read_published_dealer_inventory"].includes(call.name),
     ),
   );
 });

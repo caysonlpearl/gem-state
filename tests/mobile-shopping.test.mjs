@@ -8,6 +8,8 @@ import {
   mobileGuestSubject,
   mobileRecommendationVehicle,
 } from "../src/lib/mobile-shopping.ts";
+import { createRecommendationCache } from "../apps/mobile/src/recommendation-cache.ts";
+import { mobileListingAllowed } from "../src/lib/mobile-contract.ts";
 import { shoppingDatabaseFixture } from "./helpers/shopping-database.mjs";
 
 test("native activity drops fingerprinting, hardware, private data and forged outcomes", () => {
@@ -133,8 +135,8 @@ const compiled = ts.transpileModule(
   readFileSync(new URL("../apps/mobile/src/shopping.ts", import.meta.url), "utf8"),
   { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
 ).outputText;
-function collector(send = async () => ({})) {
-  let install = randomUUID();
+function collector(send = async () => ({}), options = {}) {
+  let install = options.installId ?? randomUUID();
   const calls = [];
   const modules = {
     "./client": {
@@ -148,6 +150,13 @@ function collector(send = async () => ({})) {
       resetInstallIdentifier: () => (install = randomUUID()),
     },
     "../../../src/lib/mobile-shopping": { mobileShoppingEvent },
+    "../../../src/lib/mobile-contract": { mobileListingAllowed },
+    "./recommendation-cache": {
+      createRecommendationCache: (validate) =>
+        options.storage
+          ? createRecommendationCache(validate, () => options.storage)
+          : createRecommendationCache(validate),
+    },
   };
   const exports = {};
   new Function("require", "exports", compiled)((name) => modules[name], exports);
@@ -249,4 +258,56 @@ test("vehicle rows exclude parts, merchandise, homes and missing categories", ()
     undefined,
   ])
     assert.equal(mobileRecommendationVehicle({ categorySlug }), false);
+});
+
+test("a restarted collector restores its feed only after fresh account consent, and rejects stale writes", () => {
+  const data = new Map(),
+    storage = {
+      getItem: (key) => data.get(key) ?? null,
+      setItem: (key, value) => data.set(key, value),
+      removeItem: (key) => data.delete(key),
+    };
+  const user = randomUUID(),
+    installId = randomUUID();
+  const allowed = {
+    personalization: true,
+    trackingAvailable: true,
+    recommendationsAvailable: true,
+    version: "2026-11-12",
+    historyAfter: "2026-11-16T00:00:00Z",
+  };
+  const rows = {
+    recent: [],
+    continuing: [],
+    recommended: [
+      { id: "public-car", title: "Ford", categorySlug: "cars-trucks", priceCents: 2000000 },
+    ],
+    model: "rules-v1",
+  };
+  const first = collector(undefined, { storage, installId });
+  first.client.setShopperIdentity(user);
+  first.client.applyShopperStatus(allowed);
+  first.client.cacheRecommendations(first.client.recommendationScope(), rows);
+  const cold = collector(undefined, { storage, installId });
+  cold.client.setShopperIdentity(user);
+  assert.equal(cold.client.cachedRecommendations(), null, "Stored cards cannot establish consent");
+  cold.client.applyShopperStatus(allowed);
+  assert.equal(cold.client.cachedRecommendations().recommended[0].id, "public-car");
+  const prior = cold.client.recommendationScope();
+  cold.client.applyShopperStatus(null);
+  cold.client.applyShopperStatus({ ...allowed, historyAfter: "2026-11-16T01:00:00Z" });
+  cold.client.cacheRecommendations(prior, rows);
+  assert.equal(
+    cold.client.cachedRecommendations(),
+    null,
+    "An older response cannot restore cleared history",
+  );
+  cold.client.cacheRecommendations(cold.client.recommendationScope(), rows);
+  cold.client.setShopperIdentity(randomUUID());
+  cold.client.applyShopperStatus(allowed);
+  assert.equal(
+    cold.client.cachedRecommendations(),
+    null,
+    "Account switching clears device recommendations",
+  );
 });

@@ -49,7 +49,8 @@ try {
       dismissed = new Map();
     let consentUnavailable = false,
       onlyWorkRecommendations = false,
-      recommendationReads = 0;
+      recommendationReads = 0,
+      recommendationDelay = 0;
     const cards = [
       {
         id: "dealerfeed-fixture-car",
@@ -185,6 +186,7 @@ try {
           trackingAvailable: true,
           recommendationsAvailable: true,
           version: "2026-11-12",
+          historyAfter: "1970-01-01T00:00:00Z",
         };
       } else if (path === "shopping/privacy") {
         choices.set(id, request.postDataJSON().personalization);
@@ -194,6 +196,7 @@ try {
         data = { cleared: true };
       } else if (path === "recommendations") {
         recommendationReads++;
+        if (recommendationDelay) await pause(recommendationDelay);
         data = {
           recent: choices.get(id) ? cards.filter((card) => !dismissed.get(id)?.has(card.id)) : [],
           continuing: choices.get(id)
@@ -395,6 +398,30 @@ try {
       await vehicleRecommendations.getByText("Third fixture home", { exact: true }).count(),
       0,
     );
+    await page.waitForFunction(
+      () => localStorage.getItem("bluebird-personalized-feed-v1") !== null,
+    );
+    recommendationDelay = 1500;
+    let responseDelivered = false;
+    const coldResponse = page
+      .waitForResponse(
+        (response) => response.url().endsWith("/recommendations") && response.status() === 200,
+      )
+      .then(() => {
+        responseDelivered = true;
+      });
+    await page.reload();
+    await page
+      .getByRole("region", { name: "For you", exact: true })
+      .getByText("Fixture home with a long title and additional facts", { exact: true })
+      .waitFor();
+    assert.equal(
+      responseDelivered,
+      false,
+      "A cold launch restores its own permitted feed before the slow new response",
+    );
+    await coldResponse;
+    recommendationDelay = 0;
     onlyWorkRecommendations = true;
     await page.reload();
     await page.waitForFunction(
@@ -422,7 +449,11 @@ try {
       localStorage.getItem("bluebird-mobile-install-v1"),
     );
     dismissed.set(currentInstall, new Set(["dealerfeed-fixture-other"]));
+    const choicesRefreshed = page.waitForResponse(
+      (response) => response.url().endsWith("/recommendations") && response.status() === 200,
+    );
     await page.reload();
+    await choicesRefreshed;
     await page.getByRole("heading", { name: "For you", exact: true }).waitFor();
     assert.equal(await recommendation.getByText("Fixture pickup", { exact: true }).count(), 0);
     assert.equal(await recommendation.getByText("Fifth hidden job", { exact: true }).count(), 0);
@@ -440,6 +471,7 @@ try {
     await page.locator("#sort").selectOption("price_high");
     await page.getByRole("heading", { name: "For you", exact: true }).waitFor({ state: "hidden" });
     await page.locator("#sort").selectOption("newest");
+    recommendationDelay = 1500;
     const readsBeforeReturn = recommendationReads;
     const refreshedRecommendations = page.waitForResponse(
       (response) => response.url().endsWith("/recommendations") && response.status() === 200,
@@ -448,7 +480,12 @@ try {
       .getByRole("navigation", { name: "Primary", exact: true })
       .getByRole("link", { name: "Home", exact: true })
       .click();
+    await page
+      .getByRole("region", { name: "For you", exact: true })
+      .getByText("Fixture home with a long title and additional facts", { exact: true })
+      .waitFor();
     await refreshedRecommendations;
+    recommendationDelay = 0;
     await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
     await page.waitForFunction(
       () =>
@@ -511,6 +548,8 @@ try {
     assert.deepEqual(errors, []);
     results.push({
       viewport,
+      cachedColdLaunchBeforeResponse: true,
+      retainedDuringHomeRefresh: true,
       activityBeforePermission: 0,
       visibleImpressions: true,
       removedDismissalControls: true,
