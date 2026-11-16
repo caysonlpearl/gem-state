@@ -489,3 +489,35 @@ export function rankShopping(
     })
     .sort((a, b) => b.score - a.score || a.card.id.localeCompare(b.card.id));
 }
+
+/** A worker-fetchable public image and its content identity. Signed query
+ * parameters expire without changing the picture; an owned cover revision
+ * changes only when its selected object changes. The worker still validates
+ * public DNS/redirects, byte bounds and image decoding before inference. */
+export function shoppingImageInput(value: unknown): { url: string | null; identity: string } {
+  if (typeof value !== "string" || !(value.startsWith("/") || value.startsWith("https://")))
+    return { url: null, identity: "" };
+  try {
+    const url = new URL(value, "https://onbluebird.com");
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      (url.port && url.port !== "443")
+    )
+      return { url: null, identity: "" };
+    url.hash = "";
+    const revision =
+      url.hostname === "onbluebird.com" &&
+      /^\/media\/listings\/[0-9a-f-]{36}\/0$/i.test(url.pathname)
+        ? url.searchParams.get("rev")
+        : null;
+    const identity =
+      url.origin +
+      url.pathname +
+      (revision && /^[0-9a-f]{64}$/.test(revision) ? `?rev=${revision}` : "");
+    return { url: url.href, identity };
+  } catch {
+    return { url: null, identity: "" };
+  }
+}
