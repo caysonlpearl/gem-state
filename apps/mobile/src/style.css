@@ -714,3 +714,14 @@ body:has(.native-floating-navigation [role="menu"]) .native-listing-contact {
     flex-basis: auto;
   }
 }
+
+/* Apple's body text style follows Dynamic Type; retain Bluebird's typeface. */
+.native-app-icon-picker {
+  font-size: 17px;
+  font: -apple-system-body;
+  font-family: inherit;
+}
+.native-app-icon-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(72px, 4.25em)), 1fr));
+  max-width: calc(17em + 36px);
+}

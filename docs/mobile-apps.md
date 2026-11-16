@@ -1336,3 +1336,50 @@ runtime checks remain unverified. At this documentation pass, commit/push and
 backend/web publication are still pending; installation is not evidence that
 those occurred. Broader Terms, launch and voice work stays paused, and the
 existing provider, real push, Apple-login and store-release gates remain open.
+
+## Optional iPhone app icons — November 16, 2026
+
+Account → Account settings now offers eight icons from the owner's supplied
+images on iOS: Yellow, Blue gloss, Sky blue shadow, Midnight blue, Sky blue,
+Black, Yellow gloss and Blue. This extends the incumbent cream account card
+layout; it does not replace the primary Bluebird icon or global brand. The
+picker states that the choice changes only this iPhone, marks the current icon,
+reports loading/change failures and offers retry and Use original icon.
+
+`AppIconPicker.tsx` calls the allowlisted `BluebirdAppIcon` native plugin in
+`SceneDelegate.swift`. iOS owns the per-device preference; no account/database
+write, remote icon override, new permission or advertising change is involved.
+The native asset catalog contains eight alternate icon names with 1024-pixel
+RGB images, while the picker uses 192-pixel PNG previews. Source filenames and
+hashes are recorded in `docs/app-icon-sources.json`. The original primary asset
+is unchanged. The picker uses the iOS body text style, relative text sizes and
+an auto-fitting grid so its text and controls respond to Dynamic Type.
+
+Evidence is in `output/mobile-icon-picker-20261116/`. The
+`icons-{320,390,768,1280}.png` captures and `results.json` cover all eight choices,
+failure/retry and original reset using a synthetic browser icon adapter, with
+no horizontal overflow. `account/account-results.json` records the shared
+account journeys. These browser checks do not prove an operating-system icon
+change.
+
+Actual iOS Simulator evidence includes `phone.png` for the full Account settings
+screen, `phone-dark-large.png` for enlarged text,
+`phone-dark-large-bottom.png` for reachable lower controls and
+`phone-dark-large-selected.png` for the Blue selection. The simulator used a
+separate copy of compiled build 23 with test-only account fetch/storage fixtures;
+the native icon plugin and bundled assets were real. Yellow and Blue selections
+and Apple's confirmation alerts were exercised; original reset was exercised
+on build 22. These fixtures did not change production UI source, were not
+committed or installed on the owner's phone, and the clean production build 23
+and prior simulator appearance/text settings were restored afterward.
+
+Signed iOS build 23 and Simulator build 23 compiled, the asset-catalog test
+passed and changed-file lint reported zero errors. Build 23 was installed on
+the owner's iPhone and its installed version read back; the owner's physical
+confirmation remains pending. The initial finish review requested native
+captures and a Dynamic Type correction. The final verdict scored that correction
+resolved, with no regression observed from the fix; its ship disposition covers
+the scored fix. This is not a broad accessibility or release approval. At this
+documentation pass, icon changes remain uncommitted/unpushed; PR 294 payments
+regressions passed and its confirmed cancelled iOS job was rerun. Broader launch
+and voice work stays paused.

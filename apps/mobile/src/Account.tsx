@@ -1,3 +1,4 @@
+import { AppIconPicker } from "./AppIconPicker";
 import { nativeListingDestination } from "./listing-links";
 import { rememberNativeAuthDestination } from "./auth-destination";
 import { NativeNotifications, useNativeNotifications } from "./Notifications";
@@ -509,16 +510,19 @@ function NativeSettings({
       }
       deletionControls={<DeleteAccount ownerId={ownerId} />}
       nativeControls={
-        <AccountAppControls>
-          {permissions}
-          <button
-            type="button"
-            className="mt-5 text-[12px] font-semibold text-primary hover:underline"
-            onClick={() => void onSignOut()}
-          >
-            Sign out
-          </button>
-        </AccountAppControls>
+        <>
+          <AppIconPicker />
+          <AccountAppControls>
+            {permissions}
+            <button
+              type="button"
+              className="mt-5 text-[12px] font-semibold text-primary hover:underline"
+              onClick={() => void onSignOut()}
+            >
+              Sign out
+            </button>
+          </AccountAppControls>
+        </>
       }
       showBillingPreferences={false}
     />
