@@ -23,6 +23,36 @@ import {
   shoppingReminderProgress,
   completedReminder,
 } from "./shopping-delivery-eligibility.ts";
+import {
+  campaignForItem,
+  marketingDiscovery,
+  marketingPrice,
+  nextMarketingWindow,
+  safeMarketingImage,
+  variedMarketingCards,
+  type MarketingCampaign,
+} from "./shopping-marketing.ts";
+
+function marketingReason(campaign: MarketingCampaign) {
+  switch (campaign) {
+    case "saved_reminder":
+      return "On your saved list";
+    case "viewed_reminder":
+      return "You viewed this listing more than once";
+    case "local_finds":
+      return "In a city you’ve been shopping in";
+    case "category_finds":
+      return "In a category you’ve explored";
+    case "welcome":
+      return "Explore Bluebird";
+    case "comeback":
+      return "New since your last visit";
+    case "weekly_picks":
+      return "Picked around your shopping interests";
+    default:
+      return "Similar to your shopping interests";
+  }
+}
 
 async function all(db: any, table: string, selection = "*") {
   const rows: any[] = [];
@@ -69,6 +99,12 @@ export async function generateShoppingAlerts(db: any) {
     all(db, "saved_searches"),
     all(db, "shopping_inventory"),
   ]);
+  const expired = await db
+    .from("shopping_queue")
+    .update({ status: "suppressed" })
+    .eq("status", "pending")
+    .lt("payload->>expires_at", new Date(now).toISOString());
+  if (expired.error) throw Error("Expired marketing updates could not be retired.");
   const cards = inventory.filter((r) => Date.parse(r.valid_until) > now),
     byId = new Map(cards.map((r) => [r.listing_id, r]));
   const users = new Set<string>([
@@ -86,8 +122,15 @@ export async function generateShoppingAlerts(db: any) {
         ? await shoppingActivity(db, subject)
         : [];
     const candidates: any[] = [];
+    const timezone = [...activity].reverse().find((e) => typeof e.context?.timezone === "string")
+      ?.context?.timezone;
     const add = async (_db: any, row: any) => {
-      candidates.push(row);
+      candidates.push({
+        ...row,
+        available_at: new Date(
+          nextMarketingWindow(now, typeof timezone === "string" ? timezone : undefined),
+        ).toISOString(),
+      });
     };
     const profile = interests(activity, now);
     const progress = await shoppingReminderProgress(db, subject);
@@ -112,7 +155,11 @@ export async function generateShoppingAlerts(db: any) {
           kind: "match",
           event_key: "match",
           requested: true,
-          payload: { search_ids: matching.map((s) => s.id) },
+          payload: {
+            search_ids: matching.map((s) => s.id),
+            campaign: "search_match",
+            expires_at: new Date(now + 7 * 86400000).toISOString(),
+          },
         });
         queued++;
       }
@@ -139,7 +186,10 @@ export async function generateShoppingAlerts(db: any) {
             listing_id: item.card.id,
             kind: "alternative",
             event_key: "alternative:new",
-            payload: {},
+            payload: {
+              campaign: "similar_new",
+              expires_at: new Date(now + 2 * 86400000).toISOString(),
+            },
           });
       }
       for (const interest of profile.values()) {
@@ -147,6 +197,7 @@ export async function generateShoppingAlerts(db: any) {
         if (!row || interest.dismissed || interest.purchased) continue;
         if (
           shoppingPriceInterest(interest) &&
+          row.price_cents > 0 &&
           row.previous_price_cents > row.price_cents &&
           interest.lastAt < Date.parse(row.price_changed_at ?? "")
         ) {
@@ -158,13 +209,20 @@ export async function generateShoppingAlerts(db: any) {
             payload: {
               price_version: row.price_version,
               previous_price_cents: row.previous_price_cents,
+              campaign: "price_drop",
+              expires_at: new Date(now + 7 * 86400000).toISOString(),
             },
           });
           queued++;
         }
         if (holdout) continue;
         const step = reminderStep(interest, now);
-        if (step && !completedReminder(progress.get(interest.listingId), interest.lastAt, step)) {
+        // A single follow-up per interest cycle, after 72 hours. No 24h/7d ladder.
+        if (
+          step &&
+          step >= 3 &&
+          !completedReminder(progress.get(interest.listingId), interest.lastAt, 3)
+        ) {
           const recent = await db
             .from("shopping_queue")
             .select("id,sent_at")
@@ -182,8 +240,57 @@ export async function generateShoppingAlerts(db: any) {
             user_id: userId,
             listing_id: row.listing_id,
             kind: "reminder",
-            event_key: `reminder:${interest.lastAt}:${step}`,
-            payload: { interest_at: interest.lastAt, step },
+            event_key: `reminder:${interest.lastAt}:3`,
+            payload: {
+              interest_at: interest.lastAt,
+              step: 3,
+              campaign: interest.favorite ? "saved_reminder" : "viewed_reminder",
+              expires_at: new Date(interest.lastAt + 7 * 86400000).toISOString(),
+            },
+          });
+          queued++;
+        }
+      }
+    }
+    if (account?.shopping_alerts === true && !holdout && controls.marketing_started_at) {
+      const history = await db
+        .from("shopping_queue")
+        .select("event_key,listing_id,status,sent_at", { count: "exact" })
+        .eq("user_id", userId)
+        .gte("created_at", new Date(now - 30 * 86400000).toISOString())
+        .limit(5000);
+      if (history.error || history.count !== history.data?.length)
+        throw Error("Marketing history unavailable.");
+      const sentRecently = new Set(
+        history.data
+          .filter(
+            (r: any) => r.status === "sent" && Date.parse(r.sent_at ?? "") > now - 7 * 86400000,
+          )
+          .map((r: any) => r.listing_id),
+      );
+      const batches = marketingDiscovery({
+        account,
+        activity,
+        inventory: cards,
+        launchedAt: Date.parse(controls.marketing_started_at),
+        excludeListingIds: sentRecently as Set<string>,
+        now,
+      });
+      for (const batch of batches) {
+        if (history.data.some((r: any) => r.event_key === batch.eventKey)) continue;
+        const selected = batch.cards.filter((c) => !sentRecently.has(c.id));
+        if (selected.length < 3) continue;
+        for (const card of selected) {
+          await add(db, {
+            user_id: userId,
+            listing_id: card.id,
+            kind: "alternative",
+            event_key: batch.eventKey,
+            payload: {
+              campaign: batch.campaign,
+              anchor: batch.anchor,
+              expires_at: new Date(batch.expiresAt).toISOString(),
+            },
           });
           queued++;
         }
@@ -233,6 +340,57 @@ async function recoverExhaustedDeliveries(db: any) {
     .eq("status", "processing");
   if (q.error) throw Error("Queue recovery unavailable.");
 }
+function shoppingNotificationRows(eligible: any[], userId: string) {
+  return eligible.map((item) => ({
+    id: item.notification_id,
+    user_id: userId,
+    kind: "shopping_alert",
+    title:
+      item.kind === "price_drop"
+        ? "A listing dropped in price"
+        : item.kind === "match"
+          ? "A new listing matches your search"
+          : "New shopping updates for you",
+    body: item.card.title,
+    entity_type: "shopping_alert",
+    entity_id: item.id,
+    destination_url: `/listings/${item.listing_id}`,
+  }));
+}
+/** Website notifications stay prompt even when the email frequency limit is reached. */
+export async function publishPendingShoppingNotifications(db: any) {
+  const byUser = new Map<string, string[]>();
+  for (let offset = 0; ; offset += 500) {
+    const page = await db
+      .from("shopping_queue")
+      .select("id,user_id")
+      .eq("status", "pending")
+      .order("id")
+      .range(offset, offset + 499);
+    if (page.error) throw Error("Pending notifications unavailable.");
+    for (const item of page.data)
+      byUser.set(item.user_id, [...(byUser.get(item.user_id) ?? []), item.id]);
+    if (page.data.length < 500) break;
+  }
+  for (const [user_id, queue_ids] of byUser) {
+    for (let start = 0; start < queue_ids.length; start += 200) {
+      const { eligible } = await deliveryCandidates(
+        db,
+        { user_id, queue_ids: queue_ids.slice(start, start + 200) },
+        ["pending"],
+      );
+      if (eligible.length) {
+        const result = await db
+          .from("notifications")
+          .upsert(shoppingNotificationRows(eligible, user_id), {
+            onConflict: "id",
+            ignoreDuplicates: true,
+          });
+        if (result.error) throw Error("Website notifications unavailable.");
+      }
+    }
+  }
+}
 export async function deliverShoppingAlerts(db: any, limit = 20) {
   await recoverExhaustedDeliveries(db);
   let sent = 0,
@@ -266,28 +424,21 @@ export async function deliverShoppingAlerts(db: any, limit = 20) {
         suppressed += suppressedIds.length;
       }
       if (eligible.length) {
-        const r = await db.from("notifications").upsert(
-          eligible.map((item) => ({
-            id: item.notification_id,
-            user_id: delivery.user_id,
-            kind: "shopping_alert",
-            title:
-              item.kind === "price_drop"
-                ? "A listing dropped in price"
-                : item.kind === "match"
-                  ? "A new listing matches your search"
-                  : "Continue your shopping",
-            body: item.card.title,
-            entity_type: "shopping_alert",
-            entity_id: item.id,
-            destination_url: `/listings/${item.listing_id}`,
-          })),
-          { onConflict: "id", ignoreDuplicates: true },
-        );
+        const r = await db
+          .from("notifications")
+          .upsert(shoppingNotificationRows(eligible, delivery.user_id), {
+            onConflict: "id",
+            ignoreDuplicates: true,
+          });
         if (r.error) throw Error("Website notifications unavailable.");
       }
-      const emailItems = eligible.filter((e) => e.email),
+      const eligibleEmail = eligible.filter((e) => e.email),
         origin = brand.urls.siteUrl.replace(/\/$/, "");
+      const campaign = eligibleEmail.length ? campaignForItem(eligibleEmail[0]) : "similar_new";
+      const emailById = new Map(eligibleEmail.map((e) => [e.card.id, e]));
+      const emailItems = variedMarketingCards(
+        eligibleEmail.filter((e) => campaignForItem(e) === campaign).map((e) => e.card),
+      ).map((card) => emailById.get(card.id)!);
       if (
         emailItems.length &&
         !account.delivery_blocked &&
@@ -297,46 +448,67 @@ export async function deliverShoppingAlerts(db: any, limit = 20) {
         !user.email.endsWith(".invalid")
       ) {
         const unsub = `${origin}/api/shopping-link/${account.unsubscribe_token}?action=unsubscribe`;
-        const result = await sendTemplateEmail("shopping-alert", user.email, {
-          idempotencyKey: `shopping-delivery-${delivery.id}`,
-          tags: [{ name: "bluebird_shopping_id", value: delivery.id }],
-          beforeSend: async () => {
-            if (!(await shoppingControls(db)).notifications) return false;
-            const latest = await deliveryCandidates(db, delivery);
-            if (latest.account.delivery_blocked) return false;
-            return emailItems.every((item) =>
-              latest.eligible.some(
-                (e) =>
-                  e.id === item.id &&
-                  e.email &&
-                  e.card.priceCents === item.card.priceCents &&
-                  e.card.title === item.card.title,
-              ),
-            );
+        const result = await sendTemplateEmail(
+          `marketing-${campaign.replaceAll("_", "-")}`,
+          user.email,
+          {
+            idempotencyKey: `shopping-delivery-${delivery.id}`,
+            tags: [{ name: "bluebird_shopping_id", value: delivery.id }],
+            beforeSend: async () => {
+              if (!(await shoppingControls(db)).notifications) return false;
+              const latest = await deliveryCandidates(db, delivery);
+              if (latest.account.delivery_blocked) return false;
+              return emailItems.every((item) =>
+                latest.eligible.some(
+                  (e) =>
+                    e.id === item.id &&
+                    e.email &&
+                    e.card.priceCents === item.card.priceCents &&
+                    e.card.title === item.card.title,
+                ),
+              );
+            },
+            headers: {
+              "List-Unsubscribe": `<${unsub}>`,
+              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
+            templateData: {
+              campaign,
+              items: emailItems.map((item) => ({
+                title: item.card.title,
+                price: `${marketingPrice(item.card.priceCents)}${item.card.priceCents > 0 && (item.card.home as { mode?: string } | undefined)?.mode === "rent" ? "/mo" : ""}`,
+                imageUrl: safeMarketingImage(item.card.imageUrl)
+                  ? `${origin}/api/shopping-email-image/${delivery.tracking_token}/${item.id}`
+                  : undefined,
+                location: [item.card.city, item.card.state].filter(Boolean).join(", "),
+                seller: (item.card.businessAttribution as { name?: string } | undefined)?.name,
+                ...(item.kind === "price_drop" &&
+                item.card.priceCents > 0 &&
+                item.payload.previous_price_cents > item.card.priceCents
+                  ? {
+                      previousPrice: marketingPrice(item.payload.previous_price_cents),
+                      saving: marketingPrice(
+                        item.payload.previous_price_cents - item.card.priceCents,
+                      ),
+                    }
+                  : {}),
+                reason:
+                  item.kind === "price_drop"
+                    ? "The asking price changed"
+                    : item.kind === "match"
+                      ? "Matches your saved search"
+                      : marketingReason(campaign),
+                url: `${origin}/api/shopping-link/${delivery.tracking_token}?action=click&item=${item.id}`,
+              })),
+              unsubscribeUrl: unsub,
+              preferencesUrl: `${origin}/account?tab=settings`,
+              moreUrl: `${origin}/api/shopping-link/${delivery.tracking_token}?action=updates&item=${emailItems[0].id}`,
+              openUrl: permission?.personalization
+                ? `${origin}/api/shopping-link/${delivery.tracking_token}?action=open`
+                : undefined,
+            },
           },
-          headers: {
-            "List-Unsubscribe": `<${unsub}>`,
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-          },
-          templateData: {
-            items: emailItems.slice(0, 20).map((item) => ({
-              title: item.card.title,
-              price: `$${(item.card.priceCents / 100).toLocaleString()}`,
-              reason:
-                item.kind === "price_drop"
-                  ? `Previously $${(item.payload.previous_price_cents / 100).toLocaleString()}`
-                  : item.kind === "match"
-                    ? "Matches your saved search"
-                    : "You showed interest in this listing",
-              url: `${origin}/api/shopping-link/${delivery.tracking_token}?action=click&item=${item.id}`,
-            })),
-            unsubscribeUrl: unsub,
-            moreUrl: `${origin}/notifications`,
-            openUrl: permission?.personalization
-              ? `${origin}/api/shopping-link/${delivery.tracking_token}?action=open`
-              : undefined,
-          },
-        });
+        );
         if (!result.sent) {
           const r = await db.from("shopping_queue").update({ status: "suppressed" }).in("id", ids);
           if (r.error) throw Error("Suppression unavailable.");
@@ -362,24 +534,45 @@ export async function deliverShoppingAlerts(db: any, limit = 20) {
           .is("provider_status", null);
         if (status.error) throw Error("Delivery status unavailable.");
       }
-      if (ids.length) {
+      const awaitingConfirmation = Boolean(
+        user?.email &&
+        !user.email_confirmed_at &&
+        !user.app_metadata?.managed_import &&
+        !user.email.endsWith(".invalid"),
+      );
+      const deferred = eligibleEmail
+        .filter((item) => awaitingConfirmation || !emailItems.some((shown) => shown.id === item.id))
+        .map((item) => item.id);
+      if (deferred.length) {
+        const update = await db
+          .from("shopping_queue")
+          .update({
+            status: "pending",
+            delivery_id: null,
+            available_at: new Date(Date.now() + 86400000).toISOString(),
+          })
+          .in("id", deferred);
+        if (update.error) throw Error("Remaining updates could not be deferred.");
+      }
+      const completed = ids.filter((id: string) => !deferred.includes(id));
+      if (completed.length) {
         const r = await db
           .from("shopping_queue")
           .update({ status: "sent", sent_at: new Date().toISOString() })
-          .in("id", ids)
+          .in("id", completed)
           .eq("status", "processing");
         if (r.error) throw Error("Queue outcome unavailable.");
       }
       const r = await db
         .from("shopping_deliveries")
         .update({
-          status: eligible.length ? "sent" : "suppressed",
-          sent_at: eligible.length ? new Date().toISOString() : null,
+          status: completed.length ? "sent" : "suppressed",
+          sent_at: completed.length ? new Date().toISOString() : null,
           lease_until: null,
         })
         .eq("id", delivery.id);
       if (r.error) throw Error("Delivery outcome unavailable.");
-      sent += eligible.length;
+      sent += completed.length;
     } catch {
       const r = await db
         .from("shopping_deliveries")
@@ -425,8 +618,9 @@ export async function processShoppingWorker() {
     await import("./shopping-advertising.server")
   ).deliverShoppingAdvertising(db);
   if (!controls.notifications) return { inventory, paused: true, ...advertising };
-  const queued = await generateShoppingAlerts(db),
-    delivered = await deliverShoppingAlerts(db);
+  const queued = await generateShoppingAlerts(db);
+  await publishPendingShoppingNotifications(db);
+  const delivered = await deliverShoppingAlerts(db);
   return { inventory, queued, ...delivered, ...advertising };
 }
 

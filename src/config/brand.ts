@@ -13,6 +13,7 @@ export const brand = {
   description:
     "Idaho classifieds for cars, trucks, outdoor gear, tools, home goods, and more from local sellers.",
   domain: "onbluebird.com",
+  mailingAddress: "2429 Independence St, Twin Falls, ID 83301",
   supportEmail: "bluebirdmarketplaceid@gmail.com",
   pressEmail: "bluebirdmarketplaceid@gmail.com",
   urls: {

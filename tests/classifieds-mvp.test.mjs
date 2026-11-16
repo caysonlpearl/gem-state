@@ -917,7 +917,7 @@ test("step five preserves vehicle filters and keeps seeded records safe to revie
 
 test("step six keeps customer email surfaces on the Bluebird brand", () => {
   assert.match(emailShellSource, /Bluebird Marketplace is an independent marketplace/);
-  assert.match(emailShellSource, /https:\/\/gemstateclassifieds\.com/);
+  assert.match(emailShellSource, /SITE_URL = brand\.urls\.siteUrl/);
   assert.match(authEmailSource, /const SITE_NAME = "Bluebird Marketplace"/);
   assert.match(authEmailSource, /notify\.gemstateclassifieds\.com/);
   assert.doesNotMatch(emailShellSource, /ParkVault|Disney/);
