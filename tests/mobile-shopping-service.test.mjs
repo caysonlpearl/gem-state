@@ -7,6 +7,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import * as contract from "../src/lib/shopping-contract.ts";
+import * as listingInput from "../src/lib/shopping-listing-input.ts";
 import * as mobileContract from "../src/lib/mobile-contract.ts";
 import * as protocol from "../src/lib/mobile-api.ts";
 import * as nativeEvents from "../src/lib/mobile-shopping.ts";
@@ -25,6 +26,7 @@ function load(source, modules) {
 }
 const shared = load(compile("shopping.server.ts"), {
   "./shopping-contract.ts": contract,
+  "./shopping-listing-input.ts": listingInput,
   "./shopping-activity.server.ts": activityReads,
   "./shopping-recommendation-context.server.ts": recommendationContext,
   "./account-deletion-access.server.ts": deletionAccess,

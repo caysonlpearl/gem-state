@@ -55,6 +55,8 @@ test("actual private embedding endpoint gives the worker absolute public image a
                 card: {
                   title: "Public fixture",
                   categorySlug: "home-garden",
+                  itemDetails: { itemType: "Planter", material: "Ceramic" },
+                  privateMessage: "do not export this",
                   imageUrl:
                     "/media/listings/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/0?size=card&rev=" +
                     "a".repeat(64),
@@ -84,6 +86,8 @@ test("actual private embedding endpoint gives the worker absolute public image a
       "a".repeat(64),
   );
   assert(!JSON.stringify(body).includes("storage_path"));
+  assert.match(body.items[0].text, /Material: Ceramic/);
+  assert(!JSON.stringify(body).includes("do not export this"));
   assert.equal(result.headers.get("cache-control"), "no-store");
   assert.deepEqual(calls, [{ name: "shopping_embedding_candidates", args: { batch_size: 96 } }]);
 });
@@ -92,6 +96,7 @@ test("the actual catalog sweep invalidates a changed cover but preserves identit
   let image =
     "/media/listings/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/0?size=card&rev=" + "a".repeat(64);
   const records = new Map();
+  let material = "Oak";
   const card = () => ({
     id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
     title: "Public desk",
@@ -99,6 +104,7 @@ test("the actual catalog sweep invalidates a changed cover but preserves identit
     priceCents: 5000,
     createdAt: new Date().toISOString(),
     imageUrl: image,
+    itemDetails: { itemType: "Desk", material },
   });
   const db = {
     from(table) {
@@ -158,4 +164,8 @@ test("the actual catalog sweep invalidates a changed cover but preserves identit
   image = image.replace("a".repeat(64), "b".repeat(64));
   await service.syncShoppingInventory(db);
   assert.notEqual(records.get(card().id).content_hash, original);
+  const changedPhoto = records.get(card().id).content_hash;
+  material = "Steel";
+  await service.syncShoppingInventory(db);
+  assert.notEqual(records.get(card().id).content_hash, changedPhoto);
 });

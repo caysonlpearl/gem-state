@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- server-only vector projection */
 import { createFileRoute } from "@tanstack/react-router";
-import { SHOPPING_MODEL, shoppingImageInput } from "@/lib/shopping-contract";
+import { SHOPPING_MODEL } from "@/lib/shopping-contract";
+import { shoppingListingInput } from "@/lib/shopping-listing-input";
 import { shoppingDb, shoppingControls } from "@/lib/shopping.server";
 async function handle(request: Request) {
   const { serverEnv } = await import("@/lib/runtime-env.server");
@@ -21,24 +22,10 @@ async function handle(request: Request) {
     return Response.json(
       {
         model: SHOPPING_MODEL,
-        items: (r.data ?? []).map((r: any) => ({
-          id: r.listing_id,
-          hash: r.content_hash,
-          image: shoppingImageInput(r.card.imageUrl).url,
-          text: [
-            r.card.title,
-            r.card.categorySlug,
-            r.card.city,
-            r.card.state,
-            ...Object.values(r.card.vehicle ?? {}).filter(
-              (x) => typeof x === "string" || typeof x === "number",
-            ),
-            r.card.home?.propertyType,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .slice(0, 1000),
-        })),
+        items: (r.data ?? []).map((r: any) => {
+          const input = shoppingListingInput(r.card);
+          return { id: r.listing_id, hash: r.content_hash, image: input.image, text: input.text };
+        }),
       },
       { headers },
     );
