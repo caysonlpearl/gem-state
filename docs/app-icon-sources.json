@@ -1,0 +1,58 @@
+[
+  {
+    "id": "yellow",
+    "label": "Yellow",
+    "native": "BluebirdYellow",
+    "source": "1-Photo-1.jpg",
+    "sha256": "c352eb494e1ccc1a8d53097c163c816d2bf68f25a7520a20a035237305ed44a6"
+  },
+  {
+    "id": "blue-gloss",
+    "label": "Blue gloss",
+    "native": "BluebirdBlueGloss",
+    "source": "2-Photo-2.jpg",
+    "sha256": "0d70bca6b94f8e9c2ff056c723ec494e03cc9af03836567825b2c64e38309c8e"
+  },
+  {
+    "id": "sky-shadow",
+    "label": "Sky blue shadow",
+    "native": "BluebirdSkyShadow",
+    "source": "3-Photo-3.jpg",
+    "sha256": "72a4c15f78ae244f27acf76406c1fdf502a1f40a92a4167ac3b6e1dc5829a1de"
+  },
+  {
+    "id": "midnight",
+    "label": "Midnight blue",
+    "native": "BluebirdMidnight",
+    "source": "4-Photo-4.jpg",
+    "sha256": "78cb84f9dded81cf17ed561cb52a2d0d59b13700e1f04ac36c0716037399567b"
+  },
+  {
+    "id": "sky",
+    "label": "Sky blue",
+    "native": "BluebirdSky",
+    "source": "5-Photo-5.jpg",
+    "sha256": "c8cfbc54b1a900e05fb72acc06a9819271ca06041323ae742ba851d12bbde51f"
+  },
+  {
+    "id": "black",
+    "label": "Black",
+    "native": "BluebirdBlack",
+    "source": "6-Photo-6.jpg",
+    "sha256": "23bf5c363db345442fcba48484dc4fe78d3c8dc62dbcf97b808fbe60c1beeb79"
+  },
+  {
+    "id": "yellow-gloss",
+    "label": "Yellow gloss",
+    "native": "BluebirdYellowGloss",
+    "source": "7-Photo-8.jpg",
+    "sha256": "1b22410cc65143c1c1baf9805f06bc70825324bec28644224c365036a6e80550"
+  },
+  {
+    "id": "blue",
+    "label": "Blue",
+    "native": "BluebirdBlue",
+    "source": "8-Photo-9.jpg",
+    "sha256": "c7aede02680f4555b80bacc230e402131b289d24ace436e51ea45013e449afe0"
+  }
+]
