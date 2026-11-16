@@ -1,11 +1,11 @@
 import { assertAccountSession, accountDeletionPending } from "./account-deletion-access.server.ts";
+import { shoppingListingInput } from "./shopping-listing-input.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- private migration-backed tables */
 import {
   interests,
   rankShopping,
   shoppingRankingVersion,
   shoppingEvent,
-  shoppingImageInput,
   SHOPPING_MODEL,
   SHOPPING_POLICY_VERSION,
   type ShoppingCard,
@@ -615,9 +615,7 @@ export async function syncShoppingInventory(db: any) {
     [...cards.values()].map(async (card) => {
       const old = prior.get(card.id),
         priceChanged = old && old.price_cents !== card.priceCents;
-      const hash = await contentHash(
-        `${card.title}|${JSON.stringify(card.vehicle ?? card.home ?? {})}|${shoppingImageInput(card.imageUrl).identity}`,
-      );
+      const hash = await contentHash(shoppingListingInput(card).identity);
       const row: any = {
         listing_id: card.id,
         card,

@@ -87,6 +87,39 @@ search-intents-v1; reviewed weight promotion is unchanged.
 5. Consider user-selected image search or user-initiated voice search as later
    features with purpose-specific permissions and retention. Neither is active.
 
+## Public listing facts batch
+
+The model input now uses one deterministic projection of public facts for both
+the private embedding worker and the catalog's content hash. In addition to title
+and photos, it includes category-specific item fields (for example brand, size
+and material), condition, named vehicle specifications, home mode/type/bedrooms/
+bathrooms/area, selected pet suitability attributes, and bounded service/job
+facets. Arbitrary nested card/provider metadata, VINs, agent/application contacts,
+private messages, addresses and precise coordinates are not serialized. Existing
+free-text sanitization also rejects apparent credentials, URLs and contact data.
+
+Changing facts actually supplied to the model or the cover revision invalidates
+the cached vector. Price and expiring photo signatures do not; budget remains a
+separate ranking feature. This input-schema change will regenerate existing
+vectors within the existing hourly job's bounded capacity. Missing/currently
+regenerating vectors retain the nonvisual recommendation fallback. No additional
+provider requests, personal activity collection or paid inference service is
+introduced. Source tests are not proof of live vector refresh or relevance gains.
+
+## Additional features requested November 16
+
+The owner requested all three: nearby recommendations, chosen-photo/camera search
+and tap-to-speak search. These are implementation requests, not consent on behalf
+of members. Foreground nearby search already has an explicit location action and
+rounds its center before use. Automatic/background location is not authorized.
+Photo and speech search still require implementation and device checks; do not
+publish disclosures claiming they are active before they work. Each needs a clear
+purpose, contextual permission, denial/cancellation handling and a deletion/
+retention boundary. Speech processing must disclose whether it leaves the device.
+Private query photos must never be put in the public listing catalog or public
+embedding workflow. Image inference capacity and any new cost must be measured
+and priced before commitment. Signup remains exactly two choices.
+
 ## Device and external-data boundary
 
 [Apple data-use rules](https://developer.apple.com/app-store/user-privacy-and-data-use/)
