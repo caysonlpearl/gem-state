@@ -3,11 +3,14 @@ import { installIdentifier, resetInstallIdentifier } from "./identity";
 import { mobileShoppingEvent } from "../../../src/lib/mobile-shopping";
 import type { MobileListing } from "../../../src/lib/mobile-contract";
 import type { ShoppingKind } from "../../../src/lib/shopping-contract";
+import { mobileListingAllowed } from "../../../src/lib/mobile-contract";
+import { createRecommendationCache, type RecommendationOwner } from "./recommendation-cache";
 export type ShopperStatus = {
   personalization: boolean;
   trackingAvailable: boolean;
   recommendationsAvailable: boolean;
   version: string;
+  historyAfter?: string | null;
 };
 export type RecommendationRows = {
   recent: MobileListing[];
@@ -24,11 +27,44 @@ let queue: ReturnType<typeof mobileShoppingEvent>[] = [];
 let timer: ReturnType<typeof setTimeout> | undefined;
 let sending: Promise<void> | undefined;
 const seen = new Set<string>();
+let recommendationOwner: RecommendationOwner | null = null;
+const recommendationCache = createRecommendationCache<MobileListing>(
+  (value): value is MobileListing => {
+    if (!value || typeof value !== "object") return false;
+    const card = value as MobileListing;
+    return (
+      typeof card.id === "string" &&
+      typeof card.title === "string" &&
+      Number.isSafeInteger(card.priceCents) &&
+      card.priceCents >= 0 &&
+      mobileListingAllowed(card) &&
+      !["jobs", "services"].includes(card.categorySlug)
+    );
+  },
+);
+export const shoppingActor = () => ({ userId: userId ?? null, installId: installIdentifier() });
+export const recommendationScope = () =>
+  JSON.stringify([
+    shoppingActor(),
+    generation,
+    recommendationOwner?.policy,
+    recommendationOwner?.historyAfter,
+  ]);
+export const cachedRecommendations = () =>
+  allowed && recommendationOwner ? recommendationCache.read(recommendationOwner) : null;
+export function cacheRecommendations(scope: string, rows: RecommendationRows) {
+  if (allowed && recommendationOwner && scope === recommendationScope())
+    recommendationCache.write(recommendationOwner, rows);
+}
 export function setShopperIdentity(next: string | null) {
   if (userId !== undefined && next === userId) return;
-  if (userId !== undefined) resetInstallIdentifier();
+  if (userId !== undefined) {
+    resetInstallIdentifier();
+    recommendationCache.clear();
+  }
   userId = next;
   allowed = false;
+  recommendationOwner = null;
   generation++;
   queue = [];
   sending = undefined;
@@ -39,6 +75,18 @@ export function setShopperIdentity(next: string | null) {
 }
 export function applyShopperStatus(status: ShopperStatus | null) {
   allowed = status?.personalization === true && status.trackingAvailable === true;
+  recommendationOwner =
+    allowed &&
+    status?.recommendationsAvailable === true &&
+    typeof status.historyAfter === "string" &&
+    Number.isFinite(Date.parse(status.historyAfter))
+      ? {
+          actor: JSON.stringify(shoppingActor()),
+          policy: status.version,
+          historyAfter: status.historyAfter,
+        }
+      : null;
+  if (!allowed || status?.recommendationsAvailable === false) recommendationCache.clear();
   if (!allowed) {
     generation++;
     queue = [];
@@ -48,7 +96,7 @@ export function applyShopperStatus(status: ShopperStatus | null) {
     timer = undefined;
   }
 }
-const actor = () => ({ userId: userId ?? null, installId: installIdentifier() });
+const actor = shoppingActor;
 export async function shopperStatus() {
   return api<ShopperStatus>("shopping", "GET", undefined, undefined, actor());
 }

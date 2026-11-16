@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- private shared tables and domain actor. */
 import { MobileApiError, mobileJson } from "./mobile-api";
-import { MOBILE_POLICY_VERSION, mobileListingAllowed } from "./mobile-contract";
+import { MOBILE_POLICY_VERSION, mobileListingAllowed, mobileCategories } from "./mobile-contract";
 import {
   mobileGuestSubject,
   mobileShoppingEvent,
@@ -68,6 +68,7 @@ export async function handleMobileShopping(
       trackingAvailable: controls.tracking === true,
       recommendationsAvailable: controls.recommendations === true,
       version: MOBILE_POLICY_VERSION,
+      historyAfter: permission?.history_after ?? null,
     };
   }
   if (request.method === "GET" && path === "recommendations") {
@@ -77,10 +78,20 @@ export async function handleMobileShopping(
     if (!(await acceptedTerms()))
       return { recent: [], continuing: [], recommended: [], model: "rules-v1" };
     return shoppingRecommendations(db, subject, {
+      categories: mobileCategories
+        .map((category) => category.slug)
+        .filter((categorySlug) =>
+          scope === "vehicles"
+            ? mobileRecommendationVehicle({ categorySlug })
+            : categorySlug !== "jobs" && categorySlug !== "services",
+        ),
       eligible:
         scope === "vehicles"
           ? (card) => mobileListingAllowed(card) && mobileRecommendationVehicle(card)
-          : mobileListingAllowed,
+          : (card) =>
+              mobileListingAllowed(card) &&
+              card.categorySlug !== "jobs" &&
+              card.categorySlug !== "services",
     });
   }
   if (request.method === "GET" && path === "similar") {

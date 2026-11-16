@@ -1383,3 +1383,47 @@ the scored fix. This is not a broad accessibility or release approval. At this
 documentation pass, icon changes remain uncommitted/unpushed; PR 294 payments
 regressions passed and its confirmed cancelled iOS job was rerun. Broader launch
 and voice work stays paused.
+
+## Balanced recommendations and restart continuity — November 16, 2026
+
+The shared ranking service now composes a feed instead of limiting candidates
+above an interest-score threshold. That threshold discarded neutral discovery
+stock and could turn a single viewed category into the entire row. Existing
+signal weights and decay remain unchanged. Weak evidence receives two preferred
+slots; accumulated/repeated interest receives four and stronger evidence six,
+within an eight-card row. Remaining slots favor underrepresented categories and
+fresh eligible stock. Final category interleaving puts variety in the first
+visible cards, while the existing two-per-seller cap, dismissals, purchases,
+publication checks, catalog restrictions and holdout remain authoritative. It
+cannot manufacture variety when eligible inventory does not supply it.
+
+Native candidate reads apply the permitted category scope before the newest
+200-row limit; general For you excludes jobs/services, and the vehicle scope
+stays vehicle-only. Interest-seeded cache reads and vector lookup remain separate
+from provider refresh. The model marker adds `balanced-feed-v1`. No new device
+access, collection permission, model promotion, migration or listing-provider
+request is introduced.
+
+The app keeps its last successful row while foreground/Home refresh reads are
+in flight. A single optional 15-minute device snapshot bridges cold launches
+only after a fresh server permission, current policy and history-cutoff check.
+It stores public recommendation/vehicle cards, not Recently viewed or Continue
+shopping history. It is bounded to 256 KB and eight cards per row, rejects an
+expired/future/malformed snapshot, and clears on withdrawal, unavailable consent,
+account switching/logout or history reset. An earlier response cannot write
+into a changed actor/privacy scope. Disabling device storage leaves live reads
+and public discovery usable. Shopping status now optionally includes
+`historyAfter`; older apps ignore it, and newer apps do not use snapshots when
+that proof is missing.
+
+Validation: 1,708 tests passed/four skipped, plus browser shopping checks at
+320/390/768/1280 cover permitted restoration before a delayed fresh response,
+Home refresh continuity, authoritative filters, privacy withdrawal/outages and
+account-safe activity. Mobile/web bundles, type checks, scoped lint, signed
+iPhone build 24 and Android debug compilation passed. Evidence is under
+`output/recommendation-stability-20261116/` and the local verification logs.
+These checks establish composition and continuity, not a claim that ranking
+quality has been validated for every shopper. At this source pass, phone
+installation, backend publication and owner confirmation of the new feed are
+still pending. The existing icon choices are preserved; unrelated launch and
+voice work remains paused.

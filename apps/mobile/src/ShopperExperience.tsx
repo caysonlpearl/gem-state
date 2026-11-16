@@ -20,6 +20,10 @@ import {
   shopperStatus,
   trackShopping,
   updatePersonalization,
+  shoppingActor,
+  recommendationScope,
+  cachedRecommendations,
+  cacheRecommendations,
   type ShopperStatus,
   type RecommendationRows,
 } from "./shopping";
@@ -155,44 +159,60 @@ export function ShoppingRows({
   onPersonalize?: () => void;
   sourceCreditsCovered?: { pets?: boolean; vehicles?: boolean };
 }) {
-  const scope = `${revision}:${learning}:${similarId ?? ""}`;
+  const identityScope = recommendationScope();
+  const scope = `${identityScope}:${similarId ?? ""}`;
   const [loaded, setRows] = useState<{ scope: string; rows: RecommendationRows } | null>(null);
   useEffect(() => {
-    setRows(null);
     if (!active) return;
-    if (!learning && !similarId) return;
+    if (!learning && !similarId) {
+      setRows(null);
+      return;
+    }
     const controller = new AbortController();
+    const actor = shoppingActor();
     const load = similarId
       ? api<{ cards: MobileListing[]; model: string }>(
           `similar?listingId=${encodeURIComponent(similarId)}`,
           "GET",
           undefined,
           controller.signal,
+          actor,
         ).then((r) => ({ recent: [], continuing: [], recommended: r.cards, model: r.model }))
       : flushShopping().then(() => {
           controller.signal.throwIfAborted();
-          return api<RecommendationRows>("recommendations", "GET", undefined, controller.signal);
+          return api<RecommendationRows>(
+            "recommendations",
+            "GET",
+            undefined,
+            controller.signal,
+            actor,
+          );
         });
     load
       .then((rows) => {
         if (controller.signal.aborted) return;
         setRows({ scope, rows });
+        if (!similarId) cacheRecommendations(identityScope, rows);
         if (!similarId) {
           void api<RecommendationRows>(
             "recommendations?scope=vehicles",
             "GET",
             undefined,
             controller.signal,
+            actor,
           )
             .then((vehicles) => {
-              if (!controller.signal.aborted)
+              if (!controller.signal.aborted) {
+                const combined = {
+                  ...rows,
+                  vehicles: vehicles.recommended.filter(mobileRecommendationVehicle),
+                };
+                cacheRecommendations(identityScope, combined);
                 setRows({
                   scope,
-                  rows: {
-                    ...rows,
-                    vehicles: vehicles.recommended.filter(mobileRecommendationVehicle),
-                  },
+                  rows: combined,
                 });
+              }
             })
             .catch(() => {
               /* General recommendations remain available. */
@@ -203,12 +223,19 @@ export function ShoppingRows({
         /* Browsing remains the useful fallback. */
       });
     return () => controller.abort();
-  }, [active, learning, revision, similarId, scope]);
+  }, [active, learning, revision, similarId, scope, identityScope]);
   const byId = new Map(fallbackCards.map((card) => [card.id, card]));
   const fallback = mixMobileSaleFeed(fallbackCards.map(listingPresentation), [], 8).map((card) =>
     byId.get(card.id)!,
   );
-  const rows = loaded?.scope === scope && (learning || similarId) ? loaded.rows : null;
+  const rows =
+    learning || similarId
+      ? loaded?.scope === scope
+        ? loaded.rows
+        : !similarId && learning
+          ? cachedRecommendations()
+          : null
+      : null;
   if (similarId && !rows) return null;
   const current = rows ?? { recent: [], continuing: [], recommended: [], model: "category-mix-v1" };
   const recommended = current.recommended.filter(mobileSaleItem);

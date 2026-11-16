@@ -4,6 +4,7 @@ import { shoppingListingInput } from "./shopping-listing-input.ts";
 import {
   interests,
   rankShopping,
+  balancedShoppingFeed,
   shoppingRankingVersion,
   shoppingEvent,
   SHOPPING_MODEL,
@@ -152,7 +153,7 @@ export async function shoppingExternalEligibility(db: any, ids: string[]) {
 export async function shoppingRecommendations(
   db: any,
   subject: string,
-  options: { eligible?: (card: ShoppingCard) => boolean } = {},
+  options: { eligible?: (card: ShoppingCard) => boolean; categories?: string[] } = {},
 ) {
   const controls = await shoppingControls(db);
   const permission = await shoppingPermission(db, subject);
@@ -164,9 +165,10 @@ export async function shoppingRecommendations(
   const model = shoppingRankingVersion(controls.model_version);
   const [allActivity, inventory, experiment] = await Promise.all([
     shoppingActivity(db, subject),
-    db
-      .from("shopping_inventory")
-      .select("card,content_hash")
+    (options.categories
+      ? db.from("shopping_inventory").select("card,content_hash").in("category", options.categories)
+      : db.from("shopping_inventory").select("card,content_hash")
+    )
       .gt("valid_until", new Date().toISOString())
       .order("first_seen_at", { ascending: false })
       .limit(200),
@@ -367,17 +369,15 @@ export async function shoppingRecommendations(
         controls.model?.weights,
         similarities,
       ).filter(
-        (r) => current.has(r.card.id) && r.score > 1 && !recent.some((c) => c.id === r.card.id),
+        (r) =>
+          Number.isFinite(r.score) &&
+          current.has(r.card.id) &&
+          !recent.some((c) => c.id === r.card.id),
       );
-  const counts = new Map<string, number>(),
-    recommended: ShoppingCard[] = [];
-  for (const row of ranked) {
-    const key = String(row.card.discoverySellerKey ?? row.card.id);
-    if ((counts.get(key) ?? 0) >= 2) continue;
-    recommended.push({ ...row.card, shoppingFeatures: row.features });
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-    if (recommended.length === 8) break;
-  }
+  const recommended: ShoppingCard[] = balancedShoppingFeed(ranked, activity).map((row) => ({
+    ...row.card,
+    shoppingFeatures: row.features,
+  }));
   const allowed = await shoppingExternalEligibility(db, [
     ...new Set([...recent, ...continuing, ...recommended].map((c) => c.id)),
   ]);
