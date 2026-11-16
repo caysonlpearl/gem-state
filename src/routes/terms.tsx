@@ -46,13 +46,28 @@ function Terms() {
         Rankings are estimates of relevance; they are not endorsements, guarantees, credit
         decisions, or proof of a purchase.
       </p>
+      <p>
+        When you enable personalization, Bluebird can connect your shopping activity across its own
+        app and website while you are signed in. This includes what listings you open, how long you
+        actively view them, the photos you explore, searches and filters, saves, repeat visits, and
+        seller-contact actions. We use these signals with listing details such as category, price,
+        location, text, and photos to find relevant items and improve ranking. Merely displaying a
+        listing is not treated as a favorite or a purchase.
+      </p>
+      <p>
+        Accepting these terms does not switch on optional personalization, shopping messages,
+        advertising tracking, or phone permissions. Personalization can be changed in Privacy
+        choices. Camera or photo access for a listing upload does not authorize background recording
+        or access to other apps. The Privacy Notice explains each use and control.
+      </p>
       <h2>Shopping communications</h2>
       <p>
         Shopping emails and Bluebird website/app notifications are optional. If you opt in, Bluebird
         selects relevant listing updates, price drops, recommendations, and genuine offers based on
-        your activity. Frequency varies and multiple relevant updates may arrive in a day. You may
-        turn shopping updates off in your account or use an email unsubscribe link. Account,
-        security, transaction, and requested conversation messages are handled separately.
+        your activity. Delivery follows your shopping-alert settings and the relevant updates
+        available. You may turn shopping updates off in your account or use an email unsubscribe
+        link. Account, security, transaction, and requested conversation messages are handled
+        separately.
       </p>
       <p>
         Signing in through Google or Apple does not replace these choices. Existing website members

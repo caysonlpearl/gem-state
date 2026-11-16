@@ -1,5 +1,10 @@
 import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
-import { validShoppingId, type Interest } from "./shopping-contract.ts";
+import {
+  validShoppingId,
+  safeShoppingText,
+  type Interest,
+  type ShoppingEvent,
+} from "./shopping-contract.ts";
 
 export type ShoppingSeedContext = { category: string; mode: string | null };
 type Response = { data: unknown; error: unknown; count?: number | null };
@@ -133,4 +138,44 @@ export function shoppingRecommendationSeeds(
     }
   }
   return ids;
+}
+
+/** Recent stated shopping intent can supply candidates before the first detail
+ * view. Only sanitized category/home intent and bounded title words leave this
+ * helper; no device characteristics, raw query operators or private content. */
+export function shoppingSearchCandidateScopes(activity: ShoppingEvent[], now = Date.now()) {
+  const scopes = new Map<
+    string,
+    { category: string | null; mode: string | null; words: string[] }
+  >();
+  for (const event of [...activity].sort(
+    (a, b) => Date.parse(b.at ?? "") - Date.parse(a.at ?? ""),
+  )) {
+    const at = Date.parse(event.at ?? "");
+    if (event.kind !== "search" || !Number.isFinite(at) || at > now || now - at > 30 * 86400000)
+      continue;
+    const raw = event.search ?? {};
+    const category =
+      typeof raw.category === "string" && /^[a-z0-9-]{1,80}$/.test(raw.category)
+        ? raw.category
+        : null;
+    const mode =
+      category === "other-real-estate" && ["buy", "rent", "build"].includes(String(raw.homeTab))
+        ? String(raw.homeTab)
+        : null;
+    const words = [
+      ...new Set(
+        (
+          safeShoppingText(raw.q)
+            .toLowerCase()
+            .match(/[\p{L}\p{N}]+/gu) ?? []
+        ).filter((word) => word.length >= 2),
+      ),
+    ].slice(0, 4);
+    if (!category && !words.length) continue;
+    const scope = { category, mode, words };
+    scopes.set(JSON.stringify([category, mode, [...words].sort()]), scope);
+    if (scopes.size === 4) break;
+  }
+  return [...scopes.values()];
 }

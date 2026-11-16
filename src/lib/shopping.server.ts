@@ -13,6 +13,7 @@ import {
 import {
   loadShoppingSeedContexts,
   shoppingRecommendationSeeds,
+  shoppingSearchCandidateScopes,
   type ShoppingSeedContext,
 } from "./shopping-recommendation-context.server.ts";
 
@@ -273,16 +274,28 @@ export async function shoppingRecommendations(
       }),
     ).values(),
   ];
+  const candidateScopes = [
+    ...new Map(
+      [
+        ...scopes.map((context) => ({ ...context, words: [] as string[] })),
+        ...(holdout ? [] : shoppingSearchCandidateScopes(activity)),
+      ].map((context) => [
+        JSON.stringify([context.category, context.mode, [...context.words].sort()]),
+        context,
+      ]),
+    ).values(),
+  ];
   const categoryRows: any[] = [];
   const candidateDeadline = AbortSignal.timeout(6000);
-  for (let offset = 0; offset < scopes.length; offset += 4) {
+  for (let offset = 0; offset < candidateScopes.length; offset += 4) {
     const results = await Promise.all(
-      scopes.slice(offset, offset + 4).map(async (context) => {
+      candidateScopes.slice(offset, offset + 4).map(async (context) => {
         let query = db
           .from("shopping_inventory")
           .select("card,content_hash,valid_until")
-          .eq("category", context.category)
           .gt("valid_until", new Date().toISOString());
+        if (context.category) query = query.eq("category", context.category);
+        for (const word of context.words) query = query.ilike("card->>title", `%${word}%`);
         if (context.mode !== null) query = query.eq("card->home->>mode", context.mode);
         return query
           .order("first_seen_at", { ascending: false })

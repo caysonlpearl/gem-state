@@ -6,6 +6,7 @@ import { shoppingDatabaseFixture } from "./helpers/shopping-database.mjs";
 import {
   loadShoppingSeedContexts,
   shoppingRecommendationSeeds,
+  shoppingSearchCandidateScopes,
 } from "../src/lib/shopping-recommendation-context.server.ts";
 import { interests } from "../src/lib/shopping-contract.ts";
 
@@ -225,4 +226,41 @@ test("category and home-intent interests get seed coverage before one strong cat
   assert(!shoppingRecommendationSeeds(profile, contexts).includes("desk"));
   profile.get("rent").dismissed = true;
   assert(!shoppingRecommendationSeeds(profile, contexts).includes("rent"));
+});
+
+test("search candidate intent is recent, sanitized, distinct and bounded before database filtering", () => {
+  const now = Date.now();
+  const search = (q, category, at = now, extra = {}) => ({
+    kind: "search",
+    id: randomUUID(),
+    session: randomUUID(),
+    at: new Date(at).toISOString(),
+    search: { q, category, ...extra },
+  });
+  assert.deepEqual(
+    shoppingSearchCandidateScopes(
+      [
+        search("email person@example.com", "home-garden"),
+        search("oak_% (desk)", "home-garden"),
+        search("desk oak", "home-garden"),
+        search("", "other-real-estate", now, { homeTab: "rent" }),
+        search("secret token=private", undefined),
+        search("old", undefined, now - 31 * 86400000),
+        search("future", undefined, now + 1000),
+      ],
+      now,
+    ),
+    [
+      { category: "home-garden", mode: null, words: [] },
+      { category: "home-garden", mode: null, words: ["desk", "oak"] },
+      { category: "other-real-estate", mode: "rent", words: [] },
+    ],
+  );
+  assert.equal(
+    shoppingSearchCandidateScopes(
+      Array.from({ length: 10 }, (_, n) => search(`term${n}`, undefined, now - n)),
+      now,
+    ).length,
+    4,
+  );
 });

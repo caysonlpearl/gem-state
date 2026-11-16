@@ -284,8 +284,10 @@ export function PrivacyChoices({
       <section className="stack">
         <h2 id="privacy-title">Your privacy choices</h2>
         <p>
-          Bluebird can use your shopping activity to improve recommendations. This is separate from
-          shopping alerts and advertising permission.
+          Let Bluebird learn from the listings you open, searches, saves, active viewing time,
+          photos you explore, and seller-contact actions. This improves recommendations across
+          Bluebird's app and website when you are signed in. Shopping alerts and advertising
+          permission are separate.
         </p>
         {!status ? (
           <>
@@ -309,7 +311,7 @@ export function PrivacyChoices({
           {userId
             ? "Your signed-in shopping choices and history are shared across Bluebird’s website and apps."
             : "Guest shopping uses a resettable identifier for this installation. We do not merge guest activity into a different person’s account."}{" "}
-          Bluebird’s apps do not use device fingerprinting.
+          Bluebird’s apps do not use device fingerprinting or read your activity in other apps.
         </p>
         <button
           disabled={busy}

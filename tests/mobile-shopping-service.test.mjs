@@ -126,6 +126,12 @@ function fixture({ onVisual } = {}) {
           );
           return q;
         },
+        ilike(key, pattern) {
+          assert.equal(key, "card->>title");
+          const word = pattern.slice(1, -1).toLowerCase();
+          rows = rows.filter((row) => row.card.title.toLowerCase().includes(word));
+          return q;
+        },
         gt(key, val) {
           rows = rows.filter((r) => r[key] > val);
           return q;
@@ -299,7 +305,7 @@ test("Recently viewed resolves an older newly revisited listing independently of
   assert.equal(result.recent[0].id, revisited.id);
   assert.equal(
     result.model,
-    "rules-v1:category-seeds-v2:engagement-v1",
+    "rules-v1:category-seeds-v2:search-intents-v1:engagement-v1",
     "Missing vectors do not block useful history; exposure identifies the new selection strategy",
   );
   assert.equal(
@@ -524,6 +530,43 @@ test("interested categories remain recommendable beyond the newest global page w
     eligible: mobileContract.mobileListingAllowed,
   });
   assert(result.recommended.some((card) => card.id === match.id));
+  assert(
+    f.rpc.every((r) =>
+      ["shopping_visual_candidates", "read_published_dealer_inventory"].includes(r.name),
+    ),
+  );
+});
+
+test("a search-only shopper retrieves related cached inventory beyond the newest global page", async () => {
+  const f = fixture({ onVisual: () => ({ data: [] }) });
+  const desk = {
+    ...f.car,
+    id: "dealerfeed-search-desk",
+    title: "Oak writing desk",
+    categorySlug: "home-garden",
+    priceCents: 5000,
+  };
+  f.tables.shopping_inventory.splice(
+    0,
+    Infinity,
+    ...Array.from({ length: 220 }, (_, n) =>
+      inventoryRow({ ...f.car, id: `dealerfeed-search-new-${n}` }),
+    ),
+    inventoryRow(desk),
+  );
+  f.tables.shopping_events.splice(0, Infinity, {
+    id: randomUUID(),
+    subject: f.subject,
+    kind: "search",
+    session_id: randomUUID(),
+    occurred_at: new Date().toISOString(),
+    search: { category: "home-garden", q: "writing desk", priceMax: 100 },
+  });
+  const result = await shared.shoppingRecommendations(f.db, f.subject, {
+    eligible: mobileContract.mobileListingAllowed,
+  });
+  assert(result.recommended.some((card) => card.id === desk.id));
+  assert.deepEqual(result.recent, [], "A search never manufactures a detail view");
   assert(
     f.rpc.every((r) =>
       ["shopping_visual_candidates", "read_published_dealer_inventory"].includes(r.name),
