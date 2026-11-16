@@ -192,7 +192,7 @@ test("all ten HTML and text templates render photos, actions, address and opt-ou
       ],
       moreUrl: "https://onbluebird.com/notifications",
       unsubscribeUrl: "https://onbluebird.com/unsubscribe",
-      preferencesUrl: "https://onbluebird.com/account?tab=settings",
+      preferencesUrl: "https://onbluebird.com/account?section=settings",
     });
     const html = await render(element),
       plain = await render(element, { plainText: true });

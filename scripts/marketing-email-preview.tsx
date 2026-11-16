@@ -35,7 +35,7 @@ for (const campaign of Object.keys(MARKETING_CAMPAIGNS) as MarketingCampaign[]) 
       campaign={campaign}
       items={items}
       moreUrl={`${brand.urls.siteUrl}/notifications`}
-      preferencesUrl={`${brand.urls.siteUrl}/account?tab=settings`}
+      preferencesUrl={`${brand.urls.siteUrl}/account?section=settings`}
       unsubscribeUrl="#preview-only-unsubscribe"
     />,
   );

@@ -507,7 +507,7 @@ export async function deliverShoppingAlerts(db: any, limit = 20) {
                 url: `${origin}/api/shopping-link/${delivery.tracking_token}?action=click&item=${item.id}`,
               })),
               unsubscribeUrl: unsub,
-              preferencesUrl: `${origin}/account?tab=settings`,
+              preferencesUrl: `${origin}/account?section=settings`,
               moreUrl: `${origin}/api/shopping-link/${delivery.tracking_token}?action=updates&item=${emailItems[0].id}`,
               openUrl: permission?.personalization
                 ? `${origin}/api/shopping-link/${delivery.tracking_token}?action=open`
