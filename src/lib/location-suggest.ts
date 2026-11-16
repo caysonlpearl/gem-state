@@ -1,9 +1,21 @@
 import data from "@/config/location-places.json";
-import { marketplaceCities } from "@/config/classifieds";
+import { marketplaceCities, classifiedCoordinatesForCity } from "@/config/classifieds";
+import { parseLocationSearch } from "./location-search";
 
 export type LocationSuggestion = { value: string; label: string };
 
 const zips = (data as { zips: [string, string, string][] }).zips;
+/** Resolve known city/ZIP centers locally; no geocoding request or guessed pin. */
+export function locationMapPoint(value: string) {
+  const parsed = parseLocationSearch(value);
+  const postal = parsed.postalCode
+    ? zips.find(([zip]) => zip === parsed.postalCode?.slice(0, 5))
+    : undefined;
+  const city = parsed.city || postal?.[1];
+  const state = parsed.state || postal?.[2];
+  const center = classifiedCoordinatesForCity(city, state);
+  return center ? { latitude: center[0], longitude: center[1], city } : undefined;
+}
 const featured = new Set<string>(marketplaceCities);
 const cities = Array.from(
   new Map(zips.map(([, city, state]) => [`${city}|${state}`, { city, state }])).values(),

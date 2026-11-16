@@ -6,7 +6,6 @@ import { MarketplaceHero } from "@/components/classifieds/MarketplaceHero";
 import { gunsComProfile } from "@/config/retailers";
 import { selectDiscoveryCards } from "@/lib/discovery-ranking";
 import { listingCardImageUrl } from "@/lib/listing-card-image";
-import { suggestLocations } from "@/lib/location-suggest";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
 import { allocateHomepageRows } from "@/lib/homepage-initial-payload";
 import { requestHomepageLocation } from "@/lib/homepage-geolocation";
@@ -20,24 +19,24 @@ import {
 import {
   Component,
   Suspense,
-  lazy,
   useCallback,
   useEffect,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-import { ArrowRight, MagnifyingGlass, Crosshair, MapTrifold } from "@phosphor-icons/react";
+import { ArrowRight, MagnifyingGlass, Crosshair, MapPin } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import {
   classifiedCategories,
-  classifiedCoordinatesForCity,
   nearestClassifiedCity,
   isWithinClassifiedRadius,
   usStates,
 } from "@/config/classifieds";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
+import { HomeCategoryShortcuts } from "@/components/classifieds/HomeCategoryShortcuts";
+import { HomeLocationSheet } from "@/components/classifieds/HomeLocationSheet";
 import { HomeSearchDropdown } from "@/components/classifieds/HomeSearchDropdown";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { PersonalizedShopping } from "@/components/community/ShoppingExperience";
@@ -56,16 +55,8 @@ import { trackEvent } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 import { jsonLdScript, siteStructuredData } from "@/lib/structured-data";
 
-// The map (and its stylesheet) only loads when someone opens it, so it never
-// delays the first paint of the home page.
-const LocationRadiusPicker = lazy(() =>
-  import("@/components/classifieds/LocationRadiusPicker").then((module) => ({
-    default: module.LocationRadiusPicker,
-  })),
-);
-
 const locationActionClass =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-card/95 px-3.5 py-2 font-semibold text-primary shadow-sm transition-colors hover:border-primary/60 hover:bg-card disabled:cursor-wait disabled:opacity-60";
+  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-primary/30 bg-card/95 px-2 py-2 text-[11px] font-semibold sm:px-3.5 sm:text-xs text-primary shadow-sm transition-colors hover:border-primary/60 hover:bg-card disabled:cursor-wait disabled:opacity-60";
 
 const homeQuery = queryOptions({
   queryKey: ["classifieds-home"],
@@ -208,9 +199,9 @@ function Home() {
       const desktop = window.innerWidth >= 1200;
       if (window.innerWidth >= 640 && !desktop) return;
       let size = 1;
-      const minimum = desktop ? 0.9 : 0.6;
+      const minimum = desktop ? 0.9 : 0.7;
       while (
-        (h.scrollWidth > h.clientWidth + 1 || (desktop && h.scrollHeight > h.clientHeight + 1)) &&
+        (h.scrollWidth > h.clientWidth + 1 || h.scrollHeight > h.clientHeight + 1) &&
         size > minimum
       ) {
         size -= 0.02;
@@ -306,59 +297,14 @@ function Home() {
   // The hero fields prepare a search; changing them (or receiving GPS) must
   // never shrink the homepage's saved statewide inventory or its row links.
   const where = homeLocation("", undefined, 25);
-  const { parsedLocation, locationSummary } = homeLocation(location, mapPoint, radiusMiles);
-
-  const defaultingRef = useRef(false);
-  function openMapWithDefault() {
-    manualLocationRef.current = true;
-    if (mapOpen || defaultingRef.current) return;
-    setMapOpen(true);
-    if (mapPoint || parsedLocation.city) return;
-    defaultingRef.current = true;
-    const apply = (latitude: number, longitude: number, fallbackCity?: string) => {
-      const nearest = nearestClassifiedCity(latitude, longitude);
-      const city =
-        fallbackCity ?? (nearest && nearest.distanceMiles <= 20 ? nearest.city : undefined);
-      setMapPoint({ latitude, longitude, city });
-      setLocation(city ?? "");
-      defaultingRef.current = false;
-    };
-    const boise = () => {
-      const coords = classifiedCoordinatesForCity("Boise") ?? [43.615, -116.2023];
-      apply(coords[0], coords[1], "Boise");
-    };
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      boise();
-      return;
-    }
-    let done = false;
-    const timer = window.setTimeout(() => {
-      if (done) return;
-      done = true;
-      boise();
-    }, 4000);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (done) return;
-        done = true;
-        window.clearTimeout(timer);
-        apply(Number(pos.coords.latitude.toFixed(5)), Number(pos.coords.longitude.toFixed(5)));
-      },
-      () => {
-        if (done) return;
-        done = true;
-        window.clearTimeout(timer);
-        boise();
-      },
-      { timeout: 4000 },
-    );
-  }
+  const { locationSummary } = homeLocation(location, mapPoint, radiusMiles);
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
+      <HomeCategoryShortcuts />
       <MarketplaceHero items={headlineItems} rotated={headlineRotated} headingRef={headlineRef}>
         <form
-          className="floating-card mt-3 grid grid-cols-2 gap-1.5 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-1.5 sm:mt-5 sm:gap-2 sm:p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
+          className="floating-card mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-1.5 sm:mt-5 sm:gap-2 sm:p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] sm:p-3"
           onSubmit={(event) => {
             event.preventDefault();
             const locationSearch = parseLocationSearch(location);
@@ -374,7 +320,7 @@ function Home() {
             });
           }}
         >
-          <label className="relative col-span-2 block sm:col-span-1">
+          <label className="relative block">
             <MagnifyingGlass
               size={16}
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -385,44 +331,33 @@ function Home() {
               onChange={(event) => setTerm(event.target.value)}
               placeholder="Search listings"
               aria-label="Search listings"
-              className="h-10 w-full rounded-full border-0 bg-transparent pl-9 sm:h-12 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+              className="h-11 w-full rounded-full border-0 bg-transparent pl-9 sm:h-12 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
           </label>
-          <HomeSearchDropdown
-            value={category}
-            onChange={setCategory}
-            label="Category"
-            placeholder="All categories"
-            options={[
-              { value: "", label: "All categories" },
-              ...classifiedCategories.map((option) => ({
-                value: option.slug,
-                label: option.name,
-              })),
-            ]}
-          />
-          <HomeSearchDropdown
-            value={location}
-            onChange={(next) => {
-              manualLocationRef.current = true;
-              setLocation(next);
-              setMapPoint(undefined);
-            }}
-            placeholder="City or ZIP code"
-            shortPlaceholder="City or ZIP"
-            label="City or ZIP code"
-            editable
-            options={suggestLocations(location)}
-          />
+          <div className="hidden sm:block">
+            <HomeSearchDropdown
+              value={category}
+              onChange={setCategory}
+              label="Category"
+              placeholder="All categories"
+              options={[
+                { value: "", label: "All categories" },
+                ...classifiedCategories.map((option) => ({
+                  value: option.slug,
+                  label: option.name,
+                })),
+              ]}
+            />
+          </div>
           <button
             type="submit"
-            className="col-span-2 h-10 rounded-full bg-primary px-7 sm:col-span-1 sm:h-12 text-[13px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
+            className="h-11 rounded-full bg-primary px-5 sm:h-12 text-[13px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
           >
             Search
           </button>
         </form>
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground sm:mt-4">
-          <span className="basis-full font-semibold leading-relaxed text-foreground sm:mr-1 sm:basis-auto">
+        <div className="mt-2.5 grid grid-cols-2 gap-2 text-xs sm:mt-4 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+          <span className="hidden font-semibold text-foreground sm:inline">
             Search area: {locationSummary}
           </span>
           <button
@@ -434,58 +369,38 @@ function Home() {
             }}
             className={locationActionClass}
           >
-            <Crosshair size={16} aria-hidden="true" />
-            {locating ? "Finding location…" : "Use my location"}
+            <Crosshair size={16} className="shrink-0" aria-hidden="true" />
+            {locating ? "Locating…" : "Use my location"}
           </button>
           <button
             type="button"
-            onClick={() => setMapOpen((open) => !open)}
-            className={locationActionClass}
+            onClick={() => {
+              manualLocationRef.current = true;
+              setMapOpen(true);
+            }}
+            className={`${locationActionClass} min-w-0`}
+            aria-haspopup="dialog"
             aria-expanded={mapOpen}
+            aria-label="City or ZIP"
           >
-            <MapTrifold size={16} aria-hidden="true" />
-            {mapOpen ? "Hide map" : "Choose anywhere on map"}
+            <MapPin size={16} className="shrink-0" aria-hidden="true" />
+            <span className="truncate">{location || (mapPoint ? "Map area" : "City or ZIP")}</span>
           </button>
-          {/* The radius only means something around a chosen city or map
-                point; before that, "Search area: Idaho" already says it. */}
-          <label className="flex min-h-9 min-w-[220px] sm:min-h-11 flex-1 items-center gap-2 sm:max-w-[360px]">
-            <span className="whitespace-nowrap">Distance</span>
-            <input
-              aria-label="Search radius in miles"
-              type="range"
-              min="5"
-              max="500"
-              step="5"
-              value={radiusMiles}
-              onPointerDown={openMapWithDefault}
-              onChange={(event) => {
-                openMapWithDefault();
-                setRadiusMiles(Number(event.target.value));
-              }}
-              className="w-full accent-primary"
-            />
-            <span className="whitespace-nowrap font-semibold text-foreground">
-              {radiusMiles} mi
-            </span>
-          </label>
         </div>
-        {mapOpen ? (
-          <Suspense fallback={<div className="mt-3 h-[260px] rounded-xl bg-secondary" />}>
-            <LocationRadiusPicker
-              city={parsedLocation.city}
-              latitude={mapPoint?.latitude}
-              longitude={mapPoint?.longitude}
-              radiusMiles={radiusMiles}
-              onChange={(point) => {
-                manualLocationRef.current = true;
-                setMapPoint(point);
-                setLocation(point.city ?? "");
-              }}
-              className="mt-3"
-            />
-          </Suspense>
-        ) : null}
       </MarketplaceHero>
+      <HomeLocationSheet
+        open={mapOpen}
+        onOpenChange={setMapOpen}
+        value={location}
+        point={mapPoint}
+        radiusMiles={radiusMiles}
+        onApply={(selection) => {
+          manualLocationRef.current = true;
+          setLocation(selection.value);
+          setMapPoint(selection.point);
+          setRadiusMiles(selection.radiusMiles);
+        }}
+      />
       <PersonalizedShopping />
 
       <HomepageFeaturedCategories withLocation={where.withLocation} />

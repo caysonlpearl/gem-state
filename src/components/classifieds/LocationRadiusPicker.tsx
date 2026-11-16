@@ -31,6 +31,8 @@ type Props = {
   radiusMiles: number;
   onChange: (point: LocationPoint) => void;
   className?: string;
+  showLocationButton?: boolean;
+  compact?: boolean;
 };
 
 function mapPointFromProps(city?: string, latitude?: number, longitude?: number) {
@@ -48,6 +50,8 @@ export function LocationRadiusPicker({
   radiusMiles,
   onChange,
   className,
+  showLocationButton = true,
+  compact = false,
 }: Props) {
   const [locationError, setLocationError] = useState("");
   const locate = useLocationRequest();
@@ -185,41 +189,43 @@ export function LocationRadiusPicker({
         </span>
         <span className="whitespace-nowrap font-semibold text-foreground">Up to 500 miles</span>
       </div>
-      <button
-        type="button"
-        className="mb-3 text-xs font-semibold text-primary underline"
-        disabled={locating}
-        onClick={() => {
-          if (requestLock.current) return;
-          const requestedCenter = latestCenter.current;
-          requestLock.current = true;
-          setLocating(true);
-          void locate()
-            .then((position) => {
-              if (!mounted.current || latestCenter.current !== requestedCenter) return;
-              setLocationError("");
-              const nearest = nearestClassifiedCity(
-                position.coords.latitude,
-                position.coords.longitude,
-              );
-              onChange({
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-                city: nearest?.city,
+      {showLocationButton && (
+        <button
+          type="button"
+          className="mb-3 text-xs font-semibold text-primary underline"
+          disabled={locating}
+          onClick={() => {
+            if (requestLock.current) return;
+            const requestedCenter = latestCenter.current;
+            requestLock.current = true;
+            setLocating(true);
+            void locate()
+              .then((position) => {
+                if (!mounted.current || latestCenter.current !== requestedCenter) return;
+                setLocationError("");
+                const nearest = nearestClassifiedCity(
+                  position.coords.latitude,
+                  position.coords.longitude,
+                );
+                onChange({
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude,
+                  city: nearest?.city,
+                });
+              })
+              .catch(() => {
+                if (mounted.current)
+                  setLocationError("Location was not shared. You can choose a map point instead.");
+              })
+              .finally(() => {
+                requestLock.current = false;
+                if (mounted.current) setLocating(false);
               });
-            })
-            .catch(() => {
-              if (mounted.current)
-                setLocationError("Location was not shared. You can choose a map point instead.");
-            })
-            .finally(() => {
-              requestLock.current = false;
-              if (mounted.current) setLocating(false);
-            });
-        }}
-      >
-        {locating ? "Finding your location…" : "Use my location"}
-      </button>
+          }}
+        >
+          {locating ? "Finding your location…" : "Use my location"}
+        </button>
+      )}
       {locationError && (
         <p role="status" className="mb-2 text-xs text-muted-foreground">
           {locationError}
@@ -230,7 +236,7 @@ export function LocationRadiusPicker({
         role="application"
         tabIndex={0}
         aria-label="Interactive Google Maps-style search radius map"
-        className="bluebird-radius-map relative isolate h-64 overflow-hidden rounded-2xl border border-border bg-[#dceae8] shadow-inner outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-72"
+        className={`bluebird-radius-map relative isolate ${compact ? "h-[clamp(160px,32dvh,280px)]" : "h-64 sm:h-72"} overflow-hidden rounded-2xl border border-border bg-[#dceae8] shadow-inner outline-none focus-visible:ring-2 focus-visible:ring-primary`}
       />
       <div className="pointer-events-none -mt-9 relative z-[500] mx-2 mb-2 flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1 rounded-full bg-card/95 px-2.5 py-1 text-[10px] font-semibold text-foreground shadow-sm">
@@ -241,10 +247,12 @@ export function LocationRadiusPicker({
           Drag to pan · scroll to zoom
         </span>
       </div>
-      <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
-        Results use the selected point and include listings whose saved city falls inside the
-        circle. City labels are reference points; the map point is the search center.
-      </p>
+      {!compact && (
+        <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
+          Results use the selected point and include listings whose saved city falls inside the
+          circle. City labels are reference points; the map point is the search center.
+        </p>
+      )}
     </div>
   );
 }
