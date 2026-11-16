@@ -24,6 +24,9 @@ public/models/drafts/
 .wrangler/
 .dev.vars
 
+# Local visual verification captures
+.impeccable/review/
+
 # Supabase CLI local cache
 supabase/.temp/
 

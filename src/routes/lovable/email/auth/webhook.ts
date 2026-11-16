@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createAuthEmailHandler } from "@lovable.dev/email-js";
 import { createFileRoute } from "@tanstack/react-router";
-import { SignupEmail } from "@/lib/email-templates/signup";
+import { SignupEmail, SIGNUP_EMAIL_SUBJECT } from "@/lib/email-templates/signup";
 import { InviteEmail } from "@/lib/email-templates/invite";
 import { MagicLinkEmail } from "@/lib/email-templates/magic-link";
 import { RecoveryEmail } from "@/lib/email-templates/recovery";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/lovable/email/auth/webhook")({
           sendUrl: process.env["LOVABLE_SEND_URL"],
           emails: {
             signup: {
-              subject: "Confirm your email",
+              subject: SIGNUP_EMAIL_SUBJECT,
               render: (data) =>
                 React.createElement(SignupEmail, {
                   siteName: SITE_NAME,
