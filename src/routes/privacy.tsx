@@ -17,6 +17,23 @@ function Privacy() {
         verification records. We do not use those credentials, government identifiers, identity
         selfies, or private message bodies as recommendation vectors or advertising payloads.
       </p>
+      <h2>How Bluebird learns your shopping interests</h2>
+      <p>
+        If you enable personalization, we use your activity within Bluebird: listings visibly shown
+        and their positions, searches and filters, detail views, active viewing time, photos
+        explored, saves, repeat visits, and seller-contact actions. We combine these with public
+        listing details such as category, brand or model when supplied, price, location, text, and
+        images. A contact click is not proof that you purchased something. Browsing duration and
+        photo interactions can also help us evaluate possible ranking improvements; recording a
+        signal does not mean every ranking model uses it with the same weight.
+      </p>
+      <p>
+        Signed-in personalization and shopping history are shared across Bluebird's website and
+        apps. Guest activity uses a resettable first-party identifier. Accepting the Terms of
+        Service or opting into shopping emails does not automatically enable personalization. You
+        can turn it off or clear shopping history in Privacy choices; explicitly saved listings
+        remain saved when you clear history.
+      </p>
       <h2>Website activity and browser information</h2>
       <p>
         Subject to your choices, we record searches and filters, listings shown and their positions,
@@ -74,6 +91,20 @@ function Privacy() {
         advertising tracking. Uploaded listing photos may contain format, orientation, camera, or
         location metadata; private metadata is not published as a shopper profile or used to
         silently change your listing location.
+      </p>
+      <h2>Other apps, camera, microphone, and movement</h2>
+      <p>
+        Bluebird does not read your general browsing history, private activity inside other apps,
+        contacts, texts, or files to build shopping recommendations. A Google or Apple sign-in does
+        not provide that access. Advertising permission also does not give Bluebird a feed of
+        everything you do on your phone.
+      </p>
+      <p>
+        Camera or photo access supports the listing photos you choose to capture or upload. We do
+        not passively record microphone audio or camera footage, collect motion-sensor data, or
+        track background movements for recommendations. Your selected shopping area, or an
+        approximate location you choose to provide through Use my location, can help find nearby
+        listings. These permissions are separate and can be declined without preventing browsing.
       </p>
       <h2>Recommendations and communications</h2>
       <p>

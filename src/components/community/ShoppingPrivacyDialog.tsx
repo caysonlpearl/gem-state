@@ -36,8 +36,8 @@ export function ShoppingPrivacyDialog({
     >
       <h2 className="text-sm font-semibold">Cookies & preferences</h2>
       <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
-        We use cookies and similar tools for personalized recommendations and advertising. Choose
-        what works for you.
+        Personalization learns from your Bluebird views, searches, saves, and seller contacts.
+        Advertising is a separate choice. You can use Bluebird with essential storage only.
       </p>
       {customize && (
         <fieldset disabled={busy} className="mt-3 space-y-3 border-t border-border pt-3 text-xs">
