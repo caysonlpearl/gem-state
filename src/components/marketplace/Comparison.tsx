@@ -169,7 +169,7 @@ export function CompareToggle({
         event.stopPropagation();
         context.toggle(item);
       }}
-      className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full text-xs font-medium ${compact ? "relative h-7 w-7 min-h-7 border border-border bg-card/95 shadow-sm before:absolute before:-inset-2 before:content-['']" : "px-3 hover:bg-secondary"} ${selected ? "text-primary" : "text-muted-foreground"} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-medium ${compact ? "relative h-7 w-7 min-h-7 border border-border bg-card/95 shadow-sm before:absolute before:-inset-2 before:content-['']" : "min-h-11 px-3 hover:bg-secondary"} ${selected ? "text-primary" : "text-muted-foreground"} ${className}`}
     >
       {selected ? <Check size={16} /> : <Scales size={16} />}
       {!compact && (selected ? "Selected" : "Compare")}
