@@ -23,7 +23,10 @@ const listingCardSource =
   ));
 const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
 const browseSource = await readFile(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
-const browseResultsSource=await readFile(new URL("../src/components/classifieds/BrowseResultsView.tsx",import.meta.url),"utf8");
+const browseResultsSource = await readFile(
+  new URL("../src/components/classifieds/BrowseResultsView.tsx", import.meta.url),
+  "utf8",
+);
 
 function componentSource(source, fileName, name) {
   const file = ts.createSourceFile(
@@ -105,7 +108,7 @@ test("homepage empty rows use a subordinate heading while standalone empty state
 });
 
 test("browse results have a heading before cards and empty-state text stays at h2", () => {
-  const browseSource=browseResultsSource;
+  const browseSource = browseResultsSource;
   assert.match(
     browseSource,
     /<section\s+id="results"\s+aria-labelledby="browse-results-heading"[^>]*>\s*<h2 id="browse-results-heading" className="sr-only">\s*Search results\s*<\/h2>/,
@@ -116,17 +119,20 @@ test("browse results have a heading before cards and empty-state text stays at h
   );
 });
 
-test("featured pets and firearms remain adjacent in the two-column homepage grid", () => {
-  assert.match(
-    homeSource,
-    /className="homepage-featured-categories mt-5 grid grid-cols-2[\s\S]*?\{ slug: "pets", title: "Pets & adoption"[\s\S]*?\{ slug: "firearms", title: "Firearms & gear"/,
+test("pets and firearms stay adjacent in the compact category header without duplicate large tiles", async () => {
+  const shortcuts = await readFile(
+    new URL("../src/components/classifieds/HomeCategoryShortcuts.tsx", import.meta.url),
+    "utf8",
   );
+  assert.match(shortcuts, /"cars-trucks", "pets", "firearms"/);
+  assert.match(homeSource, /<HomeCategoryShortcuts/);
+  assert.doesNotMatch(homeSource, /homepage-featured-categories/);
 });
 
 test("photo-only listing links expose a title-based accessible name", () => {
   assert.match(
     listingCardSource,
-    /<ListingLink\s+listing=\{listing\}\s+className="block"\s+ariaLabel=\{"View listing: " \+ listing\.title\}\s*>\s*<ListingCardPhoto/,
+    /<ListingLink\s+listing=\{listing\}\s+className="block"\s+ariaLabel=\{"View listing: " \+ listingPreviewTitle\(listing\)\}\s*>\s*<ListingCardPhoto/,
   );
 
   const component = componentSource(listingCardSource, "ListingCard.tsx", "ListingLink");

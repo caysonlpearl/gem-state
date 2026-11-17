@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Heart } from "@phosphor-icons/react";
+import { useEffect, useRef } from "react";
+import { SavedHeart } from "@/components/marketplace/SavedHeart";
+import { savedFeedback } from "@/components/marketplace/save-feedback";
 import { toast } from "sonner";
 
 import { useListingSavedState } from "@/hooks/useListingSavedState";
@@ -19,17 +21,34 @@ export function PartnerHomeHeartButton({
   className?: string;
 }) {
   const { isSignedIn, user } = useAuth();
+  const currentOwner = useRef(user?.id);
+  currentOwner.current = user?.id;
+  useEffect(() => {
+    currentOwner.current = user?.id;
+    return () => {
+      currentOwner.current = undefined;
+    };
+  }, [user?.id]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const setState = useServerFn(setPartnerHomeSaved);
   const state = useListingSavedState("homes", listingId, user?.id);
   const mutation = useMutation({
-    mutationFn: (saved: boolean) => setState({ data: { listingId, saved } }),
+    mutationFn: async (saved: boolean) => {
+      const feedbackOwner = user?.id;
+      return { ...(await setState({ data: { listingId, saved } })), feedbackOwner };
+    },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["partner-home-saved", listingId] });
       await queryClient.invalidateQueries({ queryKey: ["listing-stats"] });
       await queryClient.invalidateQueries({ queryKey: ["my-saved-partner-homes"] });
-      toast.success(result.saved ? `Saved ${title}.` : `Removed ${title} from saved homes.`);
+      const owner = result.feedbackOwner;
+      savedFeedback({
+        saved: result.saved,
+        title: title,
+        current: () => Boolean(owner) && currentOwner.current === owner,
+        onUndo: () => mutation.mutate(false),
+      });
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not update saved homes."),
@@ -58,11 +77,7 @@ export function PartnerHomeHeartButton({
         "relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card/95 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
       }
     >
-      <Heart
-        size={14}
-        weight={saved ? "fill" : "regular"}
-        className={saved ? "text-brand-warm" : undefined}
-      />
+      <SavedHeart saved={saved} />
     </button>
   );
 }

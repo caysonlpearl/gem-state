@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- the saved-account hook shares its provider's account-scoped state. */
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Heart } from "@phosphor-icons/react";
+import { SavedHeart } from "../../../src/components/marketplace/SavedHeart";
+import { savedFeedback } from "../../../src/components/marketplace/save-feedback";
 import type { MobileBrowse, MobileListing } from "../../../src/lib/mobile-contract";
 import { api } from "./client";
 import type { MobileSavedAccount } from "../../../src/lib/mobile-account-contract";
@@ -13,7 +14,7 @@ type SavedState = {
   ids: Set<string>;
   ready: boolean;
   busy: Set<string>;
-  toggle: (card: MobileListing) => void;
+  toggle: (card: MobileListing, desired?: boolean) => void;
   account: MobileSavedAccount | null;
   error: string;
   refresh: () => Promise<void>;
@@ -117,7 +118,7 @@ export function SavedCardsProvider({
     };
   }, [userId, revision, accountSaved]);
   const ids = state.owner === userId ? state.ids : new Set<string>();
-  const toggle = async (card: MobileListing) => {
+  const toggle = async (card: MobileListing, desired?: boolean) => {
     if (!userId) {
       location.hash = "/account";
       return;
@@ -130,7 +131,7 @@ export function SavedCardsProvider({
     if (pending.current.has(key)) return;
     pending.current.add(key);
     setBusy(new Set(pending.current));
-    const saved = !ids.has(card.id);
+    const saved = desired ?? !ids.has(card.id);
     try {
       const privacyRemoval = accountSaved && !saved;
       const variant = privacyRemoval
@@ -173,6 +174,14 @@ export function SavedCardsProvider({
           }),
         );
       trackShopping(saved ? "save" : "unsave", card.id);
+      savedFeedback({
+        saved,
+        title: card.title,
+        current: () => current.current === userId,
+        onUndo: () => {
+          void toggle(card, false);
+        },
+      });
       if (saved) void trackAdvertising("listing_saved", card.categorySlug);
       if (accountSaved) void refresh.current().catch(() => {});
     } catch (error) {
@@ -246,11 +255,7 @@ export function CardSaveButton({
         "relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card/95 p-0 text-muted-foreground shadow-sm backdrop-blur before:absolute before:-inset-2 before:content-[''] hover:border-primary hover:text-primary disabled:opacity-60"
       }
     >
-      <Heart
-        size={iconSize}
-        weight={saved ? "fill" : "regular"}
-        className={saved ? "text-brand-warm" : undefined}
-      />
+      <SavedHeart saved={saved} size={iconSize} />
     </button>
   );
 }

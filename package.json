@@ -42,7 +42,8 @@
     "test:mobile:runtime:ui": "node scripts/mobile-runtime-ui-smoke.mjs",
     "test:mobile:startup:ui": "node scripts/mobile-startup-ui-smoke.mjs",
     "test:mobile:home:ui": "node scripts/mobile-home-refresh-ui-smoke.mjs",
-    "test:mobile:polish:ui": "node --experimental-strip-types scripts/mobile-native-polish-ui-smoke.mjs"
+    "test:mobile:polish:ui": "node --experimental-strip-types scripts/mobile-native-polish-ui-smoke.mjs",
+    "test:marketplace:ui": "node scripts/marketplace-interactions-ui.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -122,6 +123,7 @@
     "tw-animate-css": "^1.3.4",
     "vaul": "^1.1.2",
     "web-vitals": "^6.2.3",
+    "yet-another-react-lightbox": "3.33.1",
     "zod": "4.6.7"
   },
   "devDependencies": {

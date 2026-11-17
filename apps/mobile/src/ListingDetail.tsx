@@ -1,3 +1,5 @@
+import { CompareToggle } from "../../../src/components/marketplace/Comparison";
+import { CopyButton } from "../../../src/components/marketplace/CopyButton";
 import { Share } from "@capacitor/share";
 import { createPortal } from "react-dom";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
@@ -410,7 +412,19 @@ export function NativeListingDetail({
             save={
               <NativeDetailSave className="flex h-11 w-11 items-center justify-center rounded-full bg-card/95 text-primary shadow-sm" />
             }
-            more={<NativeDetailFlag listingId={data.listing.id} isMock={data.listing.isMock} />}
+            more={
+              <>
+                <CompareToggle listing={data.listing} />
+                <div className="flex items-center gap-1 px-3 text-xs">
+                  Copy listing link
+                  <CopyButton
+                    value={`${apiOrigin}${listingPath(data.listing)}`}
+                    label="Copy listing link"
+                  />
+                </div>
+                <NativeDetailFlag listingId={data.listing.id} isMock={data.listing.isMock} />
+              </>
+            }
             onShare={share}
             onPhoto={(photo) => trackShopping("photo", listingId, { photo })}
           />

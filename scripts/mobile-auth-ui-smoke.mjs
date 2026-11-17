@@ -124,7 +124,7 @@ try {
     });
     await page.goto(origin);
     await page.getByRole("region", { name: "Marketplace homepage", exact: true }).waitFor();
-    const homeSearch = page.getByRole("searchbox", { name: "Search for anything", exact: true });
+    const homeSearch = page.getByRole("combobox", { name: "Search for anything", exact: true });
     await page.evaluate(() => {
       document.documentElement.dataset.nativePlatform = "ios";
     });
@@ -135,7 +135,7 @@ try {
     assert(iosHomeFieldSize >= 16, "Native iPhone search fields must avoid focus zoom");
     await homeSearch.blur();
     await page.evaluate(() => window.scrollTo(0, 0));
-    assert.equal(await page.getByRole("searchbox").count(), 1, "The homepage has one search field");
+    assert.equal(await page.getByRole("combobox").count(), 1, "The homepage has one search field");
     assert.equal(
       await page.locator(".classifieds-hero-shell, .homepage-featured-categories").count(),
       0,
@@ -186,7 +186,7 @@ try {
       ["Home", "Account", "Search", "Sell", "Categories"],
     );
     const pinned = page.getByRole("banner", { name: "Search and saved listings" });
-    const topSearch = pinned.getByRole("searchbox", { name: "Search for anything", exact: true });
+    const topSearch = pinned.getByRole("combobox", { name: "Search for anything", exact: true });
     await page.getByRole("link", { name: "Bluebird home", exact: true }).waitFor();
     const footerBefore = await primary.boundingBox();
     await page.evaluate(() => window.scrollTo(0, 700));

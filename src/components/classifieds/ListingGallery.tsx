@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { ScrollRail } from "@/components/marketplace/ScrollRail";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { PhotoImage } from "@/components/marketplace/PhotoImage";
+import { PhotoIndicators } from "@/components/marketplace/PhotoIndicators";
+const PhotoLightbox = lazy(() =>
+  import("@/components/marketplace/PhotoLightbox").then((module) => ({
+    default: module.PhotoLightbox,
+  })),
+);
 import { PlaceholderMark } from "./ListingCardView";
 import { listingLogoUrl, withoutLogo } from "@/lib/classifieds-display";
 import { retailSavings } from "@/lib/retail-savings";
@@ -63,6 +63,11 @@ export function ListingGallery({
   onPhoto?: (index: number) => void;
 }) {
   const [activeImage, setActiveImage] = useState(0);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    setActiveImage(0);
+    setOpen(false);
+  }, [listing.id]);
   const images = listing.images;
   const subject = listing.vehicle ? "vehicle" : "listing";
 
@@ -79,20 +84,27 @@ export function ListingGallery({
   };
 
   return (
-    <Dialog>
+    <>
       <div className="overflow-hidden rounded-[28px] border border-border/70 bg-foreground">
         <div
           className="group relative flex h-[360px] items-center justify-center overflow-hidden sm:h-[560px]"
           data-reference-layout="row-span-2"
         >
-          <img
-            src={images[activeImage]?.url}
-            alt={images[activeImage]?.alt ?? ""}
-            width={1120}
-            height={1120}
-            className="h-full w-full object-contain"
-            fetchPriority="high"
-          />
+          <button
+            type="button"
+            aria-label="Open listing photo"
+            onClick={() => setOpen(true)}
+            className="h-full w-full"
+          >
+            <PhotoImage
+              src={images[activeImage]?.url}
+              alt={images[activeImage]?.alt ?? ""}
+              width={1120}
+              height={1120}
+              className="h-full w-full object-contain"
+              fetchPriority="high"
+            />
+          </button>
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
           {retailSavings(listing) ? (
             <span className="absolute left-4 top-4 z-10 rounded-full bg-destructive px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-destructive-foreground shadow">
@@ -104,14 +116,14 @@ export function ListingGallery({
               <div className="absolute bottom-4 left-4 rounded-full bg-black/65 px-3 py-1 text-[11px] font-medium text-white">
                 {activeImage + 1} / {images.length}
               </div>
-              <DialogTrigger asChild>
-                <button
-                  type="button"
-                  className="absolute right-4 top-4 min-h-11 rounded-full bg-card/95 px-4 text-[12px] font-semibold text-foreground opacity-100 transition hover:bg-card sm:opacity-0 sm:group-hover:opacity-100"
-                >
-                  Show all {images.length} photos
-                </button>
-              </DialogTrigger>
+
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="absolute right-4 top-4 min-h-11 rounded-full bg-card/95 px-4 text-[12px] font-semibold text-foreground opacity-100 transition hover:bg-card sm:opacity-0 sm:group-hover:opacity-100"
+              >
+                Show all {images.length} photos
+              </button>
             </>
           )}
           {images.length > 1 && (
@@ -137,10 +149,10 @@ export function ListingGallery({
         </div>
       </div>
       {images.length > 1 && (
-        <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto pb-1">
+        <ScrollRail className="no-scrollbar mt-2 hidden gap-2 sm:flex overflow-x-auto pb-1">
           {images.map((image, index) => (
             <button
-              key={image.url}
+              key={`${index}:${image.url}`}
               type="button"
               onClick={() => goToImage(index)}
               aria-label={`Show ${subject} photo ${index + 1}`}
@@ -150,24 +162,30 @@ export function ListingGallery({
               <img src={image.url} alt="" loading="lazy" className="h-full w-full object-cover" />
             </button>
           ))}
-        </div>
+        </ScrollRail>
       )}
-      <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto rounded-[28px] p-5 sm:p-7">
-        <DialogHeader>
-          <DialogTitle>{subject === "vehicle" ? "Vehicle photos" : "Listing photos"}</DialogTitle>
-          <DialogDescription>{listing.title}</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {images.map((image) => (
-            <img
-              key={image.url}
-              src={image.url}
-              alt={image.alt}
-              className="w-full rounded-2xl object-cover"
-            />
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
+      <PhotoIndicators
+        className="sm:hidden"
+        count={images.length}
+        active={activeImage}
+        onSelect={goToImage}
+      />
+      {open && (
+        <Suspense
+          fallback={
+            <span role="status" className="sr-only">
+              Opening photos…
+            </span>
+          }
+        >
+          <PhotoLightbox
+            images={images}
+            index={activeImage}
+            onClose={() => setOpen(false)}
+            onChange={goToImage}
+          />
+        </Suspense>
+      )}
+    </>
   );
 }

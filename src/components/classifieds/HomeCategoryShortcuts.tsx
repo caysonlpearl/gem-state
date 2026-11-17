@@ -1,3 +1,4 @@
+import { ScrollRail } from "@/components/marketplace/ScrollRail";
 import { Link } from "@tanstack/react-router";
 import { SquaresFour } from "@phosphor-icons/react";
 import { mobilePrimaryCategories } from "@/config/mobile-navigation";
@@ -9,7 +10,8 @@ export function HomeCategoryShortcuts() {
   const pill =
     "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-card px-3.5 text-xs font-medium shadow-sm";
   return (
-    <nav
+    <ScrollRail
+      as="nav"
       aria-label="Shop by category"
       className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-2 sm:hidden"
     >
@@ -39,6 +41,6 @@ export function HomeCategoryShortcuts() {
         <SquaresFour size={18} aria-hidden="true" />
         All
       </Link>
-    </nav>
+    </ScrollRail>
   );
 }

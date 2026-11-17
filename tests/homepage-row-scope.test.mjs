@@ -188,6 +188,7 @@ function renderedHome(location, point) {
     HomeLocationSheet: "HomeLocationSheet",
     locationActionClass: "",
     HomeSearchDropdown: "HomeSearchDropdown",
+    WebsiteSearch: "WebsiteSearch",
     MarketplaceHero: "MarketplaceHero",
     HomepageFeaturedCategories: "HomepageFeaturedCategories",
     QueryErrorResetBoundary: "QueryErrorResetBoundary",

@@ -1,18 +1,17 @@
-import { useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, DotsThree, ShareNetwork } from "@phosphor-icons/react";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../src/components/ui/popover";
 import { ListingGallery } from "../../../src/components/classifieds/ListingGallery";
 import type { ClassifiedDetail } from "../../../src/lib/classifieds.functions";
 import { backWithinApp } from "./native-navigation";
 import type { ReactNode } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from "../../../src/components/ui/dialog";
+import { PhotoImage } from "../../../src/components/marketplace/PhotoImage";
+import { PhotoIndicators } from "../../../src/components/marketplace/PhotoIndicators";
+const PhotoLightbox = lazy(() =>
+  import("../../../src/components/marketplace/PhotoLightbox").then((module) => ({
+    default: module.PhotoLightbox,
+  })),
+);
 
 /** Scroll snap leaves vertical scrolling and the system's edge-back gesture
  * alone. Buttons give keyboard and assistive-technology users the same gallery. */
@@ -31,19 +30,26 @@ export function NativeListingPhotos({
 }) {
   const rail = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    setActive(0);
+    setOpen(false);
+    if (rail.current) rail.current.scrollLeft = 0;
+  }, [listing.id]);
   const images = listing.images;
-  const show = (index: number) => {
+  const show = (index: number, immediate = false) => {
     const node = rail.current;
     if (!node) return;
     node.scrollTo({
       left: index * node.clientWidth,
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      behavior:
+        immediate || matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
     });
   };
   const control =
     "flex h-11 w-11 items-center justify-center rounded-full bg-card/95 text-foreground shadow-sm";
   return (
-    <Dialog>
+    <>
       <section
         className="native-listing-photos relative mx-auto max-w-[1360px] bg-secondary"
         aria-label="Listing photos"
@@ -66,22 +72,25 @@ export function NativeListingPhotos({
             }}
           >
             {images.map((image, index) => (
-              <DialogTrigger asChild key={`${index}:${image.url}`}>
-                <button
-                  type="button"
-                  aria-label={`Open listing photo ${index + 1}`}
-                  className="native-photo-slide shrink-0 snap-center"
-                >
-                  <img
-                    src={image.url}
-                    alt={image.alt || `${listing.title}, photo ${index + 1}`}
-                    fetchPriority={index === 0 ? "high" : "auto"}
-                    loading={index < 2 ? "eager" : "lazy"}
-                    draggable={false}
-                    className="h-full w-full object-contain"
-                  />
-                </button>
-              </DialogTrigger>
+              <button
+                key={`${index}:${image.url}`}
+                type="button"
+                onClick={() => {
+                  setActive(index);
+                  setOpen(true);
+                }}
+                aria-label={`Open listing photo ${index + 1}`}
+                className="native-photo-slide shrink-0 snap-center"
+              >
+                <PhotoImage
+                  src={image.url}
+                  alt={image.alt || `${listing.title}, photo ${index + 1}`}
+                  fetchPriority={index === 0 ? "high" : "auto"}
+                  loading={index < 2 ? "eager" : "lazy"}
+                  draggable={false}
+                  className="h-full w-full object-contain"
+                />
+              </button>
             ))}
           </div>
         ) : (
@@ -152,23 +161,27 @@ export function NativeListingPhotos({
           </div>
         )}
       </section>
-      <DialogContent className="max-h-[85dvh] max-w-5xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Listing photos</DialogTitle>
-          <DialogDescription>{listing.title}</DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4">
-          {images.map((image, index) => (
-            <img
-              key={`${index}:${image.url}`}
-              src={image.url}
-              alt={image.alt || `${listing.title}, photo ${index + 1}`}
-              loading="lazy"
-              className="max-h-[75dvh] w-full object-contain"
-            />
-          ))}
-        </div>
-      </DialogContent>
-    </Dialog>
+      <PhotoIndicators count={images.length} active={active} onSelect={show} />
+      {open && (
+        <Suspense
+          fallback={
+            <span role="status" className="sr-only">
+              Opening photos…
+            </span>
+          }
+        >
+          <PhotoLightbox
+            images={images}
+            index={active}
+            onClose={() => setOpen(false)}
+            onChange={(index) => {
+              setActive(index);
+              show(index, true);
+              onPhoto(index);
+            }}
+          />
+        </Suspense>
+      )}
+    </>
   );
 }

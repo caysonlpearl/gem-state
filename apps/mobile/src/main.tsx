@@ -1,3 +1,4 @@
+import { ComparisonProvider } from "../../../src/components/marketplace/Comparison";
 import { peekNativeAuthDestination } from "./auth-destination";
 import { readPublicHome, startPublicHome, type StartupHome } from "./home-startup";
 import { HomeRefresh } from "./HomeRefresh";
@@ -172,6 +173,7 @@ function Application() {
   const [pushToken, setPushToken] = useState<string | null>(null);
   const signOutInFlight = useRef(false);
   const startupHome = useRef<StartupHome | null>(null);
+  const [searchSuggestions, setSearchSuggestions] = useState<MobileListing[]>([]);
   useEffect(() => {
     const stopNavigation = trackNativeNavigation();
     if (
@@ -582,363 +584,377 @@ function Application() {
         owner={session?.user.id}
         ready={bootstrap?.features.durableSavedSearches === true}
       >
-        <LocationRequestProvider request={requestNearbyLocation}>
-          <NativeNotificationsProvider
-            key={session?.user.id ?? "guest"}
-            owner={session?.user.id}
-            ready={bootstrap?.features.notificationCenter === true && !needsTerms}
-            revision={revision}
-          >
-            <Toaster
-              mobileOffset={{
-                bottom: "calc(var(--bluebird-native-navigation-height, 68px) + 16px)",
-              }}
-            />
-            <NativeSaveSearchDialog
-              request={searchRequest?.owner === session?.user.id ? searchRequest : null}
-              onClose={() => setSearchRequest(null)}
-              onSaved={(id) => {
-                setRevision((v) => v + 1);
-                if (
-                  searchRequest?.originHash === location.hash &&
-                  browseLocation(location.hash).path === "/search"
-                ) {
-                  const params = browseLocation(location.hash).params;
-                  params.set("savedSearchId", id);
-                  history.replaceState(history.state, "", "#/search?" + params);
-                  window.dispatchEvent(new HashChangeEvent("hashchange"));
-                }
-              }}
-            />
-            <PrivacyChoices
-              open={privacyOpen}
-              onClose={() => setPrivacyOpen(false)}
-              status={shopping}
-              onStatus={(status) => {
-                clearNativeScreenResources();
-                applyShopperStatus(status);
-                setShopping(status);
-                setRevision((v) => v + 1);
-              }}
-              userId={session?.user.id ?? null}
-            />
-            <div id="native-page-surface">
-              <NativeHeader path={path} onNavigate={go} />
-              <RouteMotion path={path} />
-              <div className="native-route-viewport">
-                <main id="main-content" tabIndex={-1} className="mobile-content scroll-mt-20">
-                  {bootstrap && !needsTerms && (
-                    <div hidden={path !== "/"}>
-                      <Feed
-                        key={session?.user.id ?? "guest"}
-                        bootstrap={bootstrap}
-                        revision={revision}
-                        active={path === "/"}
-                        learning={learning}
-                        startupHome={startupHome.current}
-                        onPersonalize={() => setPrivacyOpen(true)}
-                      />
-                    </div>
-                  )}
-                  {bootstrap && !needsTerms && (
-                    <NativeBrowse
-                      key={session?.user.id ?? "guest"}
-                      active={path === "/search"}
-                      hash={routeHash}
-                      owner={session?.user.id}
-                      bootstrap={bootstrap}
-                      learning={learning}
-                      revision={revision}
-                      onNavigate={go}
-                      onSave={(search, id) => {
-                        if (!session) {
-                          toast.error("Sign in to save this search.");
-                          go("/account");
-                          return;
-                        }
-                        if (!bootstrap.features.durableSavedSearches) {
-                          toast.error(
-                            "Saved-search changes are temporarily unavailable. Please try again later.",
-                          );
-                          return;
-                        }
-                        setSearchRequest({
-                          search,
-                          id,
-                          owner: session.user.id,
-                          originHash: location.hash,
-                        });
-                      }}
-                    />
-                  )}
-                  {error && (
-                    <div className="error" role="alert">
-                      {error}
-                      {!bootstrap && (
-                        <button onClick={() => location.reload()}>Retry connection</button>
-                      )}
-                    </div>
-                  )}
-                  {!bootstrap ? (
-                    <p role="status">Connecting to Bluebird…</p>
-                  ) : needsTerms ? (
-                    <form onSubmit={saveConsent} className="stack">
-                      <h1>Welcome to Bluebird</h1>
-                      <p>
-                        Review the current terms and choose whether to receive personalized shopping
-                        alerts.
-                      </p>
-                      <label className="check">
-                        <input
-                          required
-                          type="checkbox"
-                          checked={terms}
-                          onChange={(e) => setTerms(e.target.checked)}
-                        />
-                        I agree to the{" "}
-                        <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
-                          Terms of Service
-                        </a>
-                        .
-                      </label>
-                      <label className="check">
-                        <input
-                          type="checkbox"
-                          checked={alerts}
-                          onChange={(e) => setAlerts(e.target.checked)}
-                        />
-                        Send me personalized shopping emails and notifications about listings,
-                        recommendations, price drops, and offers.
-                      </label>
-                      <button className="primary" disabled={!terms || busy}>
-                        Continue
-                      </button>
-                      <button type="button" onClick={() => void signOut()}>
-                        Sign out
-                      </button>
-                    </form>
-                  ) : recovery && session ? (
-                    <NativeAuth
-                      policyVersion={bootstrap.policyVersion}
-                      destination={path}
-                      recovery
-                      onRecovered={() => setRecovery(false)}
-                    />
-                  ) : !session &&
-                    ["/saved", "/post", "/messages", "/account", "/auth"].some((p) =>
-                      path.startsWith(p),
-                    ) ? (
-                    <NativeAuth
-                      key={path === "/auth" ? location.hash : path}
-                      policyVersion={bootstrap.policyVersion}
-                      destination={path === "/auth" ? peekNativeAuthDestination() : path}
-                      initialMode={
-                        path === "/auth" &&
-                        new URLSearchParams(location.hash.split("?")[1]).get("mode") === "signup"
-                          ? "signup"
-                          : path === "/auth" &&
-                              new URLSearchParams(location.hash.split("?")[1]).get("mode") ===
-                                "forgot"
-                            ? "forgot"
-                            : "signin"
-                      }
-                    />
-                  ) : /^\/(sellers|dealers)\//.test(path) ? (
-                    <Suspense
-                      fallback={
-                        <p role="status" className="p-5">
-                          Loading storefront…
-                        </p>
-                      }
-                    >
-                      <NativeStorefront
-                        key={`${session?.user.id ?? "guest"}:${path}`}
-                        kind={path.startsWith("/sellers/") ? "sellers" : "dealers"}
-                        slug={path.split("/")[2]}
-                        owner={session?.user.id}
-                        ready={bootstrap.features.storefronts === true}
-                        dealerMessagesReady={bootstrap.features.durableDealerMessages === true}
-                        learning={learning}
-                        revision={revision}
-                      />
-                    </Suspense>
-                  ) : path === "/" || path === "/search" ? null : path.startsWith("/listings/") ? (
-                    bootstrap.features.listingDetails ? (
-                      <Suspense
-                        fallback={
-                          <p role="status" className="p-5 text-sm text-muted-foreground">
-                            Loading listing…
-                          </p>
-                        }
-                      >
-                        <NativeListingDetail
-                          key={`${session?.user.id ?? "guest"}:${path}`}
-                          id={path.slice(10)}
-                          owner={session?.user.id}
-                          learning={learning}
+        <ComparisonProvider
+          owner={session?.user.id ?? null}
+          listingHref={(item) => `#/listings/${item.id}`}
+        >
+          <LocationRequestProvider request={requestNearbyLocation}>
+            <NativeNotificationsProvider
+              key={session?.user.id ?? "guest"}
+              owner={session?.user.id}
+              ready={bootstrap?.features.notificationCenter === true && !needsTerms}
+              revision={revision}
+            >
+              <Toaster
+                mobileOffset={{
+                  bottom: "calc(var(--bluebird-native-navigation-height, 68px) + 16px)",
+                }}
+              />
+              <NativeSaveSearchDialog
+                request={searchRequest?.owner === session?.user.id ? searchRequest : null}
+                onClose={() => setSearchRequest(null)}
+                onSaved={(id) => {
+                  setRevision((v) => v + 1);
+                  if (
+                    searchRequest?.originHash === location.hash &&
+                    browseLocation(location.hash).path === "/search"
+                  ) {
+                    const params = browseLocation(location.hash).params;
+                    params.set("savedSearchId", id);
+                    history.replaceState(history.state, "", "#/search?" + params);
+                    window.dispatchEvent(new HashChangeEvent("hashchange"));
+                  }
+                }}
+              />
+              <PrivacyChoices
+                open={privacyOpen}
+                onClose={() => setPrivacyOpen(false)}
+                status={shopping}
+                onStatus={(status) => {
+                  clearNativeScreenResources();
+                  applyShopperStatus(status);
+                  setShopping(status);
+                  setRevision((v) => v + 1);
+                }}
+                userId={session?.user.id ?? null}
+              />
+              <div id="native-page-surface">
+                <NativeHeader
+                  path={path}
+                  onNavigate={go}
+                  suggestions={searchSuggestions}
+                  owner={session?.user.id ?? null}
+                  personalization={learning}
+                />
+                <RouteMotion path={path} />
+                <div className="native-route-viewport">
+                  <main id="main-content" tabIndex={-1} className="mobile-content scroll-mt-20">
+                    {bootstrap && !needsTerms && (
+                      <div hidden={path !== "/"}>
+                        <Feed
+                          key={session?.user.id ?? "guest"}
+                          bootstrap={bootstrap}
                           revision={revision}
-                          applicationsReady={bootstrap.features.durableApplications === true}
+                          active={path === "/"}
+                          learning={learning}
+                          startupHome={startupHome.current}
+                          onPublicHome={setSearchSuggestions}
+                          onPersonalize={() => setPrivacyOpen(true)}
                         />
-                      </Suspense>
-                    ) : (
-                      <Listing
-                        key={`${session?.user.id ?? "guest"}:${path}`}
-                        id={path.slice(10)}
-                        session={session}
+                      </div>
+                    )}
+                    {bootstrap && !needsTerms && (
+                      <NativeBrowse
+                        key={session?.user.id ?? "guest"}
+                        active={path === "/search"}
+                        hash={routeHash}
+                        owner={session?.user.id}
+                        bootstrap={bootstrap}
                         learning={learning}
                         revision={revision}
-                        onError={setError}
+                        onNavigate={go}
+                        onSave={(search, id) => {
+                          if (!session) {
+                            toast.error("Sign in to save this search.");
+                            go("/account");
+                            return;
+                          }
+                          if (!bootstrap.features.durableSavedSearches) {
+                            toast.error(
+                              "Saved-search changes are temporarily unavailable. Please try again later.",
+                            );
+                            return;
+                          }
+                          setSearchRequest({
+                            search,
+                            id,
+                            owner: session.user.id,
+                            originHash: location.hash,
+                          });
+                        }}
                       />
-                    )
-                  ) : /^\/post\/(edit|duplicate)\/[0-9a-f-]{36}$/i.test(path) ? (
-                    <NativeManageListing
-                      key={`${session!.user.id}:${path}`}
-                      ownerId={session!.user.id}
-                      listingId={path.split("/")[3]}
-                      mode={path.split("/")[2] as "edit" | "duplicate"}
-                      bootstrap={bootstrap}
-                      onNavigate={go}
-                      onChanged={() => setRevision((v) => v + 1)}
-                    />
-                  ) : path === "/post" || path === "/post/profile" ? (
-                    <Post
-                      key={`${session!.user.id}:${path}`}
-                      ownerId={session!.user.id}
-                      initialSetup={path === "/post/profile"}
-                      bootstrap={bootstrap}
-                      onSubmitted={() => setRevision((value) => value + 1)}
-                    />
-                  ) : path.startsWith("/messages") ? (
-                    <NativeMessages
-                      key={session!.user.id}
-                      ownerId={session!.user.id}
-                      id={path.split("/")[2]}
-                      revision={revision}
-                      attachmentsEnabled={bootstrap.features.conversationAttachments === true}
-                      onOpen={(id) => go(`/messages/${id}`)}
-                      onBrowse={() => go("/search")}
-                    />
-                  ) : path.startsWith("/account") ||
-                    (path === "/saved" && bootstrap.features.accountSaved === true) ? (
-                    <NativeAccount
-                      controlsReady={bootstrap.features.accountControls === true}
-                      storefrontsReady={bootstrap.features.storefronts === true}
-                      overviewReady={bootstrap.features.accountOverview === true}
-                      savedReady={bootstrap.features.accountSaved === true}
-                      reviewsReady={bootstrap.features.accountReviews === true}
-                      listingsReady={bootstrap.features.accountListings === true}
-                      managementReady={bootstrap.features.listingManagement === true}
-                      key={session!.user.id}
-                      ownerId={session!.user.id}
-                      section={
-                        ["/saved", "/account/saved"].includes(path) &&
-                        bootstrap.features.accountSaved === true
-                          ? "saved"
-                          : path === "/account/listings"
-                            ? "listings"
-                            : path === "/account/reviews"
-                              ? "reviews"
-                              : path === "/account/settings"
-                                ? "settings"
-                                : path === "/account/notifications"
-                                  ? "notifications"
-                                  : path === "/account/searches"
-                                    ? "searches"
-                                    : ["/account", "/account/overview"].includes(path) &&
-                                        bootstrap.features.accountOverview === true
-                                      ? "overview"
-                                      : "profile"
-                      }
-                      policyVersion={bootstrap.policyVersion}
-                      onNavigate={go}
-                      onSignOut={signOut}
-                      onChanged={() => setRevision((value) => value + 1)}
-                      signOutBusy={busy}
-                      permissions={
-                        <>
-                          {" "}
-                          {Capacitor.isNativePlatform() && bootstrap.features.push && (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const p = await PushNotifications.requestPermissions();
-                                  if (p.receive === "granted") await PushNotifications.register();
-                                  else
-                                    setError(
-                                      "Notifications are off. You can enable them in your phone settings.",
-                                    );
-                                } catch (e) {
-                                  setError(message(e));
-                                }
-                              }}
-                            >
-                              Enable phone notifications
-                            </button>
-                          )}
-                          {Capacitor.isNativePlatform() && bootstrap.features.advertising && (
-                            <label className="mt-4 flex items-start gap-3 text-[12px]">
-                              <input
-                                type="checkbox"
-                                checked={advertising}
-                                onChange={async (e) => {
-                                  const next = e.target.checked;
-                                  try {
-                                    const choice = await setAdvertising(next, true);
-                                    setAdvertisingChoice(
-                                      choice.advertising &&
-                                        (choice.platform === "android" ||
-                                          choice.att === "authorized"),
-                                    );
-                                  } catch (error) {
-                                    setAdvertisingChoice(false);
-                                    setError(message(error));
-                                  }
-                                }}
-                              />
-                              Allow advertising measurement across apps and websites
-                            </label>
-                          )}
+                    )}
+                    {error && (
+                      <div className="error" role="alert">
+                        {error}
+                        {!bootstrap && (
+                          <button onClick={() => location.reload()}>Retry connection</button>
+                        )}
+                      </div>
+                    )}
+                    {!bootstrap ? (
+                      <p role="status">Connecting to Bluebird…</p>
+                    ) : needsTerms ? (
+                      <form onSubmit={saveConsent} className="stack">
+                        <h1>Welcome to Bluebird</h1>
+                        <p>
+                          Review the current terms and choose whether to receive personalized
+                          shopping alerts.
+                        </p>
+                        <label className="check">
+                          <input
+                            required
+                            type="checkbox"
+                            checked={terms}
+                            onChange={(e) => setTerms(e.target.checked)}
+                          />
+                          I agree to the{" "}
                           <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
                             Terms of Service
                           </a>
-                          <a href="mailto:bluebirdmarketplaceid@gmail.com">Contact Bluebird</a>
-                          <a
-                            className="ml-4 text-[12px] text-primary underline"
-                            href={`${apiOrigin}/privacy`}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Privacy policy
-                          </a>
-                        </>
-                      }
-                    />
-                  ) : path === "/saved" ? (
-                    <Feed saved bootstrap={bootstrap} revision={revision} learning={learning} />
-                  ) : (
-                    <Feed bootstrap={bootstrap} revision={revision} learning={learning} />
-                  )}
-                </main>
+                          .
+                        </label>
+                        <label className="check">
+                          <input
+                            type="checkbox"
+                            checked={alerts}
+                            onChange={(e) => setAlerts(e.target.checked)}
+                          />
+                          Send me personalized shopping emails and notifications about listings,
+                          recommendations, price drops, and offers.
+                        </label>
+                        <button className="primary" disabled={!terms || busy}>
+                          Continue
+                        </button>
+                        <button type="button" onClick={() => void signOut()}>
+                          Sign out
+                        </button>
+                      </form>
+                    ) : recovery && session ? (
+                      <NativeAuth
+                        policyVersion={bootstrap.policyVersion}
+                        destination={path}
+                        recovery
+                        onRecovered={() => setRecovery(false)}
+                      />
+                    ) : !session &&
+                      ["/saved", "/post", "/messages", "/account", "/auth"].some((p) =>
+                        path.startsWith(p),
+                      ) ? (
+                      <NativeAuth
+                        key={path === "/auth" ? location.hash : path}
+                        policyVersion={bootstrap.policyVersion}
+                        destination={path === "/auth" ? peekNativeAuthDestination() : path}
+                        initialMode={
+                          path === "/auth" &&
+                          new URLSearchParams(location.hash.split("?")[1]).get("mode") === "signup"
+                            ? "signup"
+                            : path === "/auth" &&
+                                new URLSearchParams(location.hash.split("?")[1]).get("mode") ===
+                                  "forgot"
+                              ? "forgot"
+                              : "signin"
+                        }
+                      />
+                    ) : /^\/(sellers|dealers)\//.test(path) ? (
+                      <Suspense
+                        fallback={
+                          <p role="status" className="p-5">
+                            Loading storefront…
+                          </p>
+                        }
+                      >
+                        <NativeStorefront
+                          key={`${session?.user.id ?? "guest"}:${path}`}
+                          kind={path.startsWith("/sellers/") ? "sellers" : "dealers"}
+                          slug={path.split("/")[2]}
+                          owner={session?.user.id}
+                          ready={bootstrap.features.storefronts === true}
+                          dealerMessagesReady={bootstrap.features.durableDealerMessages === true}
+                          learning={learning}
+                          revision={revision}
+                        />
+                      </Suspense>
+                    ) : path === "/" || path === "/search" ? null : path.startsWith(
+                        "/listings/",
+                      ) ? (
+                      bootstrap.features.listingDetails ? (
+                        <Suspense
+                          fallback={
+                            <p role="status" className="p-5 text-sm text-muted-foreground">
+                              Loading listing…
+                            </p>
+                          }
+                        >
+                          <NativeListingDetail
+                            key={`${session?.user.id ?? "guest"}:${path}`}
+                            id={path.slice(10)}
+                            owner={session?.user.id}
+                            learning={learning}
+                            revision={revision}
+                            applicationsReady={bootstrap.features.durableApplications === true}
+                          />
+                        </Suspense>
+                      ) : (
+                        <Listing
+                          key={`${session?.user.id ?? "guest"}:${path}`}
+                          id={path.slice(10)}
+                          session={session}
+                          learning={learning}
+                          revision={revision}
+                          onError={setError}
+                        />
+                      )
+                    ) : /^\/post\/(edit|duplicate)\/[0-9a-f-]{36}$/i.test(path) ? (
+                      <NativeManageListing
+                        key={`${session!.user.id}:${path}`}
+                        ownerId={session!.user.id}
+                        listingId={path.split("/")[3]}
+                        mode={path.split("/")[2] as "edit" | "duplicate"}
+                        bootstrap={bootstrap}
+                        onNavigate={go}
+                        onChanged={() => setRevision((v) => v + 1)}
+                      />
+                    ) : path === "/post" || path === "/post/profile" ? (
+                      <Post
+                        key={`${session!.user.id}:${path}`}
+                        ownerId={session!.user.id}
+                        initialSetup={path === "/post/profile"}
+                        bootstrap={bootstrap}
+                        onSubmitted={() => setRevision((value) => value + 1)}
+                      />
+                    ) : path.startsWith("/messages") ? (
+                      <NativeMessages
+                        key={session!.user.id}
+                        ownerId={session!.user.id}
+                        id={path.split("/")[2]}
+                        revision={revision}
+                        attachmentsEnabled={bootstrap.features.conversationAttachments === true}
+                        onOpen={(id) => go(`/messages/${id}`)}
+                        onBrowse={() => go("/search")}
+                      />
+                    ) : path.startsWith("/account") ||
+                      (path === "/saved" && bootstrap.features.accountSaved === true) ? (
+                      <NativeAccount
+                        controlsReady={bootstrap.features.accountControls === true}
+                        storefrontsReady={bootstrap.features.storefronts === true}
+                        overviewReady={bootstrap.features.accountOverview === true}
+                        savedReady={bootstrap.features.accountSaved === true}
+                        reviewsReady={bootstrap.features.accountReviews === true}
+                        listingsReady={bootstrap.features.accountListings === true}
+                        managementReady={bootstrap.features.listingManagement === true}
+                        key={session!.user.id}
+                        ownerId={session!.user.id}
+                        section={
+                          ["/saved", "/account/saved"].includes(path) &&
+                          bootstrap.features.accountSaved === true
+                            ? "saved"
+                            : path === "/account/listings"
+                              ? "listings"
+                              : path === "/account/reviews"
+                                ? "reviews"
+                                : path === "/account/settings"
+                                  ? "settings"
+                                  : path === "/account/notifications"
+                                    ? "notifications"
+                                    : path === "/account/searches"
+                                      ? "searches"
+                                      : ["/account", "/account/overview"].includes(path) &&
+                                          bootstrap.features.accountOverview === true
+                                        ? "overview"
+                                        : "profile"
+                        }
+                        policyVersion={bootstrap.policyVersion}
+                        onNavigate={go}
+                        onSignOut={signOut}
+                        onChanged={() => setRevision((value) => value + 1)}
+                        signOutBusy={busy}
+                        permissions={
+                          <>
+                            {" "}
+                            {Capacitor.isNativePlatform() && bootstrap.features.push && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const p = await PushNotifications.requestPermissions();
+                                    if (p.receive === "granted") await PushNotifications.register();
+                                    else
+                                      setError(
+                                        "Notifications are off. You can enable them in your phone settings.",
+                                      );
+                                  } catch (e) {
+                                    setError(message(e));
+                                  }
+                                }}
+                              >
+                                Enable phone notifications
+                              </button>
+                            )}
+                            {Capacitor.isNativePlatform() && bootstrap.features.advertising && (
+                              <label className="mt-4 flex items-start gap-3 text-[12px]">
+                                <input
+                                  type="checkbox"
+                                  checked={advertising}
+                                  onChange={async (e) => {
+                                    const next = e.target.checked;
+                                    try {
+                                      const choice = await setAdvertising(next, true);
+                                      setAdvertisingChoice(
+                                        choice.advertising &&
+                                          (choice.platform === "android" ||
+                                            choice.att === "authorized"),
+                                      );
+                                    } catch (error) {
+                                      setAdvertisingChoice(false);
+                                      setError(message(error));
+                                    }
+                                  }}
+                                />
+                                Allow advertising measurement across apps and websites
+                              </label>
+                            )}
+                            <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
+                              Terms of Service
+                            </a>
+                            <a href="mailto:bluebirdmarketplaceid@gmail.com">Contact Bluebird</a>
+                            <a
+                              className="ml-4 text-[12px] text-primary underline"
+                              href={`${apiOrigin}/privacy`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Privacy policy
+                            </a>
+                          </>
+                        }
+                      />
+                    ) : path === "/saved" ? (
+                      <Feed saved bootstrap={bootstrap} revision={revision} learning={learning} />
+                    ) : (
+                      <Feed bootstrap={bootstrap} revision={revision} learning={learning} />
+                    )}
+                  </main>
+                </div>
               </div>
-            </div>
-            {opening && (
-              <div role="status" className="native-route-progress">
-                <span className="sr-only">Opening page…</span>
-              </div>
-            )}
-            <NativeNavigation
-              path={path}
-              signedIn={Boolean(session)}
-              owner={session?.user.id}
-              account={account?.account.userId === session?.user.id ? account?.account : null}
-              onSignOut={() => signOut()}
-              signOutBusy={busy}
-              onNavigate={go}
-              onPrivacy={() => setPrivacyOpen(true)}
-              renderLink={NativeTabLink}
-            />
-          </NativeNotificationsProvider>
-        </LocationRequestProvider>
+              {opening && (
+                <div role="status" className="native-route-progress">
+                  <span className="sr-only">Opening page…</span>
+                </div>
+              )}
+              <NativeNavigation
+                path={path}
+                signedIn={Boolean(session)}
+                owner={session?.user.id}
+                account={account?.account.userId === session?.user.id ? account?.account : null}
+                onSignOut={() => signOut()}
+                signOutBusy={busy}
+                onNavigate={go}
+                onPrivacy={() => setPrivacyOpen(true)}
+                renderLink={NativeTabLink}
+              />
+            </NativeNotificationsProvider>
+          </LocationRequestProvider>
+        </ComparisonProvider>
       </SavedSearchActions>
     </SavedCardsProvider>
   );
@@ -980,6 +996,7 @@ function Feed({
   learning = false,
   searchMode = false,
   startupHome,
+  onPublicHome,
   onPersonalize,
 }: {
   bootstrap: Bootstrap;
@@ -989,6 +1006,7 @@ function Feed({
   searchMode?: boolean;
   learning?: boolean;
   startupHome?: StartupHome | null;
+  onPublicHome?: (cards: MobileListing[]) => void;
   onPersonalize?: () => void;
 }) {
   const { area } = useSearchArea();
@@ -1069,6 +1087,7 @@ function Feed({
             readPublicHome(controller.signal));
           if (controller.signal.aborted) return;
           setHome(result);
+          onPublicHome?.([...result.motors, ...result.recent]);
           setItems([]);
           setNext(null);
           setIncomplete(false);
@@ -1123,6 +1142,7 @@ function Feed({
     discovery,
     appliedLocation,
     startupHome,
+    onPublicHome,
   ]);
   return (
     <section aria-label={saved ? "Saved listings" : "Marketplace homepage"} className="mobile-home">
@@ -1130,6 +1150,7 @@ function Feed({
         <HomeRefresh
           onData={(next) => {
             setHome(next);
+            onPublicHome?.([...next.motors, ...next.recent]);
             setRefreshSequence((value) => value + 1);
             setItems([]);
             setNext(null);

@@ -234,7 +234,7 @@ try {
 
       await page
         .locator("form")
-        .filter({ has: page.getByRole("searchbox", { name: "Search listings", exact: true }) })
+        .filter({ has: page.getByRole("combobox", { name: "Search listings", exact: true }) })
         .getByRole("button", { name: "Search", exact: true })
         .click();
       await page.waitForURL((url) => url.pathname === "/browse");
