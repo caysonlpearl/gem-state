@@ -100,7 +100,10 @@ try {
   assert.ok(html.includes("Contact dealership"));
   assert.ok(html.includes('aria-label="Message dealership"'));
   assert.ok(html.includes('aria-label="Vehicle listing summary"'));
-  assert.ok(html.includes(">Fixture Subaru</a>"));
+  assert.ok(html.includes('aria-label="About Fixture Subaru"'));
+  assert.ok(html.includes(">Fixture Subaru</button>"));
+  assert.ok(html.includes('href="/dealers/fixture-subaru"'));
+  assert.ok(html.includes("View dealership and inventory"));
   assert.ok(html.includes("$39,000") && html.includes("$4,000"));
   assert.ok(html.includes('aria-label="Verified dealership"'));
   assert.ok(!html.includes("Reach the seller through the original listing"));
