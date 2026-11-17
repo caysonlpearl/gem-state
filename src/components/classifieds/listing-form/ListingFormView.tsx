@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
+import { classifiedListingSchema } from "@/lib/classified-listing-contracts";
+import { listingFormSubmission } from "./submission";
 import { ArrowRight, Camera, CheckCircle } from "@phosphor-icons/react";
 import { idahoRegions, usStates } from "@/config/classifieds";
 import { IdahoCityPicker } from "@/components/classifieds/IdahoCityPicker";
@@ -74,6 +76,27 @@ export function ListingFormView({
     filePreviews,
     reorderFiles,
   } = state;
+  const progressId = useId();
+  const [activePart, setActivePart] = useState("Details");
+  let detailsComplete = false;
+  try {
+    detailsComplete = classifiedListingSchema.safeParse(listingFormSubmission(form)).success;
+  } catch {
+    /* Incomplete numeric fields remain incomplete. */
+  }
+  const photosComplete =
+    (files.length > 0 && photoRights) ||
+    retainedPhotoCount > 0 ||
+    (props.mode === "edit" && props.initial.imageUrls.length > 0 && files.length === 0);
+  const jump = (part: string) => {
+    setActivePart(part);
+    const target = document.getElementById(`${progressId}-${part}`);
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
+      block: "start",
+    });
+  };
   const submitDisabled =
     mutation.isPending || categoriesLoading || (props.mode === "edit" && props.status !== "active");
 
@@ -85,6 +108,32 @@ export function ListingFormView({
         mutation.mutate();
       }}
     >
+      <nav
+        aria-label="Listing progress"
+        className="flex items-center gap-1 border-b border-border pb-3"
+      >
+        {["Details", "Photos", "Review"].map((part, index) => (
+          <button
+            type="button"
+            key={part}
+            aria-current={activePart === part ? "step" : undefined}
+            onClick={() => jump(part)}
+            className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-xs font-semibold ${activePart === part ? "bg-primary/8 text-primary" : "text-muted-foreground hover:bg-secondary"}`}
+          >
+            {(part === "Details" && detailsComplete) || (part === "Photos" && photosComplete) ? (
+              <CheckCircle size={16} weight="fill" aria-hidden="true" />
+            ) : (
+              <span
+                className="grid h-5 w-5 place-items-center rounded-full border border-current text-[10px]"
+                aria-hidden="true"
+              >
+                {index + 1}
+              </span>
+            )}
+            {part}
+          </button>
+        ))}
+      </nav>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
@@ -92,7 +141,13 @@ export function ListingFormView({
       )}
       <fieldset disabled={locked} className="block space-y-6 border-0 p-0">
         <legend className="sr-only">Listing details</legend>
-        <section className="border border-border bg-card p-5 sm:p-6">
+        <section
+          id={`${progressId}-Details`}
+          tabIndex={-1}
+          aria-label="Listing details"
+          onFocusCapture={() => setActivePart("Details")}
+          className="scroll-mt-40 border border-border bg-card p-5 sm:p-6"
+        >
           <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
             Listing type
           </p>
@@ -411,7 +466,13 @@ export function ListingFormView({
           </section>
         ) : null}
 
-        <section className="border border-border bg-card p-5 sm:p-6">
+        <section
+          id={`${progressId}-Photos`}
+          tabIndex={-1}
+          aria-label="Listing photos"
+          onFocusCapture={() => setActivePart("Photos")}
+          className="scroll-mt-40 border border-border bg-card p-5 sm:p-6"
+        >
           <SectionHeading number={String((hasSpecialDetails ? 3 : 2) + 1)} title="Photos" />
           {retainedPhotoCount > 0 && (
             <p role="status" className="mt-3 text-sm text-muted-foreground">
@@ -491,7 +552,13 @@ export function ListingFormView({
           )}
         </section>
       </fieldset>
-      <section className="flex flex-wrap items-center justify-between gap-4 border border-border bg-secondary/50 p-5 sm:p-6">
+      <section
+        id={`${progressId}-Review`}
+        tabIndex={-1}
+        aria-label="Review and submit"
+        onFocusCapture={() => setActivePart("Review")}
+        className="scroll-mt-40 flex flex-wrap items-center justify-between gap-4 border border-border bg-secondary/50 p-5 sm:p-6"
+      >
         <div className="flex items-start gap-2">
           <CheckCircle size={18} className="mt-0.5 shrink-0 text-primary" />
           <p className="max-w-[650px] text-[11.5px] leading-relaxed text-muted-foreground">

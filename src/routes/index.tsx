@@ -1,3 +1,4 @@
+import { WebsiteSearch } from "@/components/marketplace/WebsiteSearch";
 import { MarketplaceVehicleLeadHeader } from "@/components/classifieds/MarketplaceVehicleLeadHeader";
 import { parseLocationSearch } from "@/lib/location-search";
 import { headlineOptions } from "@/config/homepage-headlines";
@@ -298,6 +299,19 @@ function Home() {
   // never shrink the homepage's saved statewide inventory or its row links.
   const where = homeLocation("", undefined, 25);
   const { locationSummary } = homeLocation(location, mapPoint, radiusMiles);
+  const submitSearch = (q: string, selectedCategory = category) => {
+    const locationSearch = parseLocationSearch(location);
+    void navigate({
+      to: "/browse",
+      search: {
+        ...(q.trim() ? { q: q.trim() } : {}),
+        ...(selectedCategory ? { category: selectedCategory } : {}),
+        ...locationSearch,
+        ...(locationSearch.city || mapPoint ? { radiusMiles } : {}),
+        ...(mapPoint ? { latitude: mapPoint.latitude, longitude: mapPoint.longitude } : {}),
+      },
+    });
+  };
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
@@ -307,33 +321,24 @@ function Home() {
           className="floating-card mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-1.5 sm:mt-5 sm:gap-2 sm:p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] sm:p-3"
           onSubmit={(event) => {
             event.preventDefault();
-            const locationSearch = parseLocationSearch(location);
-            void navigate({
-              to: "/browse",
-              search: {
-                ...(term.trim() ? { q: term.trim() } : {}),
-                ...(category ? { category } : {}),
-                ...locationSearch,
-                ...(locationSearch.city || mapPoint ? { radiusMiles } : {}),
-                ...(mapPoint ? { latitude: mapPoint.latitude, longitude: mapPoint.longitude } : {}),
-              },
-            });
+            submitSearch(term);
           }}
         >
-          <label className="relative block">
+          <div className="relative block">
             <MagnifyingGlass
               size={16}
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
-            <input
-              type="search"
+            <WebsiteSearch
               value={term}
-              onChange={(event) => setTerm(event.target.value)}
+              onValueChange={setTerm}
+              onSearch={submitSearch}
+              onCategory={(slug) => submitSearch("", slug)}
               placeholder="Search listings"
               aria-label="Search listings"
               className="h-11 w-full rounded-full border-0 bg-transparent pl-9 sm:h-12 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
-          </label>
+          </div>
           <div className="hidden sm:block">
             <HomeSearchDropdown
               value={category}

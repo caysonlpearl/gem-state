@@ -74,6 +74,8 @@ export function setShopperIdentity(next: string | null) {
   timer = undefined;
 }
 export function applyShopperStatus(status: ShopperStatus | null) {
+  if (!status?.personalization && typeof window !== "undefined")
+    window.dispatchEvent(new Event("shopping-privacy-changed"));
   allowed = status?.personalization === true && status.trackingAvailable === true;
   recommendationOwner =
     allowed &&

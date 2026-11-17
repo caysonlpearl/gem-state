@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Heart } from "@phosphor-icons/react";
+import { useEffect, useRef } from "react";
+import { SavedHeart } from "@/components/marketplace/SavedHeart";
+import { savedFeedback } from "@/components/marketplace/save-feedback";
 import { toast } from "sonner";
 
 import { useListingSavedState } from "@/hooks/useListingSavedState";
@@ -29,6 +31,14 @@ export function WatchHeartButton({
   className?: string;
 }) {
   const { isSignedIn, user } = useAuth();
+  const currentOwner = useRef(user?.id);
+  currentOwner.current = user?.id;
+  useEffect(() => {
+    currentOwner.current = user?.id;
+    return () => {
+      currentOwner.current = undefined;
+    };
+  }, [user?.id]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const setState = useServerFn(setProductWatchState);
@@ -36,7 +46,10 @@ export function WatchHeartButton({
   const state = useListingSavedState("products", productId, user?.id, !isDemo);
 
   const mutation = useMutation({
-    mutationFn: (watching: boolean) => setState({ data: { productId, watching } }),
+    mutationFn: async (watching: boolean) => {
+      const feedbackOwner = user?.id;
+      return { ...(await setState({ data: { productId, watching } })), feedbackOwner };
+    },
     onSuccess: async (result) => {
       await trackEvent(result.watching ? "watchlist_added" : "watchlist_removed", {
         product_slug: productSlug,
@@ -46,11 +59,13 @@ export function WatchHeartButton({
       await queryClient.invalidateQueries({ queryKey: ["my-watchlist"] });
       await queryClient.invalidateQueries({ queryKey: ["listing-stats"] });
       await queryClient.invalidateQueries({ queryKey: ["watcher-count", result.variantId] });
-      toast.success(
-        result.watching
-          ? `Saved ${productName} to your watchlist. It is private to you.`
-          : `Removed ${productName} from your watchlist.`,
-      );
+      const owner = result.feedbackOwner;
+      savedFeedback({
+        saved: result.watching,
+        title: productName,
+        current: () => Boolean(owner) && currentOwner.current === owner,
+        onUndo: () => mutation.mutate(false),
+      });
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not update your watchlist."),
@@ -86,11 +101,7 @@ export function WatchHeartButton({
         "relative inline-flex h-7 w-7 items-center justify-center rounded-full before:absolute before:-inset-2 before:content-[''] border border-border bg-card/95 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
       }
     >
-      <Heart
-        size={14}
-        weight={watching ? "fill" : "regular"}
-        className={watching ? "text-brand-warm" : undefined}
-      />
+      <SavedHeart saved={watching} />
     </button>
   );
 }

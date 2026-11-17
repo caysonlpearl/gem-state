@@ -506,6 +506,20 @@ try {
     await photos.getByRole("status").getByText("2 / 2", { exact: true }).waitFor();
     await photos.getByRole("button", { name: "Previous listing photo", exact: true }).click();
     await photos.getByRole("status").getByText("1 / 2", { exact: true }).waitFor();
+    await photos.getByRole("button", { name: "Open listing photo 1", exact: true }).click();
+    const zoomIn = page.getByRole("button", { name: "Zoom in", exact: true });
+    await zoomIn.waitFor();
+    if (viewport.width < 800) {
+      await zoomIn.click();
+      await page.getByRole("button", { name: "Zoom out", exact: true }).click();
+    }
+
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await page.locator(".yarl__counter").getByText("2 / 2", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await photos.getByRole("status").getByText("2 / 2", { exact: true }).waitFor();
+    await page.getByRole("button", { name: "Go to photo 2", exact: true }).waitFor();
+
     await photos.getByRole("button", { name: "More listing options", exact: true }).click();
     await page
       .getByRole("dialog")

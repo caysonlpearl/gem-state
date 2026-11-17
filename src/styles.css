@@ -820,3 +820,65 @@
     white-space: nowrap;
   }
 }
+
+@keyframes bluebird-save-pop {
+  0% {
+    transform: scale(0.82);
+  }
+  45% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.save-heart-pop {
+  animation: bluebird-save-pop 240ms ease-out;
+}
+.bluebird-photo-lightbox {
+  --yarl__color_backdrop: #101e29;
+  --yarl__thumbnails_container_background_color: #101e29;
+  --yarl__thumbnails_thumbnail_active_border_color: #f5c84b;
+  --yarl__thumbnails_thumbnail_background: #17364d;
+  --yarl__container_background_color: #101e29;
+  --yarl__portal_zindex: 200;
+  --yarl__counter_top: env(safe-area-inset-top, 0px);
+  --yarl__counter_left: env(safe-area-inset-left, 0px);
+}
+.bluebird-photo-lightbox .yarl__toolbar {
+  top: env(safe-area-inset-top, 0px);
+  right: env(safe-area-inset-right, 0px);
+}
+.bluebird-photo-lightbox .yarl__thumbnails_container {
+  padding-bottom: calc(
+    var(--yarl__thumbnails_container_padding, 16px) + env(safe-area-inset-bottom, 0px)
+  );
+}
+.scroll-edge-fade[data-edges="right"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 12px), transparent);
+}
+.scroll-edge-fade[data-edges="left"] {
+  mask-image: linear-gradient(to right, transparent, #000 12px);
+}
+.scroll-edge-fade[data-edges="leftright"] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 12px,
+    #000 calc(100% - 12px),
+    transparent
+  );
+}
+.comparison-tray {
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px) {
+  .comparison-tray {
+    bottom: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .save-heart-pop {
+    animation: none;
+  }
+}

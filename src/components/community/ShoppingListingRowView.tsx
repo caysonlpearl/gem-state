@@ -1,3 +1,4 @@
+import { ScrollRail } from "@/components/marketplace/ScrollRail";
 import type { ReactNode } from "react";
 
 /** Shared website/app layout; each platform retains its own navigation and learning adapter. */
@@ -21,7 +22,7 @@ export function ShoppingListingRowView<T extends { id: string }>({
   return (
     <section className={className}>
       <h2 className="mb-4 text-lg font-semibold">{title}</h2>
-      <div
+      <ScrollRail
         role="list"
         aria-label={`${title} listings`}
         tabIndex={0}
@@ -37,7 +38,7 @@ export function ShoppingListingRowView<T extends { id: string }>({
             {renderCard(card, position)}
           </div>
         ))}
-      </div>
+      </ScrollRail>
       {renderFooter?.(visible)}
     </section>
   );

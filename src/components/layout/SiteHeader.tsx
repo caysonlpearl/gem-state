@@ -1,3 +1,4 @@
+import { WebsiteSearch } from "@/components/marketplace/WebsiteSearch";
 import { websiteAccountSignOut } from "@/lib/account-session";
 import { List, MagnifyingGlass, PlusCircle, X } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -142,20 +143,23 @@ export function SiteHeader() {
           onSubmit={submitSearch}
           role="search"
         >
-          <label className="soft-control flex h-14 items-center gap-2 px-3 shadow-sm transition-shadow focus-within:shadow-md">
+          <div className="soft-control flex h-14 items-center gap-2 px-3 shadow-sm transition-shadow focus-within:shadow-md">
             <span className="sr-only">Search Idaho classifieds</span>
             <MagnifyingGlass
               size={16}
               aria-hidden="true"
               className="shrink-0 text-muted-foreground"
             />
-            <input
-              type="search"
+            <WebsiteSearch
               name="q"
               value={term}
-              onChange={(e) => setTerm(e.target.value)}
+              onValueChange={setTerm}
+              onSearch={(q) =>
+                void navigate({ to: "/browse", search: { q: q.trim() || undefined } })
+              }
+              aria-label="Search Idaho classifieds"
               placeholder="Search cars, tools, furniture, and more"
-              className="min-w-0 flex-1 bg-transparent px-1 text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
+              className="w-full min-w-0 bg-transparent px-1 text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
             />
             <button
               type="submit"
@@ -164,7 +168,7 @@ export function SiteHeader() {
             >
               <MagnifyingGlass size={17} aria-hidden="true" />
             </button>
-          </label>
+          </div>
         </form>
 
         <nav

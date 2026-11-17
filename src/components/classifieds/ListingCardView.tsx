@@ -1,3 +1,5 @@
+import { CompareToggle } from "@/components/marketplace/Comparison";
+import { PhotoImage } from "@/components/marketplace/PhotoImage";
 import { listingPreviewTitle, petPreviewFacts } from "@/lib/listing-preview";
 import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
@@ -403,7 +405,7 @@ export function ListingCardPhoto({
   }
   return (
     <div className={`relative ${ratio} overflow-hidden bg-secondary`}>
-      <img
+      <PhotoImage
         key={listing.imageUrl}
         ref={imageRef}
         src={listingCardImageUrl(listing.imageUrl)}
@@ -592,6 +594,13 @@ export function ListingCardView({
           </span>
         ) : (
           <div className="absolute right-2 top-2 z-10">{saveAction}</div>
+        )}
+        {!soldAt && (
+          <div
+            className={`absolute bottom-2 right-2 z-10 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${density === "compact" || density === "browse" ? "hidden md:block" : ""}`}
+          >
+            <CompareToggle listing={listing} compact />
+          </div>
         )}
       </div>
       {density !== "standard" ? (

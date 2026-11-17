@@ -1,3 +1,4 @@
+import { listingPreviewTitle } from "../src/lib/listing-preview.ts";
 import { selectDiscoveryCards } from "../src/lib/discovery-ranking.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +12,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
 const browseSource = await readFile(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
-const resultsSource = await readFile(new URL("../src/components/classifieds/BrowseResultsView.tsx",import.meta.url),"utf8");
+const resultsSource = await readFile(
+  new URL("../src/components/classifieds/BrowseResultsView.tsx", import.meta.url),
+  "utf8",
+);
 const cardSource = await readFile(
   new URL("../src/components/classifieds/ListingCardView.tsx", import.meta.url),
   "utf8",
@@ -86,7 +90,9 @@ test("homepage and results grids prioritize only their first listing card", () =
   );
 });
 
-test("website result adapter keeps only the first card high priority",()=>{assert.match(browseSource,/ListingCard listing=\{listing\} priority=\{index === 0\}/);});
+test("website result adapter keeps only the first card high priority", () => {
+  assert.match(browseSource, /ListingCard listing=\{listing\} priority=\{index === 0\}/);
+});
 
 test("All Items prioritizes its first Top listings card and leaves the rest lazy", () => {
   const tree = render(
@@ -187,6 +193,8 @@ test("the rendered listing photo emits eager/high only for the first visible fix
     retailSavings,
     listingLogoUrl: () => undefined,
     listingCardImageUrl,
+    listingPreviewTitle,
+    PhotoImage: "img", // Card priority/recovery contract; wrapper states have browser coverage.
     LogoPhoto: "LogoPhoto",
     PlaceholderPhoto: "PlaceholderPhoto",
   });
@@ -251,6 +259,8 @@ test("a removed photo becomes a fallback even when its failure preceded hydratio
     useCallback: (fn) => fn,
     PlaceholderPhoto: "PlaceholderPhoto",
     LogoPhoto: "LogoPhoto",
+    listingPreviewTitle,
+    PhotoImage: "img",
   });
   const listing = { title: "Vehicle", imageUrl: "https://example.com/removed.jpg" };
   assert.equal(Photo({ listing }).type, "div");
@@ -258,4 +268,40 @@ test("a removed photo becomes a fallback even when its failure preceded hydratio
   assert.equal(Photo({ listing }).type, "PlaceholderPhoto");
   const changed = { ...listing, imageUrl: "https://example.com/replaced.jpg" };
   assert.equal(Photo({ listing: changed }).type, "div", "a replacement photo is retried");
+});
+
+test("photo skeletons do not hide server-rendered listing photos before hydration", async () => {
+  const source = await readFile(
+    new URL("../src/components/marketplace/PhotoImage.tsx", import.meta.url),
+    "utf8",
+  );
+  const body = source
+    .replace(/^import[^;]+;\s*/gm, "")
+    .replace(/export const PhotoImage/, "const PhotoImage");
+  const compiled = ts.transpileModule(body, {
+    compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const PhotoImage = vm.runInNewContext(`${compiled}\nPhotoImage`, {
+    React,
+    forwardRef: React.forwardRef,
+    useCallback: React.useCallback,
+    useEffect: React.useEffect,
+    useState: React.useState,
+    ImageBroken: () => null,
+  });
+  const markup = renderToStaticMarkup(
+    React.createElement(PhotoImage, {
+      src: "/listing-photo.jpg",
+      alt: "Listing photo",
+      loading: "eager",
+      fetchPriority: "high",
+      className: "h-full w-full object-cover",
+    }),
+  );
+  const image = markup.match(/<img[^>]+>/)?.[0];
+  assert.ok(image);
+  assert.match(image, /opacity-100/);
+  assert.doesNotMatch(image, /opacity-0(?:[\s"])/);
+  assert.match(image, /class="relative /);
+  assert.match(image, /loading="eager"/);
 });

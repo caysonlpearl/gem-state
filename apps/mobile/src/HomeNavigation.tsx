@@ -1,3 +1,4 @@
+import { ScrollRail } from "../../../src/components/marketplace/ScrollRail";
 import { useState } from "react";
 import { CaretDown, MapPin, SquaresFour } from "@phosphor-icons/react";
 import { CategoryArtwork } from "../../../src/components/classifieds/CategoryIcon";
@@ -12,7 +13,8 @@ import type { Search } from "../../../src/lib/browse-search";
 export function NativeHomeShortcuts({ onBrowse }: { onBrowse: (scope: Partial<Search>) => void }) {
   const ordered = ["cars-trucks", "other-real-estate", "pets", "jobs", "services"];
   return (
-    <nav
+    <ScrollRail
+      as="nav"
       aria-label="Shop by category"
       className="native-home-shortcuts no-scrollbar flex gap-2 overflow-x-auto px-[calc(12px+env(safe-area-inset-left))] pb-3 pr-[calc(12px+env(safe-area-inset-right))] pt-1"
     >
@@ -45,7 +47,7 @@ export function NativeHomeShortcuts({ onBrowse }: { onBrowse: (scope: Partial<Se
               </button>
             ),
         )}
-    </nav>
+    </ScrollRail>
   );
 }
 

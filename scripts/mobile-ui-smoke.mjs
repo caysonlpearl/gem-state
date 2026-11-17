@@ -129,14 +129,14 @@ try {
     await page.waitForFunction((y) => Math.abs(window.scrollY - y) < 3, previousScroll);
     await page.getByRole("link", { name: "Home", exact: true }).last().click();
     await page
-      .getByRole("searchbox", { name: "Search for anything", exact: true })
+      .getByRole("combobox", { name: "Search for anything", exact: true })
       .fill("Subaru Outback");
     const queryResponse = page.waitForResponse(
       (response) =>
         response.url().includes("/api/mobile/v1/search?") &&
         new URL(response.url()).searchParams.get("q") === "Subaru Outback",
     );
-    await page.getByRole("searchbox", { name: "Search for anything", exact: true }).press("Enter");
+    await page.getByRole("combobox", { name: "Search for anything", exact: true }).press("Enter");
     assert.equal((await queryResponse).status(), 200);
     await page
       .getByRole("navigation", { name: "Primary", exact: true })

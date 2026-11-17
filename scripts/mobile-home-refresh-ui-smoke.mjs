@@ -378,7 +378,7 @@ try {
     assert.equal(searchState().get("city"), "Salt Lake City");
     await page.getByRole("link", { name: "Saved listings", exact: true }).click();
     await page.waitForURL(/#\/saved$/);
-    await page.getByRole("searchbox", { name: "Search for anything", exact: true }).fill("bike");
+    await page.getByRole("combobox", { name: "Search for anything", exact: true }).fill("bike");
     await page.getByRole("button", { name: "Submit search", exact: true }).click();
     await page.waitForURL(/q=bike/);
     assert.equal(searchState().get("state"), "UT");

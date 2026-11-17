@@ -1,3 +1,8 @@
+import { brand } from "@/config/brand";
+import { IdentityPeek } from "@/components/marketplace/IdentityPeek";
+import { CompareToggle } from "@/components/marketplace/Comparison";
+import { listingParam } from "@/lib/listing-url";
+import { CopyButton } from "@/components/marketplace/CopyButton";
 import { ListingGallery } from "@/components/classifieds/ListingGallery";
 import { VehiclePrice } from "@/components/dealers/VehiclePrice";
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
@@ -149,6 +154,20 @@ function SpecIcon({ label }: { label: string }) {
   return <Icon size={16} weight="duotone" className="text-primary" aria-hidden="true" />;
 }
 
+function DetailQuickActions({ listing }: { listing: ClassifiedDetail }) {
+  const { photoFirst } = useListingDetailRuntime();
+  if (photoFirst) return null;
+  return (
+    <>
+      <CompareToggle listing={listing} compact />
+      <CopyButton
+        value={`${brand.urls.siteUrl}/listings/${listingParam(listing)}`}
+        label="Copy listing link"
+      />
+    </>
+  );
+}
+
 function SpecGrid({ rows }: { rows: [string, string][] }) {
   if (rows.length === 0) return null;
   return (
@@ -162,7 +181,12 @@ function SpecGrid({ rows }: { rows: [string, string][] }) {
             <SpecIcon label={label} />
             {label}
           </dt>
-          <dd className="mt-1.5 text-[13px] font-semibold">{value}</dd>
+          <dd className="mt-1.5 flex min-w-0 items-center gap-1 text-[13px] font-semibold">
+            <span className="min-w-0 break-all">{value}</span>
+            {/^(VIN|Stock number|Listing number|Address)$/i.test(label) && (
+              <CopyButton value={value} label={`Copy ${label}`} />
+            )}
+          </dd>
         </div>
       ))}
     </dl>
@@ -200,9 +224,19 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
         name={seller.displayName}
         imageUrl={seller.avatarUrl}
         title={
-          <Link to="/sellers/$slug" params={{ slug: seller.slug }} className="hover:underline">
-            {seller.displayName}
-          </Link>
+          <IdentityPeek
+            name={seller.displayName}
+            image={seller.avatarUrl}
+            location={[listing.city, listing.state].filter(Boolean).join(", ")}
+            bio={seller.bio}
+            rating={seller.ratingAverage}
+            reviews={seller.reviewCount}
+            action={
+              <Link to="/sellers/$slug" params={{ slug: seller.slug }}>
+                View profile and listings
+              </Link>
+            }
+          />
         }
         subtitle={[listing.city, listing.state].filter(Boolean).join(", ")}
         badge={
@@ -545,13 +579,16 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
         imageUrl={listing.dealer?.logoUrl}
         title={
           listing.dealer?.slug ? (
-            <Link
-              to="/dealers/$slug"
-              params={{ slug: listing.dealer.slug }}
-              className="hover:underline"
-            >
-              {name}
-            </Link>
+            <IdentityPeek
+              name={name}
+              image={listing.dealer.logoUrl}
+              location={[listing.dealer.city, listing.dealer.state].filter(Boolean).join(", ")}
+              action={
+                <Link to="/dealers/$slug" params={{ slug: listing.dealer.slug }}>
+                  View dealership and inventory
+                </Link>
+              }
+            />
           ) : (
             name
           )
@@ -844,7 +881,10 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
       <dl className="mt-3 divide-y divide-border/70 text-[12px]">
         <div className="flex items-center justify-between gap-4 py-2 first:pt-0">
           <dt className="text-muted-foreground">Listing number</dt>
-          <dd className="numeric text-right font-medium">{listing.listingNumber ?? listing.id}</dd>
+          <dd className="numeric flex items-center justify-end gap-1 font-medium">
+            {listing.listingNumber ?? listing.id}
+            <CopyButton value={listing.listingNumber ?? listing.id} label="Copy listing number" />
+          </dd>
         </div>
         {hasPostedDate && (
           <div className="flex items-center justify-between gap-4 py-2">
@@ -1235,6 +1275,7 @@ function ListingDetailContent({
               >
                 <ShareNetwork size={18} />
               </button>
+              <DetailQuickActions listing={listing} />
               {onPrint && (
                 <button
                   type="button"
@@ -2340,9 +2381,22 @@ function HomeListingDetail({
                   </dl>
                 ) : null}
               </div>
-              <h1 className="mt-4 text-[19px] font-semibold leading-snug sm:text-[21px]">
-                {title}
-              </h1>
+              <div className="mt-4 flex items-center gap-1">
+                <h1 className="text-[19px] font-semibold leading-snug sm:text-[21px]">{title}</h1>
+                {listing.externalHome?.address && (
+                  <CopyButton
+                    value={[
+                      listing.externalHome.address,
+                      listing.city,
+                      listing.state,
+                      listing.postalCode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                    label="Copy address"
+                  />
+                )}
+              </div>
               <p className="mt-1 flex items-center gap-1.5 text-[13px] text-muted-foreground">
                 <MapPin size={15} weight="fill" className="text-primary" /> {listing.city},{" "}
                 {listing.state}
@@ -2403,6 +2457,7 @@ function HomeListingDetail({
               >
                 <ShareNetwork size={18} />
               </button>
+              <DetailQuickActions listing={listing} />
               {onPrint && (
                 <button
                   type="button"
@@ -2636,6 +2691,7 @@ function JobListingDetail({
               >
                 <ShareNetwork size={18} />
               </button>
+              <DetailQuickActions listing={listing} />
               {onPrint && (
                 <button
                   type="button"
@@ -3197,6 +3253,7 @@ function ServiceListingDetail({
               >
                 <ShareNetwork size={18} />
               </button>
+              <DetailQuickActions listing={listing} />
               {onPrint && (
                 <button
                   type="button"
@@ -3559,6 +3616,7 @@ function GeneralListingDetail({
               >
                 <ShareNetwork size={18} />
               </button>
+              <DetailQuickActions listing={listing} />
               {onPrint && (
                 <button
                   type="button"

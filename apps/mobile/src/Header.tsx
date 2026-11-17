@@ -1,3 +1,11 @@
+import { SearchSuggestions } from "../../../src/components/marketplace/SearchSuggestions";
+import { mobilePrimaryCategories } from "../../../src/config/mobile-navigation";
+import {
+  mobileCategoryAllowed,
+  mobileListingAllowed,
+  type MobileListing,
+} from "../../../src/lib/mobile-contract";
+import { listingPresentation } from "./listing-presentation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, BookmarkSimple, MagnifyingGlass } from "@phosphor-icons/react";
 import { BrandMark } from "../../../src/components/layout/BrandMark";
@@ -10,8 +18,14 @@ import { useSearchArea } from "./SearchArea";
 export function NativeHeader({
   path,
   onNavigate,
+  suggestions = [],
+  owner,
+  personalization = false,
 }: {
   path: string;
+  suggestions?: MobileListing[];
+  owner?: string | null;
+  personalization?: boolean;
   onNavigate: (path: string) => void;
 }) {
   const [query, setQuery] = useState(() => browseLocation(window.location.hash).search.q ?? "");
@@ -139,16 +153,36 @@ export function NativeHeader({
             >
               <MagnifyingGlass size={22} aria-hidden="true" />
             </button>
-            <input
+            <SearchSuggestions
               id="native-header-search"
-              type="search"
+              owner={owner}
+              allowRecent={() => personalization}
+              categories={mobilePrimaryCategories.filter((row) => mobileCategoryAllowed(row.slug))}
+              listings={suggestions.filter(mobileListingAllowed).map(listingPresentation)}
+              onListing={(listing) => onNavigate(`/listings/${listing.id}`)}
+              onCategory={(category) =>
+                onNavigate(
+                  browseFromSearchArea(
+                    area,
+                    category === "cars-trucks" ? { group: "motors" } : { category },
+                  ),
+                )
+              }
+              onSearch={(q) => {
+                const current = browseLocation(window.location.hash);
+                onNavigate(
+                  current.path === "/search"
+                    ? browseDestination({ q: q.trim() || undefined }, current.params)
+                    : browseFromSearchArea(area, { q: q.trim() || undefined }),
+                );
+              }}
               aria-label="Search for anything"
               aria-describedby={path === "/" ? "native-home-search-area" : undefined}
               placeholder="Search for anything"
               enterKeyHint="search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="h-12 min-w-0 flex-1 rounded-full border-0 bg-transparent pr-4 text-base text-foreground placeholder:text-muted-foreground focus:outline-none"
+              onValueChange={setQuery}
+              className="h-12 w-full min-w-0 rounded-full border-0 bg-transparent pr-4 text-base text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
           </form>
           <a
