@@ -70,6 +70,13 @@ try {
       await page.getByRole("complementary", { name: "Selected for comparison" }).count(),
       0,
     );
+    const compareBox = await page
+      .getByRole("button", { name: "Add 2022 Toyota Tacoma TRD Sport to comparison" })
+      .boundingBox();
+    assert.ok(
+      compareBox && Math.abs(compareBox.width - compareBox.height) <= 1,
+      "Compact compare controls stay circular at every breakpoint",
+    );
     for (const year of [2022, 2023, 2024])
       await page
         .getByRole("button", { name: `Add ${year} Toyota Tacoma TRD Sport to comparison` })
