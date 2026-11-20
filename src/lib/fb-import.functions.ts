@@ -7,6 +7,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   inferFacebookCategorySlug,
   normalizeFacebookCondition,
+  normalizeFacebookImportCategory,
 } from "@/lib/fb-import-normalization";
 
 import { canonicalSellerSourceProfile, dieselDepotListingId } from "./seller-claims";
@@ -280,7 +281,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       }
       rowIndexes.push(rowIndex);
       const item = result.data as FbImportItemInput;
-      const categorySlug = inferFacebookCategorySlug(
+      const categorySlug = normalizeFacebookImportCategory(
         item.categorySlug,
         item.title,
         categoryHintFrom(sourceProfileUrl, item.description),

@@ -303,7 +303,7 @@ function inferCategory(title, description) {
     return "cars-trucks";
   if (
     matches(
-      /\b(car|truck|suv|sedan|coupe|convertible|van|pickup|vehicle|automobile|hatchback|wagon)\b/,
+      /\b(car|truck|suv|sedan|coupe|convertible|van|vehicle|automobile|hatchback|wagon|toyota pickup)\b/,
     )
   )
     return "cars-trucks";
@@ -402,7 +402,7 @@ function inferCategory(title, description) {
     return "furniture";
   if (
     matches(
-      /\b(home decor|decor|kitchen|bathroom|lamp|lighting|curtain|rug|patio|grill|lawn|garden|houseplant|appliance|vacuum)\b/,
+      /\b(home decor|decor|candles?|kitchen|bathroom|lamp|lighting|curtain|rug|patio|grill|lawn|garden|houseplant|appliance|vacuum)\b/,
     )
   )
     return "home-garden";

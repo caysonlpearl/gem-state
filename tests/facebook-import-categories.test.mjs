@@ -85,6 +85,22 @@ test("category signals in titles take priority over incidental description words
     assert.equal(infer("Mechanical keyboard", "Computer accessory."), "electronics");
   }
 });
+test("pickup instructions do not make Facebook imports vehicles", () => {
+  const title = "Smokey Quartz Crystal Candle - Citrine Dream";
+  const description = "Hand-poured crystal candle. Local pickup in Eagle or message me about shipping.";
+  for (const infer of classify) {
+    assert.equal(infer(title, description), "home-garden");
+    assert.equal(infer("Original gift set", "Pickup only in Eagle."), "general");
+    assert.equal(infer("Toyota Pickup", "Local pickup in Eagle."), "cars-trucks");
+    assert.equal(infer("Classic pickup truck", ""), "cars-trucks");
+  }
+  assert.equal(ctx.normalizeFacebookImportCategory("cars-trucks", title, description), "home-garden");
+  assert.equal(ctx.normalizeFacebookImportCategory("cars-trucks", title, null), "cars-trucks");
+  assert.equal(
+    ctx.normalizeFacebookImportCategory("cars-trucks", "2022 Ford F-150", description),
+    "cars-trucks",
+  );
+});
 test("firearm listings map to Firearms without absorbing archery gear", () => {
   for (const infer of classify) {
     assert.equal(infer("Ruger hunting rifle", "Used; includes scope."), "firearms");
