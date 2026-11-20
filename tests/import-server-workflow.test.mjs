@@ -153,6 +153,7 @@ function handlers(
     }),
     classifiedCategories: [{ slug: "general" }],
     inferFacebookCategorySlug: (slug) => slug || "general",
+    normalizeFacebookImportCategory: (slug) => slug || "general",
     normalizeFacebookCondition: (v) => v || "used_good",
     inferImportItemDetails: (_a, _b, details) => details || {},
     findIdahoPlace: () => undefined,

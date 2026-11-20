@@ -2,6 +2,18 @@ import { classifiedCategories } from "@/config/classifieds";
 
 const knownCategorySlugs = new Set<string>(classifiedCategories.map((category) => category.slug));
 
+export function normalizeFacebookImportCategory(
+  suppliedCategory: string | null | undefined,
+  title: string,
+  description: string | null,
+): string {
+  // Older Facebook readers used "pickup" by itself as a vehicle signal.
+  if (suppliedCategory === "cars-trucks" && /\bpickup\b/i.test(description ?? "")) {
+    return inferFacebookCategorySlug(null, title, description);
+  }
+  return inferFacebookCategorySlug(suppliedCategory, title, description);
+}
+
 /** Convert Facebook's free-form condition text into Bluebird's enum values. */
 export function normalizeFacebookCondition(value: string | null | undefined): string {
   const raw = String(value ?? "").trim();
@@ -69,7 +81,7 @@ export function inferFacebookCategorySlug(
     return "cars-trucks";
   if (
     matches(
-      /\b(car|truck|suv|sedan|coupe|convertible|van|pickup|vehicle|automobile|hatchback|wagon)\b/,
+      /\b(car|truck|suv|sedan|coupe|convertible|van|vehicle|automobile|hatchback|wagon|toyota pickup)\b/,
     )
   )
     return "cars-trucks";
@@ -169,7 +181,7 @@ export function inferFacebookCategorySlug(
     return "furniture";
   if (
     matches(
-      /\b(home decor|decor|kitchen|bathroom|lamp|lighting|curtain|rug|patio|grill|lawn|garden|houseplant|appliance|vacuum)\b/,
+      /\b(home decor|decor|candles?|kitchen|bathroom|lamp|lighting|curtain|rug|patio|grill|lawn|garden|houseplant|appliance|vacuum)\b/,
     )
   )
     return "home-garden";
