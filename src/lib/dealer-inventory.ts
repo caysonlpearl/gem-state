@@ -541,6 +541,43 @@ export function parseAndNormalizeInventoryCsv(
   mapping: InventoryMapping = {},
 ): InventoryParseResult {
   const parsed = parseCsv(input);
+  if (mapping.__provider === "dealrcloud") {
+    if (
+      !mapping.__dealer_id ||
+      !parsed.headers.includes("DealerID") ||
+      parsed.rows.some((row) => clean(row.DealerID) !== mapping.__dealer_id)
+    )
+      throw new Error("Dealr.cloud feed does not match the configured dealership.");
+    const rows = parsed.rows.map((row) => ({
+      source_record_key: clean(row.VIN).toUpperCase(),
+      stock_number: clean(row.Stock),
+      vin: clean(row.VIN),
+      description: clean(row.DealerComments),
+      price: normalizePriceCents(clean(row.SpecialPrice)) ? clean(row.SpecialPrice) : clean(row.ListPrice),
+      city: clean(row.City),
+      state: clean(row.State),
+      postal_code: clean(row.Zip).replace(/^(\d{5})-\d{4}$/, "$1"),
+      make: clean(row.Make),
+      model: clean(row.Model),
+      year: clean(row.Year),
+      trim: clean(row.Trim),
+      mileage: clean(row.Mileage),
+      body_style: clean(row.BodyStyle) || clean(row.BodyType),
+      transmission: clean(row.Transmission),
+      drivetrain: clean(row.Drivetrain),
+      fuel_type: clean(row.FuelType),
+      exterior_color: clean(row.ExteriorColor),
+      source_updated_at: clean(row.LastModifiedDate),
+      photos: clean(row.PhotoURL).replace(/,\s*(?=https?:\/\/)/gi, "|"),
+      condition: /^(1|true|yes)$/i.test(clean(row.IsNew)) ? "new" : "used",
+      certified: /^(1|true|yes)$/i.test(clean(row.FactoryCertified)) ||
+        /^(1|true|yes)$/i.test(clean(row.DealerCertified)) ? "true" : "false",
+    }));
+    return {
+      ...normalizeInventoryRows(rows, {}, { allowUnpriced: true }),
+      headers: parsed.headers,
+    };
+  }
   if (mapping.__provider === "overfuel") {
     if (
       !mapping.__dealer_id ||
