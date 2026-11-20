@@ -36,6 +36,7 @@ if (typeof importScripts === "function") {
     "whatnot.js",
     "dealer.js",
     "profile-scan.js",
+    "refresh-journal.js",
   );
 }
 
@@ -807,9 +808,14 @@ const LISTING_URL_RE = /^https:\/\/www\.facebook\.com\/marketplace\/item\/\d+/;
 // scrolling and no debugger needed since the listing URLs are already known.
 function readerForSource(sourceUrl) {
   if (LISTING_URL_RE.test(sourceUrl))
-    return { siteName: "Facebook", extract: extractListingDetailsInPage, idOf: listingIdFromUrl };
+    return {
+      siteName: "Facebook",
+      extract: extractListingDetailsInPage,
+      idOf: listingIdFromUrl,
+      settleMs: 500,
+    };
   if (KSL_LISTING_RE.test(sourceUrl))
-    return { siteName: "KSL", extract: kslExtractListingInPage, idOf: kslListingId };
+    return { siteName: "KSL", extract: kslExtractListingInPage, idOf: kslListingId, settleMs: 500 };
   if (VINTED_ITEM_RE.test(sourceUrl))
     return {
       siteName: "Vinted",
@@ -825,7 +831,12 @@ function readerForSource(sourceUrl) {
       settleMs: 2000,
     };
   if (dealerListingId(sourceUrl))
-    return { siteName: "Diesel Depot", extract: dealerExtractListingInPage, idOf: dealerListingId };
+    return {
+      siteName: "Diesel Depot",
+      extract: dealerExtractListingInPage,
+      idOf: dealerListingId,
+      settleMs: 500,
+    };
   return null;
 }
 
@@ -915,10 +926,20 @@ async function refreshListings(adminTabId, requestId, targets) {
 let importInProgress = false;
 let activeImportRun = null;
 const importReaderTabs = new Set();
+let importKeepAlive;
 
 function beginImportRun(ownerTabId, label, requestId = null) {
   importInProgress = true;
   importReaderTabs.clear();
+  // Manifest V3 can suspend the worker during a quiet navigation or scan.
+  // Keep it awake only while an operator-started import is doing work.
+  if (typeof setInterval === "function" && chrome.runtime.getPlatformInfo) {
+    importKeepAlive = setInterval(() => {
+      chrome.runtime.getPlatformInfo().catch(() => {});
+      if (requestId)
+        sendImportEvent(ownerTabId, { type: "gemlist-fb-refresh-heartbeat", requestId });
+    }, 20000);
+  }
   activeImportRun = {
     ownerTabId,
     requestId,
@@ -933,6 +954,8 @@ function updateImportRun(update) {
   if (activeImportRun) Object.assign(activeImportRun, update);
 }
 function finishImportRun() {
+  if (importKeepAlive != null) clearInterval(importKeepAlive);
+  importKeepAlive = undefined;
   importInProgress = false;
   activeImportRun = null;
   importReaderTabs.clear();
@@ -991,20 +1014,69 @@ function trustedImportPage(sender) {
   }
 }
 
-chrome.runtime.onMessage.addListener((message, sender) => {
+function sendImportEvent(tabId, payload) {
+  return chrome.tabs.sendMessage(tabId, { type: "gemlist-ext-event", payload }).catch(() => {});
+}
+
+function refreshPageOrigin(sender) {
+  if (!trustedImportPage(sender)) return null;
+  const url = new URL(sender.url || sender.tab?.url);
+  return /^\/admin\/fb-import\/?$/.test(url.pathname) ? url.origin : null;
+}
+
+async function runSellerRefresh(tabId, origin, message) {
+  const { profiles, requestId, streamReports } = message;
+  const last = {
+    requestId,
+    phase: "running",
+    startedAt: Date.now(),
+    done: 0,
+    total: profiles.length,
+    incomplete: 0,
+  };
+  await refreshJournal(origin, (journal) => {
+    journal.last = last;
+  });
+  try {
+    await refreshSellerProfiles(tabId, requestId, profiles, {
+      streamReports,
+      async saveReport(report) {
+        last.done++;
+        if (!report.scan.complete || report.scan.challenged) last.incomplete++;
+        await refreshJournal(origin, (journal) => {
+          journal.last = { ...journal.last, ...last };
+          if (!report.results.length) return;
+          journal.pending = journal.pending.filter(
+            (entry) => entry.report.sourceProfileUrl !== report.sourceProfileUrl,
+          );
+          journal.pending.push({ requestId, report });
+        });
+      },
+    });
+    last.phase = last.incomplete ? "partial" : "completed";
+  } catch (error) {
+    last.phase = "failed";
+    last.message = "The seller scan stopped early.";
+    throw error;
+  } finally {
+    await refreshJournal(origin, (journal) => {
+      journal.last = { ...journal.last, ...last };
+    });
+  }
+}
+
+chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (!message || message.type !== "refresh" || !sender.tab?.id) return;
+  const origin = refreshPageOrigin(sender);
+  if (!origin) return;
+  respond({ accepted: true });
   const sendError = (error) =>
-    chrome.tabs
-      .sendMessage(sender.tab.id, {
-        type: "gemlist-ext-event",
-        payload: {
-          type: "gemlist-fb-refresh-result",
-          requestId: message.requestId,
-          results: [],
-          error,
-        },
-      })
-      .catch(() => {});
+    sendImportEvent(sender.tab.id, {
+      type: "gemlist-fb-refresh-result",
+      requestId: message.requestId,
+      results: [],
+      error,
+    });
   if (importInProgress) {
     sendError("An import or refresh is already running. Let it finish before starting another.");
     return;
@@ -1015,25 +1087,58 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     message.requestId,
   );
   (message.profiles
-    ? refreshSellerProfiles(sender.tab.id, message.requestId, message.profiles)
+    ? runSellerRefresh(sender.tab.id, origin, message)
     : refreshListings(sender.tab.id, message.requestId, message.targets)
   )
     .catch((error) =>
       sendError(String(error?.message || "Refresh failed. Reload the extension and retry.")),
     )
-    .finally(() => {
-      finishImportRun();
-    });
+    .finally(finishImportRun);
 });
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
-  if (!message || !["import-status", "show-import"].includes(message.type)) return;
-  if (!sender.tab?.id || !trustedImportPage(sender)) return;
-  if (message.type === "import-status") {
-    respond({ run: importRunStatus() });
+  if (
+    !message ||
+    !["import-status", "show-import", "import-report", "import-saved"].includes(message.type)
+  )
     return;
+  if (!sender.tab?.id || !trustedImportPage(sender)) return;
+  const origin = refreshPageOrigin(sender);
+  if (message.type === "import-status") {
+    if (!origin || typeof refreshJournalStatus !== "function") {
+      respond({ run: importRunStatus() });
+      return;
+    }
+    refreshJournalStatus(origin).then(
+      (journal) => respond({ run: importRunStatus(), ...journal }),
+      () => respond({ run: importRunStatus(), journalError: true }),
+    );
+    return true;
   }
-  showImportRun().then((shown) => respond({ shown, run: importRunStatus() }));
+  if (message.type === "show-import") {
+    showImportRun().then((shown) => respond({ shown, run: importRunStatus() }));
+    return true;
+  }
+  if (!origin) return;
+  const matchesReport = ({ requestId, report }) =>
+    requestId === message.requestId && report.sourceProfileUrl === message.sourceProfileUrl;
+  const operation =
+    message.type === "import-report"
+      ? refreshJournal(origin).then(({ pending }) => ({
+          report: pending.find(matchesReport)?.report ?? null,
+        }))
+      : refreshJournal(origin, (journal) => {
+          const entry = journal.pending.find(matchesReport);
+          if (!entry) return;
+          journal.pending = journal.pending.filter((pending) => pending !== entry);
+          if (journal.last?.requestId === entry.requestId) {
+            for (const field of ["staged", "updated"]) {
+              if (Number.isSafeInteger(message[field]) && message[field] >= 0)
+                journal.last[field] = (journal.last[field] ?? 0) + message[field];
+            }
+          }
+        }).then(() => ({ saved: true }));
+  operation.then(respond, () => respond({ journalError: true }));
   return true;
 });
 

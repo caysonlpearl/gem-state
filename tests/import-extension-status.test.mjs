@@ -52,7 +52,7 @@ function harness() {
       const keepsChannel = listeners[1]({ type }, sender, resolve);
       if (!keepsChannel && !sender.url?.startsWith("https://onbluebird.com")) resolve(undefined);
     });
-  return { ctx, status, focused, tabs };
+  return { ctx, status, focused, tabs, listeners };
 }
 
 test("status survives a different admin tab, exposes progress without page contents, and releases on completion", async () => {
@@ -142,4 +142,69 @@ test("watcher polls status only, validates messages and removes polling on unmou
   assert.equal(listener, null);
   assert.ok(supportsImportRunStatus("1.5.12"));
   assert.ok(!supportsImportRunStatus("1.5.11"));
+});
+
+test("a closed admin tab and a restarted worker leave completed seller results recoverable", async () => {
+  const h = harness();
+  const origin = "https://onbluebird.com";
+  const sender = { tab: { id: 5 }, url: origin + "/admin/fb-import" };
+  const profile = "https://classifieds.ksl.com/search/member/123";
+  const report = {
+    sourceProfileUrl: profile,
+    scan: { complete: true },
+    results: [{ title: "Chair" }],
+  };
+  const journal = { last: null, pending: [] };
+  h.ctx.refreshJournal = async (site, change, summaryOnly) => {
+    assert.equal(site, origin);
+    const data = structuredClone(journal);
+    if (change) {
+      change(data);
+      Object.assign(journal, structuredClone(data));
+    }
+    if (summaryOnly)
+      data.pending = data.pending.map(({ requestId, report }) => ({
+        requestId,
+        sourceProfileUrl: report.sourceProfileUrl,
+      }));
+    return data;
+  };
+  const journalScript = readFileSync(
+    new URL("../tools/fb-import-extension/refresh-journal.js", import.meta.url),
+    "utf8",
+  );
+  vm.runInContext(
+    journalScript.slice(journalScript.indexOf("async function refreshJournalStatus")),
+    h.ctx,
+  );
+  h.ctx.refreshSellerProfiles = async (_tab, _requestId, _profiles, { saveReport }) => {
+    await saveReport(report);
+    assert.equal(journal.pending.length, 1);
+    throw new Error("Admin tab closed during the next seller");
+  };
+  await assert.rejects(
+    vm.runInContext(
+      `runSellerRefresh(5, ${JSON.stringify(origin)}, { profiles: [{}, {}], requestId: "r1" })`,
+      h.ctx,
+    ),
+    /Admin tab closed/,
+  );
+  assert.equal((await h.status()).last.phase, "failed");
+  assert.equal((await h.status()).last.done, 1);
+  journal.last.phase = "running"; // A worker terminated before recording a terminal state.
+  const status = await h.status();
+  assert.equal(status.last.phase, "interrupted");
+  assert.equal(status.pending[0].sourceProfileUrl, profile);
+  assert.equal(status.pending[0].report, undefined);
+
+  const send = (message) =>
+    new Promise((resolve) => {
+      assert.equal(h.listeners[1](message, sender, resolve), true);
+    });
+  assert.deepEqual((await send({ type: "import-report", ...status.pending[0] })).report, report);
+  await send({ type: "import-saved", ...status.pending[0], staged: 1, updated: 0 });
+  await send({ type: "import-saved", ...status.pending[0], staged: 1, updated: 0 });
+  const saved = await h.status();
+  assert.equal(saved.pending.length, 0);
+  assert.equal(saved.last.staged, 1);
 });

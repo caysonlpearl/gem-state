@@ -1,4 +1,4 @@
-# Bluebird Listing Import 1.5.12
+# Bluebird Listing Import 1.5.13
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
@@ -61,3 +61,5 @@ Completed scans retain a recovery copy on the source page. Delivery waits for th
 Version 1.4.4 keeps recognized KSL source categories authoritative. When the source category is ambiguous, only the title is used for fallback inference; incidental description/specification words cannot imply Auto Parts. Ambiguous items stay in General for review. Diesel Depot's validated detail URL can resolve its shortened `Bottom` category when the URL explicitly identifies a semi-trailer. Explicit truck-parts categories still take precedence. These changes affect newly read imports; they do not reclassify existing Bluebird listings or change Motors/homepage grouping.
 
 Version 1.5.12 adds a running-import status on Bluebird's Imported sellers panel, including progress, start time, and Show running importer. The status survives reloading or leaving the admin page while the extension is running. Show running importer focuses an existing reader (or the originating tab); it does not open source pages or start another scan. Wait for the current run to finish before reloading the extension. No new permissions are required.
+
+Version 1.5.13 saves each completed seller scan before delivering it to the admin page. The admin page stages sellers as they finish and shows the outcome of the last refresh. If Chrome or the admin tab closes before staging completes, return to Imported sellers, confirm seller authorization, and use Save scan results. This saves completed reports without revisiting source sites. Retry the interrupted seller to finish reading its inventory.
