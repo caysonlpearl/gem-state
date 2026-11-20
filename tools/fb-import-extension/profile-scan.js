@@ -81,7 +81,7 @@ async function collectSellerScan(profile, config, notify) {
       }
       if (await exec(tabId, isBotCheckPage)) {
         challenged = true;
-        if (!(await waitForHuman(win, tabId, config.site, notify))) {
+        if (!(await waitForHuman(win, tabId, config.site, notify).catch(() => false))) {
           blockedReason = "verification_incomplete";
           complete = false;
           break;
@@ -222,7 +222,12 @@ async function collectSellerScan(profile, config, notify) {
   };
 }
 
-async function refreshSellerProfiles(adminTabId, requestId, profiles) {
+async function refreshSellerProfiles(
+  adminTabId,
+  requestId,
+  profiles,
+  { saveReport, streamReports } = {},
+) {
   const send = (payload) => {
     typeof recordImportProgress === "function" && recordImportProgress(payload);
     return chrome.tabs
@@ -342,10 +347,11 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
         unavailable: item.unavailable === true,
         sold: item.sold === true,
       }));
-    reports.push({
+    const result = {
       sourceProfileUrl: report.sourceProfileUrl,
       sellerName: report.sellerName,
       scan: report.scan,
+      sourceIssue: blockedSites.get(config.site),
       scanned: jobs.length,
       readable: results.length,
       skipped: jobs.filter(({ item }) => item.auction).length,
@@ -364,9 +370,11 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
         [...byId.values()].map((i) => i.sourceUrl),
         jobs,
       ),
-    });
-    // Deliver each seller separately, retaining completed seller scans if the next fails.
-    await send({ type: "gemlist-fb-profile-result", requestId, report: reports.at(-1) });
+    };
+    // Commit before delivery so navigating away can't lose a completed seller.
+    await saveReport?.(result);
+    if (!streamReports) reports.push(result);
+    await send({ type: "gemlist-fb-profile-result", requestId, report: result });
   }
   await send({ type: "gemlist-fb-refresh-result", requestId, reports });
 }

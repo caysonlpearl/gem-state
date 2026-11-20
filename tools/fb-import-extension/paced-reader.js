@@ -71,7 +71,7 @@ function waitForPage(
     function check() {
       if (settled) return;
       chrome.tabs.get(tabId, async (tab) => {
-        if (settled || settleTimer || !(await matches(tab)) || settled) return;
+        if (settled || settleTimer || !(await matches(tab)) || settled || settleTimer) return;
         settleTimer = setTimeout(() => {
           settleTimer = undefined;
           chrome.tabs.get(tabId, async (current) => {
@@ -88,6 +88,9 @@ function waitForPage(
       }
       if (info.status === "complete") check();
     }
+    function removed(id) {
+      if (id === tabId) finish(false);
+    }
     function finish(ready) {
       if (settled) return;
       settled = true;
@@ -95,9 +98,11 @@ function waitForPage(
       clearTimeout(settleTimer);
       if (poll) clearInterval(poll);
       chrome.tabs.onUpdated.removeListener(listener);
+      chrome.tabs.onRemoved?.removeListener(removed);
       resolve(ready);
     }
     chrome.tabs.onUpdated.addListener(listener);
+    chrome.tabs.onRemoved?.addListener(removed);
     check();
   });
 }
@@ -114,7 +119,11 @@ async function waitForHuman(win, tabId, siteName, notify, resize = true) {
   const deadline = Date.now() + BOT_CHECK_WAIT_MS;
   while (Date.now() < deadline) {
     await sleep(2000);
-    const stillChecking = await exec(tabId, isBotCheckPage).catch(() => true);
+    const stillChecking = await exec(tabId, isBotCheckPage).catch(async () => {
+      if (!(await chrome.tabs.get(tabId).catch(() => null)))
+        throw readFailure("reader_window_failed");
+      return true;
+    });
     if (!stillChecking) return true;
   }
   return false;
@@ -152,10 +161,11 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
     typeof trackImportReader === "function" && trackImportReader(tabId, true);
     try {
       while (queue.length) {
-        if (humanGate) await humanGate;
+        if (humanGate) await humanGate.catch(() => {});
         const job = queue.shift();
         if (!job) break;
         const { item, siteName, extract, idOf, withPhotos, notify, settleMs } = job;
+        let requeued = false;
         try {
           if (blockedSites.has(siteName)) throw readFailure(blockedSites.get(siteName));
           const expected = idOf(item.sourceUrl);
@@ -181,15 +191,18 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
           if (await exec(tabId, isBotCheckPage)) {
             // Serialize manual handoffs; a second challenged window must get
             // its own handoff after the first, rather than sharing its result.
-            if (humanGate) await humanGate;
+            if (humanGate) await humanGate.catch(() => {});
             if (blockedSites.has(siteName)) throw readFailure(blockedSites.get(siteName));
-            const ownGate = waitForHuman(win, tabId, siteName, notify).then((passed) => {
-              if (!passed) blockedSites.set(siteName, "verification_incomplete");
-              return passed;
-            });
+            const ownGate = waitForHuman(win, tabId, siteName, notify)
+              .catch(() => false)
+              .then((passed) => {
+                if (!passed) blockedSites.set(siteName, "verification_incomplete");
+                return passed;
+              });
             humanGate = ownGate;
-            const passed = await ownGate;
-            if (humanGate === ownGate) humanGate = null;
+            const passed = await ownGate.finally(() => {
+              if (humanGate === ownGate) humanGate = null;
+            });
             if (!passed || !(await waitForPage(tabId, matches, 25000, settleMs, true)))
               throw readFailure("verification_incomplete");
           }
@@ -235,6 +248,11 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
             delete item.unreadableReason;
           }
         } catch (error) {
+          if (!(await chrome.tabs.get(tabId).catch(() => null))) {
+            requeued = true;
+            queue.unshift(job);
+            throw readFailure("reader_window_failed");
+          }
           item.unreadable = true;
           item.unreadableReason = error?.reason || "read_failed";
           if (["verification_incomplete", "challenge_detected"].includes(item.unreadableReason)) {
@@ -245,8 +263,10 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
             blockedSites.set(siteName, item.unreadableReason);
           }
         } finally {
-          job.onItemDone && job.onItemDone();
-          onItemDone && onItemDone();
+          if (!requeued) {
+            job.onItemDone?.();
+            onItemDone?.();
+          }
         }
         if (queue.length && !blockedSites.has(siteName)) {
           const [min, max] = siteName === "Vinted" ? [3000, 5000] : PACED_PAUSE_MS;

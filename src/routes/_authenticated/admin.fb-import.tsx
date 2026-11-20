@@ -1,6 +1,8 @@
 import {
   watchImportRun,
+  requestImportReport,
   supportsImportRunStatus,
+  type ImportJournal,
   type ImportRunStatus,
 } from "@/lib/import-extension-status";
 import {
@@ -165,6 +167,7 @@ type ProfileScanReport = {
   seenUrls: string[];
   results: FbImportItemInput[];
   unreadableReasons?: unknown;
+  sourceIssue?: string;
 };
 
 function ImportedSellers() {
@@ -207,11 +210,13 @@ function ImportedSellers() {
   const extensionReady = extensionConnection.status === "ready";
   const [runningImport, setRunningImport] = useState<ImportRunStatus | null>(null);
   const [importStatusKnown, setImportStatusKnown] = useState(false);
+  const [importJournal, setImportJournal] = useState<ImportJournal>();
   useEffect(
     () =>
-      watchImportRun(window, (run) => {
+      watchImportRun(window, (run, journal) => {
         setImportStatusKnown(true);
         setRunningImport(run);
+        if (journal) setImportJournal(journal);
       }),
     [],
   );
@@ -233,6 +238,7 @@ function ImportedSellers() {
       complete: boolean;
       failures: StagingFailure[];
       unreadGroups: UnreadableDiagnostic[];
+      sourceIssue?: string;
     }>
   >([]);
   const [scanAuthorized, setScanAuthorized] = useState(false);
@@ -248,94 +254,19 @@ function ImportedSellers() {
   }, []);
 
   const refreshMutation = useMutation({
-    mutationFn: async (profileUrl: string | null) => {
+    mutationFn: async (profileUrl: string | null | { recover: true }) => {
       if (!extensionReady)
         throw new Error(
           "Reload Bluebird Listing Import 1.5.10 or newer in Chrome, then refresh this page.",
         );
       if (!scanAuthorized) throw new Error("Confirm permission to scan these sellers first.");
-      const all = await fetchTargets();
-      // Paused sellers are never scanned: skip them before the extension
-      // opens any source page. Staging rejects them server-side too.
-      const { requested, profiles } = scannableProfiles(
-        (data ?? []).filter((p) => !p.archivedAt),
-        profileUrl,
-      );
-      if (!profiles.length)
-        throw new Error(
-          requested.length
-            ? "This seller paused sync. Resume sync before scanning their profile."
-            : "No seller profiles to scan.",
-        );
-      const requestId = crypto.randomUUID();
       setScanReports([]);
-      setProgress({ done: 0, total: profiles.length });
-      const reports = await new Promise<ProfileScanReport[]>((resolve, reject) => {
-        const received: ProfileScanReport[] = [];
-        let timer: ReturnType<typeof setTimeout>;
-        const cleanup = () => {
-          clearTimeout(timer);
-          window.removeEventListener("message", onMessage);
-        };
-        const heartbeat = () => {
-          clearTimeout(timer);
-          timer = setTimeout(
-            () => {
-              cleanup();
-              reject(
-                new Error(
-                  "No scan progress received. Reload the extension and retry; unread records remain unchanged.",
-                ),
-              );
-            },
-            8 * 60 * 1000,
-          );
-        };
-        const onMessage = (event: MessageEvent) => {
-          if (
-            event.source !== window ||
-            event.origin !== window.location.origin ||
-            event.data?.requestId !== requestId
-          )
-            return;
-          heartbeat();
-          const m = event.data;
-          if (m.type === "gemlist-fb-refresh-progress") {
-            setActiveScan(
-              `${m.sourceProfileUrl ?? ""} · ${m.message ?? `Reading ${m.done ?? 0}/${m.total ?? 0}`}`,
-            );
-            setProgress({ done: m.done ?? 0, total: m.total ?? profiles.length });
-          } else if (m.type === "gemlist-fb-profile-result") {
-            received.push(m.report);
-          } else if (m.type === "gemlist-fb-refresh-result") {
-            cleanup();
-            if (m.error && !received.length) reject(new Error(m.error));
-            else resolve(received);
-          }
-        };
-        window.addEventListener("message", onMessage);
-        heartbeat();
-        window.postMessage(
-          {
-            type: "gemlist-ext-refresh",
-            requestId,
-            profiles: profiles.map((p) => ({
-              sourceProfileUrl: p.sourceProfileUrl,
-              targets: all.filter((t) => t.sourceProfileUrl === p.sourceProfileUrl),
-            })),
-          },
-          window.location.origin,
-        );
-      });
-      let checked = 0,
-        discovered = 0,
-        newCount = 0,
+      let newCount = 0,
         changed = 0,
-        removed = 0,
         unread = 0,
         failed = 0;
       const diagnostics: UnreadableDiagnostic[] = [];
-      for (const report of reports) {
+      const stageReport = async (report: ProfileScanReport, requestId?: string) => {
         const sellerFailures: StagingFailure[] = [];
         let sellerNew = 0,
           sellerChanged = 0,
@@ -344,10 +275,17 @@ function ImportedSellers() {
           sellerRecaptured = 0,
           sellerFailed = 0;
         const unique = new Map(
-          report.results.map((item) => [
-            canonicalImportSource(report.sourceProfileUrl, item.sourceUrl),
-            item,
-          ]),
+          report.results.map((item) => {
+            try {
+              return [
+                canonicalImportSource(report.sourceProfileUrl, item.sourceUrl),
+                item,
+              ] as const;
+            } catch {
+              // The server reports invalid rows individually.
+              return [item.sourceUrl, item] as const;
+            }
+          }),
         );
         // Stage in bounded, idempotent chunks that share one batch, so a 300+
         // inventory costs a handful of requests instead of one per listing.
@@ -412,47 +350,170 @@ function ImportedSellers() {
             failed: sellerFailed,
             complete: mayInferScanAbsence(evidence),
             failures: sellerFailures,
+            sourceIssue: report.sourceIssue,
             unreadGroups: groupUnreadable(report.unreadableReasons, report.scan.unreadable),
           },
         ]);
-        checked += report.scanned;
-        discovered += report.discovered;
         newCount += sellerNew;
         changed += sellerChanged;
-        removed += sellerRemoved;
         unread += report.scan.unreadable;
         failed += sellerFailed;
         diagnostics.push(...groupUnreadable(report.unreadableReasons, report.scan.unreadable));
-      }
-      for (const profile of profiles.filter(
-        (p) => !reports.some((r) => r.sourceProfileUrl === p.sourceProfileUrl),
-      )) {
-        setScanReports((current) => [
-          ...current,
-          {
-            profile: profile.sourceProfileUrl,
-            scanned: 0,
-            discovered: 0,
-            expected: 0,
-            newCount: 0,
-            changed: 0,
-            removed: 0,
-            preserved: 0,
-            recaptured: 0,
-            unread: 0,
-            failed: 1,
-            complete: false,
-            failures: [{ rowIndex: 0, reason: "request_interrupted" }],
-            unreadGroups: [],
-          },
-        ]);
+        if (requestId && report.results.length && !sellerFailed) {
+          await requestImportReport("gemlist-ext-saved", {
+            requestId,
+            sourceProfileUrl: report.sourceProfileUrl,
+            staged: sellerNew,
+            updated: sellerChanged,
+          }).catch(() => {
+            /* The server save succeeded; recovery remains safe to retry. */
+          });
+        }
+        await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
+        await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
+      };
+      if (profileUrl && typeof profileUrl === "object") {
+        for (const entry of importJournal?.pending ?? []) {
+          const { report } = await requestImportReport<ProfileScanReport>(
+            "gemlist-ext-report",
+            entry,
+          );
+          if (report) await stageReport(report, entry.requestId);
+        }
+      } else {
+        const all = await fetchTargets();
+        // Paused sellers are never scanned: skip them before the extension
+        // opens any source page. Staging rejects them server-side too.
+        const { requested, profiles } = scannableProfiles(
+          (data ?? []).filter((p) => !p.archivedAt),
+          profileUrl,
+        );
+        if (!profiles.length)
+          throw new Error(
+            requested.length
+              ? "This seller paused sync. Resume sync before scanning their profile."
+              : "No seller profiles to scan.",
+          );
+        const requestId = crypto.randomUUID();
+        setProgress({ done: 0, total: profiles.length });
+        const journalSupported = supportsImportRunStatus(extensionConnection.version ?? "", 13);
+        const targetsByProfile = new Map<string, typeof all>();
+        for (const target of all) {
+          const targets = targetsByProfile.get(target.sourceProfileUrl);
+          if (targets) targets.push(target);
+          else targetsByProfile.set(target.sourceProfileUrl, [target]);
+        }
+        let staging = Promise.resolve();
+        const received = new Set<string>();
+        let scanError: string | undefined;
+        await new Promise<void>((resolve) => {
+          let timer: ReturnType<typeof setTimeout>;
+          let observedRun = false;
+          let stopWatching: (() => void) | undefined;
+          const cleanup = () => {
+            clearTimeout(timer);
+            stopWatching?.();
+            window.removeEventListener("message", onMessage);
+          };
+          const heartbeat = () => {
+            clearTimeout(timer);
+            timer = setTimeout(
+              () => {
+                cleanup();
+                scanError = "No scan progress received. Check the importer status before retrying.";
+                resolve();
+              },
+              8 * 60 * 1000,
+            );
+          };
+          const onMessage = (event: MessageEvent) => {
+            if (
+              event.source !== window ||
+              event.origin !== window.location.origin ||
+              event.data?.requestId !== requestId
+            )
+              return;
+            heartbeat();
+            const m = event.data;
+            if (m.type === "gemlist-fb-refresh-progress") {
+              setActiveScan(
+                `${m.sourceProfileUrl ?? ""} · ${m.message ?? `Reading ${m.done ?? 0}/${m.total ?? 0}`}`,
+              );
+              setProgress({ done: m.done ?? 0, total: m.total ?? profiles.length });
+            } else if (m.type === "gemlist-fb-profile-result") {
+              const report: ProfileScanReport = m.report;
+              if (
+                !profiles.some((p) => p.sourceProfileUrl === report?.sourceProfileUrl) ||
+                received.has(report.sourceProfileUrl)
+              )
+                return;
+              received.add(report.sourceProfileUrl);
+              staging = staging.then(() =>
+                stageReport(report, journalSupported ? requestId : undefined),
+              );
+              // A listener can receive several reports before the server finishes staging.
+              void staging.catch(() => {});
+            } else if (m.type === "gemlist-fb-refresh-result") {
+              cleanup();
+              scanError = m.error;
+              resolve();
+            }
+          };
+          window.addEventListener("message", onMessage);
+          if (journalSupported) {
+            stopWatching = watchImportRun(window, (_, journal) => {
+              const last = journal?.last;
+              if (last?.requestId !== requestId) return;
+              if (last.phase === "running") observedRun = true;
+              if (last.phase === "interrupted" && observedRun) {
+                cleanup();
+                scanError =
+                  "Chrome interrupted the scan. Completed seller results can still be saved.";
+                resolve();
+              }
+            });
+          }
+          heartbeat();
+          window.postMessage(
+            {
+              type: "gemlist-ext-refresh",
+              requestId,
+              streamReports: journalSupported,
+              profiles: profiles.map((p) => ({
+                sourceProfileUrl: p.sourceProfileUrl,
+                targets: targetsByProfile.get(p.sourceProfileUrl) ?? [],
+              })),
+            },
+            window.location.origin,
+          );
+        });
+        await staging;
+        if (scanError && !received.size) throw new Error(scanError);
+        for (const profile of profiles.filter((p) => !received.has(p.sourceProfileUrl))) {
+          setScanReports((current) => [
+            ...current,
+            {
+              profile: profile.sourceProfileUrl,
+              scanned: 0,
+              discovered: 0,
+              expected: 0,
+              newCount: 0,
+              changed: 0,
+              removed: 0,
+              preserved: 0,
+              recaptured: 0,
+              unread: 0,
+              failed: 1,
+              complete: false,
+              failures: [{ rowIndex: 0, reason: "request_interrupted" }],
+              unreadGroups: [],
+            },
+          ]);
+        }
       }
       return {
-        checked,
-        discovered,
         newCount,
         changed,
-        removed,
         unread,
         failed,
         unreadGroups: diagnostics,
@@ -462,8 +523,9 @@ function ImportedSellers() {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
       await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
       setUnreadReport(result.unread ? result.unreadGroups : null);
-      toast.success(
-        `Scan finished: ${result.newCount} new and ${result.changed} updates queued for review. Refresh preserved existing listing visibility.` +
+      const reportToast = result.failed || result.unread ? toast.warning : toast.success;
+      reportToast(
+        `${result.newCount} new and ${result.changed} updates queued for review.` +
           (result.failed
             ? ` ${result.failed} results could not be saved; see details below.`
             : "") +
@@ -554,9 +616,54 @@ function ImportedSellers() {
           {extensionConnection.status === "checking" ? "Checking…" : "Check extension again"}
         </Button>
       </div>
-      {importStatusKnown && !runningImport && (
+      {importStatusKnown && !runningImport && !importJournal?.last && (
         <p role="status" className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
           No importer running. Ready for your next refresh.
+        </p>
+      )}
+      {importJournal?.last && !runningImport && (
+        <div role="status" className="border-b border-border px-4 py-3 text-xs">
+          <p className="font-semibold">
+            {importJournal.last.phase === "completed"
+              ? "Last seller scan completed"
+              : importJournal.last.phase === "partial"
+                ? "Last seller scan finished with unread results"
+                : "Last seller scan stopped before finishing"}
+          </p>
+          <p className="mt-1">
+            {importJournal.last.done} of {importJournal.last.total} sellers scanned
+            {importJournal.last.incomplete > 0
+              ? ` · ${importJournal.last.incomplete} incomplete`
+              : ""}
+            {importJournal.last.message ? ` · ${importJournal.last.message}` : ""}
+          </p>
+          {typeof importJournal.last.staged === "number" && (
+            <p className="mt-1">
+              {importJournal.last.staged} new · {importJournal.last.updated ?? 0} updates queued for
+              review
+            </p>
+          )}
+        </div>
+      )}
+      {!!importJournal?.pending.length && !refreshMutation.isPending && !runningImport && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 text-xs">
+          <span>
+            {importJournal.pending.length} seller scan results waiting to be saved for review.
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!extensionReady || !scanAuthorized}
+            onClick={() => refreshMutation.mutate({ recover: true })}
+          >
+            Save scan results
+          </Button>
+        </div>
+      )}
+      {importJournal?.journalError && (
+        <p role="status" className="border-b border-border px-4 py-3 text-xs">
+          Chrome could not load scan recovery data. Check the extension connection.
         </p>
       )}
       {runningImport && (
@@ -600,10 +707,10 @@ function ImportedSellers() {
       )}
       {extensionReady &&
         extensionConnection.version &&
-        !supportsImportRunStatus(extensionConnection.version) && (
+        !supportsImportRunStatus(extensionConnection.version, 13) && (
           <p className="border-b border-border px-4 py-3 text-xs text-muted-foreground">
-            Reload Bluebird Listing Import v1.5.12 to see active scans here, then reload this page.
-            If a scan is running, wait for its reader windows to close first.
+            Update to Bluebird Listing Import v1.5.13 to recover completed seller scans if Chrome or
+            this page closes.
           </p>
         )}
       {refreshMutation.isPending && activeScan && !runningImport && (
@@ -645,6 +752,17 @@ function ImportedSellers() {
                     ? `${r.unread} pages could not be read; ${r.failed} results could not be saved. Retry this seller after checking the details below.`
                     : "Could not confirm the end of the seller's inventory. Unseen listings were left unchanged."}
               </p>
+              {r.sourceIssue === "rate_limited" && (
+                <p className="mt-1">
+                  The source rate-limited requests. Try this seller again later.
+                </p>
+              )}
+              {(r.sourceIssue === "verification_incomplete" ||
+                r.sourceIssue === "challenge_detected") && (
+                <p className="mt-1">
+                  The source asked for verification. Complete its check during the next scan.
+                </p>
+              )}
               {r.unreadGroups.length > 0 && (
                 <details className="mt-2">
                   <summary>Why {r.unread} pages could not be read</summary>

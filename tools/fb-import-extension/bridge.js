@@ -21,13 +21,47 @@ window.addEventListener("message", (event) => {
         ),
       )
       .catch(() => {});
+  } else if (data.type === "gemlist-ext-report" || data.type === "gemlist-ext-saved") {
+    chrome.runtime
+      .sendMessage({
+        type: data.type === "gemlist-ext-report" ? "import-report" : "import-saved",
+        requestId: data.requestId,
+        sourceProfileUrl: data.sourceProfileUrl,
+        staged: data.staged,
+        updated: data.updated,
+      })
+      .then(
+        (result) =>
+          window.postMessage(
+            { ...result, type: "gemlist-ext-journal-result", token: data.token },
+            window.location.origin,
+          ),
+        () =>
+          window.postMessage(
+            { journalError: true, type: "gemlist-ext-journal-result", token: data.token },
+            window.location.origin,
+          ),
+      );
   } else if (data.type === "gemlist-ext-refresh") {
-    chrome.runtime.sendMessage({
-      type: "refresh",
-      requestId: data.requestId,
-      targets: data.targets,
-      profiles: data.profiles,
-    });
+    chrome.runtime
+      .sendMessage({
+        type: "refresh",
+        streamReports: data.streamReports,
+        requestId: data.requestId,
+        targets: data.targets,
+        profiles: data.profiles,
+      })
+      .catch(() => {
+        window.postMessage(
+          {
+            type: "gemlist-fb-refresh-result",
+            requestId: data.requestId,
+            error:
+              "Chrome could not start the importer. Check the extension connection and try again.",
+          },
+          window.location.origin,
+        );
+      });
   }
 });
 

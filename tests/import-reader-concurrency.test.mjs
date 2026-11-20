@@ -186,7 +186,8 @@ test("a concurrent Refresh request returns a visible busy error instead of openi
       requestId: "one",
       targets: [{ sourceUrl: "https://classifieds.ksl.com/listing/1" }],
     },
-    { tab: { id: 1 } },
+    { tab: { id: 1 }, url: "https://onbluebird.com/admin/fb-import" },
+    () => {},
   );
   h.listeners[0](
     {
@@ -194,7 +195,8 @@ test("a concurrent Refresh request returns a visible busy error instead of openi
       requestId: "two",
       targets: [{ sourceUrl: "https://classifieds.ksl.com/listing/2" }],
     },
-    { tab: { id: 1 } },
+    { tab: { id: 1 }, url: "https://onbluebird.com/admin/fb-import" },
+    () => {},
   );
   await delay(30);
   assert.match(h.messages.find((m) => m.requestId === "two").error, /already running/);
