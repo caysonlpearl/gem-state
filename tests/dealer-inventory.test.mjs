@@ -229,3 +229,32 @@ test("scheduled snapshots reject wrong dealers, truncation, unknown status and p
   );
   assert.match(inventorySnapshotRejection(valid, 2), /at least 2/);
 });
+
+test("normalizes Dealr.cloud snapshots and discards private feed fields", () => {
+  const headers = [
+    "DealerID", "VIN", "Stock", "City", "State", "Zip", "Year", "Make", "Model",
+    "ListPrice", "SpecialPrice", "CostPrice", "PhotoURL", "IsNew",
+  ];
+  const row = [
+    "123", "1HGCM82633A004352", "A1", "Idaho Falls", "ID", "83401-2033",
+    "2003", "Honda", "Accord", "5995", "5495", "3500",
+    "https://example.com/1.jpg, https://example.com/2.jpg", "0",
+  ];
+  const csv = [headers.join(","), row.map((value) => '"' + value + '"').join(",")].join("\n");
+  const mapping = { __provider: "dealrcloud", __dealer_id: "123" };
+  const result = parseAndNormalizeInventoryCsv(csv, mapping);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.records.length, 1);
+  const [record] = result.records;
+  assert.equal(record.sourceRecordKey, row[2]);
+  assert.equal(record.vin, row[1]);
+  assert.equal(record.postalCode, "83401");
+  assert.equal(record.priceCents, 549500);
+  assert.equal(record.media.length, 2);
+  assert.equal(record.rawRecord.condition, "used");
+  assert.equal(Object.hasOwn(record.rawRecord, "CostPrice"), false);
+  assert.throws(
+    () => parseAndNormalizeInventoryCsv(csv, { ...mapping, __dealer_id: "456" }),
+    /does not match the configured dealership/,
+  );
+});
