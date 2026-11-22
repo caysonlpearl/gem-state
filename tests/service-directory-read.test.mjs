@@ -40,8 +40,8 @@ function fixture(respond) {
   });
   return {
     calls,
-    read: (options = {}, limit = 24) =>
-      directoryCards(filters, 0, limit, { injectedDb, failOnError: true, ...options }),
+    read: (options = {}, limit = 24, input = filters) =>
+      directoryCards(input, 0, limit, { injectedDb, failOnError: true, ...options }),
   };
 }
 const hits = () => Response.json(rows.map(({ id }) => ({ id, total: 7 })));
@@ -90,6 +90,43 @@ test("successful empty and count-only nearby reads remain successful without fet
   assert.deepEqual(await count.read({}, 0), { cards: [], total: 7 });
   assert.equal(count.calls.length, 1);
   assert.equal(JSON.parse(count.calls[0].init.body).p_limit, 1);
+});
+
+test("explicit nearby text modes are applied by the database before pagination and counting", async () => {
+  for (const searchDescriptions of [false, true]) {
+    const f = fixture(() => hits());
+    assert.deepEqual(
+      await f.read({}, 0, { ...filters, q: "  heat%,_()pump  ", searchDescriptions }),
+      { cards: [], total: 7 },
+    );
+    assert.equal(f.calls.length, 1);
+    assert.equal(f.calls[0].url.pathname, "/rest/v1/rpc/service_directory_nearby_search");
+    const body = JSON.parse(f.calls[0].init.body);
+    assert.equal(body.p_search_descriptions, searchDescriptions);
+    assert.equal(body.p_q, "heat     pump");
+    assert.equal(body.p_miles, 25);
+  }
+  for (const input of [
+    { ...filters, q: "heat" },
+    { ...filters, searchDescriptions: false },
+  ]) {
+    const f = fixture(() => Response.json([]));
+    await f.read({}, 24, input);
+    assert.equal(f.calls[0].url.pathname, "/rest/v1/rpc/service_directory_nearby");
+    assert.equal("p_search_descriptions" in JSON.parse(f.calls[0].init.body), false);
+  }
+});
+
+test("missing explicit-mode RPC never retries as a broader legacy nearby search", async () => {
+  const f = fixture(() =>
+    Response.json({ code: "PGRST202", message: "PRIVATE schema diagnostic" }, { status: 404 }),
+  );
+  await assert.rejects(
+    f.read({}, 24, { ...filters, q: "heat", searchDescriptions: false }),
+    (e) => e.message === "Saved services could not be read.",
+  );
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls[0].url.pathname, "/rest/v1/rpc/service_directory_nearby_search");
 });
 
 test("errors in either nearby read reject mobile searches without retries or private diagnostics", async () => {
