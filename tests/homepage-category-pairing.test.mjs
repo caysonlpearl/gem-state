@@ -25,6 +25,6 @@ test("homepage browse-category cards keep Firearms and Pets in adjacent grid pos
   );
   assert.match(
     homeSource,
-    /mt-5 grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-6[\s\S]*?homepageCategoryHighlights\.map/,
+    /grid grid-cols-3 [^"]*lg:grid-cols-6[\s\S]*?homepageCategoryHighlights\.map/,
   );
 });

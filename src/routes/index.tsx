@@ -426,7 +426,6 @@ function Home() {
 
 /** Everything the page derives from the visitor's chosen location. */
 function homeLocation(location: string, mapPoint: LocationPoint | undefined, radiusMiles: number) {
-  const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
   const parsedLocation = parseLocationSearch(location);
   const matchesLocation = (
     listing: Pick<ClassifiedsHome["recent"][number], "postalCode" | "city" | "state" | "region">,
@@ -494,7 +493,6 @@ function homeLocation(location: string, mapPoint: LocationPoint | undefined, rad
   };
 
   return {
-    motorCategories,
     parsedLocation,
     hasLocalArea: Boolean(
       parsedLocation.city || parsedLocation.postalCode || parsedLocation.region || mapPoint,
@@ -527,7 +525,7 @@ function HomepageLeadVehicles({
   onPainted: () => void;
 }) {
   const { data: homeLead } = useSuspenseQuery(homeLeadQuery);
-  const { motorCategories, matchesLocation, withLocation } = where;
+  const { matchesLocation } = where;
   const leadMotors = selectDiscoveryCards(
     homeLead.motors.filter(matchesLocation),
     HOMEPAGE_ROW_SIZE,
@@ -564,23 +562,6 @@ function HomepageLeadVehicles({
           body="Cars and trucks show up here as soon as Idaho sellers post them. Have one to sell? Be one of the first."
         />
       )}
-      <div className="no-scrollbar -mx-4 mt-4 flex flex-nowrap gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-        {motorCategories.map((option) => (
-          <Link
-            key={option.slug}
-            to="/browse"
-            search={withLocation({ category: option.slug })}
-            className="inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-input bg-card px-3.5 text-[12px] sm:min-h-11 sm:px-4 sm:text-[12.5px] transition-colors hover:border-primary hover:bg-secondary"
-          >
-            {option.name}
-            {homeLead.categoryCounts[option.slug] ? (
-              <span className="ml-1.5 text-muted-foreground">
-                {homeLead.categoryCounts[option.slug]}
-              </span>
-            ) : null}
-          </Link>
-        ))}
-      </div>
     </section>
   );
 }
@@ -777,20 +758,25 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   return (
     <>
       {/* Everything else */}
-      <section className="mt-6 sm:mt-16">
-        <h2 className="text-[26px] font-bold tracking-tight">Browse other classifieds</h2>
-        <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-6">
+      <section className="mt-4 sm:mt-6" aria-labelledby="other-classifieds-heading">
+        <h2
+          id="other-classifieds-heading"
+          className="text-[22px] font-bold tracking-tight sm:text-[26px]"
+        >
+          Browse other classifieds
+        </h2>
+        <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-6">
           {homepageCategoryHighlights.map((option) => (
             <Link
               key={option.slug}
               to="/browse"
               search={{ category: option.slug }}
-              className="group min-w-0 rounded-xl border border-transparent bg-card px-2.5 py-3 shadow-sm transition-shadow hover:shadow-md sm:rounded-2xl sm:px-4 sm:py-5"
+              className="flex min-h-11 min-w-0 items-center gap-1 rounded-xl bg-card px-1.5 py-1.5 shadow-sm transition-shadow hover:shadow-md sm:min-h-12 sm:gap-2 sm:px-3"
             >
-              <span className="mb-1 flex h-10 w-10 items-center sm:mb-0 sm:h-12 sm:w-full">
-                <CategoryArtwork slug={option.slug} size={54} className="category-art--nav" />
+              <span className="grid size-5 shrink-0 place-items-center sm:size-8">
+                <CategoryArtwork slug={option.slug} size={32} className="size-full!" />
               </span>
-              <span className="block text-[11px] font-semibold leading-4 sm:text-[13px] sm:leading-normal">
+              <span className="whitespace-nowrap text-[10px] font-semibold sm:text-[13px]">
                 {option.name}
               </span>
             </Link>
@@ -801,6 +787,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       <HomepageListingRow
         eyebrow=""
         title="Fresh local finds"
+        className="mt-5 sm:mt-6"
         listings={freshListings}
         search={withLocation({ allCategories: true })}
         action="See all fresh listings"
@@ -1034,17 +1021,20 @@ function HomepageListingRow({
   listings,
   search,
   action,
+  className,
 }: {
   eyebrow: string;
   title: string;
   listings: Awaited<ReturnType<typeof getClassifiedsHome>>["recent"];
   search: HomepageBrowseSearch;
   action: string;
+  className?: string;
 }) {
   return (
     <MarketplaceListingSection
       eyebrow={eyebrow}
       title={title}
+      className={className}
       action={
         <Link to="/browse" search={search} className={seeAll}>
           {action} <ArrowRight size={12} />
