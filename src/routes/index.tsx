@@ -771,10 +771,10 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
               key={option.slug}
               to="/browse"
               search={{ category: option.slug }}
-              className="flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl bg-card px-1.5 py-1.5 shadow-sm transition-shadow hover:shadow-md sm:min-h-12 sm:gap-2 sm:px-3"
+              className="flex min-h-11 min-w-0 items-center gap-1 rounded-xl bg-card px-1.5 py-1.5 shadow-sm transition-shadow hover:shadow-md sm:min-h-12 sm:gap-2 sm:px-3"
             >
               <span className="grid size-5 shrink-0 place-items-center sm:size-8">
-                <CategoryArtwork slug={option.slug} size={32} className="max-h-full" />
+                <CategoryArtwork slug={option.slug} size={32} className="size-full!" />
               </span>
               <span className="whitespace-nowrap text-[10px] font-semibold sm:text-[13px]">
                 {option.name}
