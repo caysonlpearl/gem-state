@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
 export function MarketplaceListingSection({
@@ -18,7 +19,7 @@ export function MarketplaceListingSection({
   const id = `${title.toLowerCase().replaceAll(" ", "-")}-heading`;
   return (
     <section
-      className={`${density === "compact" ? "mt-4" : "mt-7 sm:mt-16"} ${className}`}
+      className={cn(density === "compact" ? "mt-4" : "mt-7 sm:mt-16", className)}
       aria-labelledby={id}
     >
       <div

@@ -133,16 +133,52 @@ try {
         origin,
       );
       assert.equal(all.searchParams.get("category"), "cars-trucks");
-      for (const [name, slug] of [
-        ["Auto Parts", "auto-parts"],
-        ["Trailers", "trailers"],
-      ]) {
-        const target = new URL(
-          await lead.getByRole("link", { name: new RegExp(`^${name}`) }).getAttribute("href"),
-          origin,
+      assert.doesNotMatch(await lead.innerText(), /Bluebird Motors/i);
+      assert.equal(
+        await lead.getByRole("link", { name: /^(Auto Parts|Trailers|Motorcycles)/ }).count(),
+        0,
+      );
+      const shortcuts = page.getByRole("region", { name: "Browse other classifieds" });
+      const freshRow = page.getByRole("region", { name: "Fresh local finds" });
+      await freshRow.waitFor();
+      const links = await shortcuts.getByRole("link").evaluateAll((elements) =>
+        elements.map((link) => {
+          const { top, bottom, left, right, height } = link.getBoundingClientRect();
+          const art = link.querySelector("img").getBoundingClientRect();
+          const label = link.lastElementChild.getBoundingClientRect();
+          return {
+            top,
+            bottom,
+            left,
+            right,
+            height,
+            artRight: art.right,
+            artCenter: (art.top + art.bottom) / 2,
+            labelRight: label.right,
+            labelLeft: label.left,
+            labelCenter: (label.top + label.bottom) / 2,
+          };
+        }),
+      );
+      assert.equal(links.length, 6);
+      for (const link of links) {
+        assert.ok(
+          link.artRight <= link.labelLeft && Math.abs(link.artCenter - link.labelCenter) < 2,
+          "art and label share one line",
         );
-        assert.equal(target.searchParams.get("category"), slug);
+        assert.ok(
+          link.labelRight <= link.right && link.height >= 44 && link.height <= 52,
+          "shortcut stays compact with room for the full label and a usable tap area",
+        );
       }
+      assert.ok(
+        (await shortcuts.boundingBox()).y -
+          ((await lead.boundingBox()).y + (await lead.boundingBox()).height) <=
+          24,
+      );
+      assert.ok(
+        (await freshRow.boundingBox()).y - Math.max(...links.map((link) => link.bottom)) <= 24,
+      );
       await noOverflow();
     };
     if (process.env.BLUEBIRD_UI_ALLOCATION_ONLY !== "1") {
