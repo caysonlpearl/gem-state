@@ -1,5 +1,6 @@
 export type ImportRunStatus = {
   label: string;
+  requestId?: string;
   startedAt: number;
   message: string;
   sourceProfileUrl?: string;
@@ -36,6 +37,7 @@ export function watchImportRun(
       update(
         {
           label: run.label,
+          ...(typeof run.requestId === "string" ? { requestId: run.requestId } : {}),
           message: run.message,
           startedAt: run.startedAt,
           ...(typeof run.sourceProfileUrl === "string"
@@ -109,5 +111,101 @@ export function requestImportReport<T>(
     }, 15000);
     window.addEventListener("message", receive);
     window.postMessage({ ...entry, type, token }, origin);
+  });
+}
+
+type RefreshProgress = {
+  sourceProfileUrl?: string;
+  message?: string;
+  done?: number;
+  total?: number;
+};
+
+export function requestSellerImportScan<T>(
+  target: Window,
+  request: { requestId: string; profiles: unknown[]; streamReports: boolean },
+  version: string,
+  onProgress: (progress: RefreshProgress) => void,
+  onReport: (report: T) => void,
+): Promise<string | undefined> {
+  const origin = target.location.origin;
+  const hasRunStatus = supportsImportRunStatus(version);
+  const startTimeout = hasRunStatus ? 15000 : 60000;
+  const idleTimeout = request.streamReports ? 90000 : 8 * 60 * 1000;
+
+  return new Promise((resolve) => {
+    let started = false;
+    let timer: number;
+    let stopWatching: (() => void) | undefined;
+
+    function finish(error?: string) {
+      target.clearTimeout(timer);
+      stopWatching?.();
+      target.removeEventListener("message", onMessage);
+      resolve(error);
+    }
+
+    function activity() {
+      started = true;
+      target.clearTimeout(timer);
+      timer = target.setTimeout(
+        () => finish("The importer stopped sending progress. Check its status before retrying."),
+        idleTimeout,
+      );
+    }
+
+    function onMessage(event: MessageEvent) {
+      if (
+        event.source !== target ||
+        event.origin !== origin ||
+        event.data?.requestId !== request.requestId
+      )
+        return;
+      const { type, error, report } = event.data;
+      switch (type) {
+        case "gemlist-fb-refresh-started":
+        case "gemlist-fb-refresh-heartbeat":
+          activity();
+          break;
+        case "gemlist-fb-refresh-progress":
+          activity();
+          onProgress(event.data);
+          break;
+        case "gemlist-fb-profile-result":
+          activity();
+          onReport(report);
+          break;
+        case "gemlist-fb-refresh-result":
+          finish(error);
+          break;
+      }
+    }
+
+    target.addEventListener("message", onMessage);
+    if (hasRunStatus) {
+      stopWatching = watchImportRun(target, (run, journal) => {
+        const last = journal?.last;
+        if (last?.requestId === request.requestId && last.phase === "interrupted") {
+          finish("Chrome interrupted the scan. Completed seller results can still be saved.");
+          return;
+        }
+        if (run?.requestId === request.requestId) {
+          if (!started) activity();
+          return;
+        }
+        if (last?.requestId !== request.requestId || last.phase === "running") return;
+        if (last.phase === "failed") finish(last.message || "Chrome stopped the scan early.");
+        else if (journal?.pending.some((entry) => entry.requestId === request.requestId))
+          finish(
+            "Chrome finished scanning. Use Save scan results to recover any results it could not deliver.",
+          );
+        else finish();
+      });
+    }
+    timer = target.setTimeout(
+      () => finish("Chrome did not start the scan. Reload the Bluebird admin page and try again."),
+      startTimeout,
+    );
+    target.postMessage({ type: "gemlist-ext-refresh", ...request }, origin);
   });
 }

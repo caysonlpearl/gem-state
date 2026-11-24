@@ -1019,9 +1019,18 @@ function sendImportEvent(tabId, payload) {
 }
 
 function refreshPageOrigin(sender) {
-  if (!trustedImportPage(sender)) return null;
-  const url = new URL(sender.url || sender.tab?.url);
-  return /^\/admin\/fb-import\/?$/.test(url.pathname) ? url.origin : null;
+  if (!trustedImportPage(sender) || (sender.frameId != null && sender.frameId !== 0)) return null;
+  try {
+    const source = new URL(sender.url || sender.tab?.url);
+    // Client-side routing can change the tab URL without replacing the
+    // document that originally loaded the content script.
+    const tab = new URL(sender.tab?.url || source);
+    return source.origin === tab.origin && /^\/admin\/fb-import\/?$/.test(tab.pathname)
+      ? tab.origin
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 async function runSellerRefresh(tabId, origin, message) {
@@ -1068,8 +1077,10 @@ async function runSellerRefresh(tabId, origin, message) {
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (!message || message.type !== "refresh" || !sender.tab?.id) return;
   const origin = refreshPageOrigin(sender);
-  if (!origin) return;
-  respond({ accepted: true });
+  if (!origin) {
+    respond({ error: "Open the Bluebird seller import page directly and try again." });
+    return;
+  }
   const sendError = (error) =>
     sendImportEvent(sender.tab.id, {
       type: "gemlist-fb-refresh-result",
@@ -1078,7 +1089,8 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       error,
     });
   if (importInProgress) {
-    sendError("An import or refresh is already running. Let it finish before starting another.");
+    const error = "An import or refresh is already running. Let it finish before starting another.";
+    respond({ error });
     return;
   }
   beginImportRun(
@@ -1086,6 +1098,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     message.profiles ? "Seller refresh" : "Listing refresh",
     message.requestId,
   );
+  respond({ accepted: true });
   (message.profiles
     ? runSellerRefresh(sender.tab.id, origin, message)
     : refreshListings(sender.tab.id, message.requestId, message.targets)
