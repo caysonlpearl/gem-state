@@ -1,4 +1,4 @@
-# Bluebird Listing Import 1.5.13
+# Bluebird Listing Import 1.5.14
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
@@ -63,3 +63,5 @@ Version 1.4.4 keeps recognized KSL source categories authoritative. When the sou
 Version 1.5.12 adds a running-import status on Bluebird's Imported sellers panel, including progress, start time, and Show running importer. The status survives reloading or leaving the admin page while the extension is running. Show running importer focuses an existing reader (or the originating tab); it does not open source pages or start another scan. Wait for the current run to finish before reloading the extension. No new permissions are required.
 
 Version 1.5.13 saves each completed seller scan before delivering it to the admin page. The admin page stages sellers as they finish and shows the outcome of the last refresh. If Chrome or the admin tab closes before staging completes, return to Imported sellers, confirm seller authorization, and use Save scan results. This saves completed reports without revisiting source sites. Retry the interrupted seller to finish reading its inventory.
+
+Version 1.5.14 confirms whether Chrome started a scan and accepts requests from the seller import page after navigating there within Bluebird. Reload this unpacked extension in Chrome and reload the Bluebird admin tab to use the updated connection.

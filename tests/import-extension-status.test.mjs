@@ -2,7 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
-import { watchImportRun, supportsImportRunStatus } from "../src/lib/import-extension-status.ts";
+import {
+  requestSellerImportScan,
+  watchImportRun,
+  supportsImportRunStatus,
+} from "../src/lib/import-extension-status.ts";
 
 function harness() {
   const listeners = [],
@@ -207,4 +211,142 @@ test("a closed admin tab and a restarted worker leave completed seller results r
   const saved = await h.status();
   assert.equal(saved.pending.length, 0);
   assert.equal(saved.last.staged, 1);
+});
+
+function scanPage() {
+  const listeners = new Set();
+  const timers = new Map();
+  const intervals = new Set();
+  let nextId = 0;
+  const target = {
+    location: { origin: "https://onbluebird.com" },
+    postMessage() {},
+    addEventListener(_, fn) {
+      listeners.add(fn);
+    },
+    removeEventListener(_, fn) {
+      listeners.delete(fn);
+    },
+    setTimeout(fn, ms) {
+      timers.set(++nextId, { fn, ms });
+      return nextId;
+    },
+    clearTimeout(id) {
+      timers.delete(id);
+    },
+    setInterval(fn) {
+      intervals.add(fn);
+      return fn;
+    },
+    clearInterval(fn) {
+      intervals.delete(fn);
+    },
+  };
+  const send = (data) => {
+    for (const listener of [...listeners]) {
+      if (listeners.has(listener))
+        listener({ source: target, origin: target.location.origin, data });
+    }
+  };
+  return { target, send, timers, intervals, listeners };
+}
+
+test("an idle extension cannot leave Refresh all stuck at 0 after a dropped start message", async () => {
+  const page = scanPage();
+  const result = requestSellerImportScan(
+    page.target,
+    { requestId: "current", profiles: [{}, {}], streamReports: true },
+    "1.5.13",
+    () => {},
+    () => {},
+  );
+  page.send({ type: "gemlist-ext-status-result", run: null, last: null, pending: [] });
+  page.send({ type: "gemlist-fb-refresh-heartbeat", requestId: "other" });
+  const [timer] = page.timers.values();
+  assert.equal(timer.ms, 15000);
+  timer.fn();
+  assert.match(await result, /Chrome did not start the scan/);
+  assert.equal(page.listeners.size + page.intervals.size + page.timers.size, 0);
+});
+
+test("a running 1.5.13 worker confirms startup, and its journal can recover a lost result delivery", async () => {
+  const page = scanPage();
+  const result = requestSellerImportScan(
+    page.target,
+    { requestId: "current", profiles: [{}], streamReports: true },
+    "1.5.13",
+    () => {},
+    () => {},
+  );
+  page.send({
+    type: "gemlist-ext-status-result",
+    run: { requestId: "current", label: "Seller refresh", message: "Starting…", startedAt: 1 },
+  });
+  assert.equal([...page.timers.values()][0].ms, 90000);
+  page.send({
+    type: "gemlist-ext-status-result",
+    run: null,
+    last: { requestId: "current", phase: "completed" },
+    pending: [{ requestId: "current", sourceProfileUrl: "test" }],
+  });
+  assert.match(await result, /Save scan results/);
+  assert.equal(page.listeners.size + page.intervals.size + page.timers.size, 0);
+});
+
+test("the extension accepts a same-origin admin route after in-site navigation and rejects foreign frames", () => {
+  const h = harness();
+  h.ctx.refreshListings = () => new Promise(() => {});
+  const start = (sender) => {
+    let reply;
+    h.listeners[0]({ type: "refresh", requestId: "test" }, sender, (value) => (reply = value));
+    return reply;
+  };
+  const admin = { id: 5, url: "https://onbluebird.com/admin/fb-import" };
+  assert.match(start({ tab: admin, url: "https://example.com", frameId: 0 }).error, /directly/);
+  assert.match(start({ tab: admin, url: admin.url, frameId: 2 }).error, /directly/);
+  assert.match(
+    start({
+      tab: { ...admin, url: "https://www.onbluebird.com/admin/fb-import" },
+      url: "https://onbluebird.com/",
+      frameId: 0,
+    }).error,
+    /directly/,
+  );
+  assert.equal(start({ tab: admin, url: "https://onbluebird.com/", frameId: 0 }).accepted, true);
+});
+
+test("the content script forwards startup acknowledgement and undefined or thrown replies", async () => {
+  for (const [reply, expected] of [
+    [() => ({ accepted: true }), "gemlist-fb-refresh-started"],
+    [() => undefined, "gemlist-fb-refresh-result"],
+    [
+      () => {
+        throw Error("Extension context invalidated");
+      },
+      "gemlist-fb-refresh-result",
+    ],
+  ]) {
+    let listener;
+    const result = new Promise((resolve) => {
+      const window = {
+        location: { origin: "https://onbluebird.com" },
+        addEventListener(_, fn) {
+          listener = fn;
+        },
+        postMessage: resolve,
+      };
+      vm.runInNewContext(
+        readFileSync(new URL("../tools/fb-import-extension/bridge.js", import.meta.url), "utf8"),
+        { window, chrome: { runtime: { sendMessage: reply, onMessage: { addListener() {} } } } },
+      );
+      listener({
+        source: window,
+        origin: window.location.origin,
+        data: { type: "gemlist-ext-refresh", requestId: "test" },
+      });
+    });
+    const message = await result;
+    assert.equal(message.type, expected);
+    assert.equal(message.requestId, "test");
+  }
 });
