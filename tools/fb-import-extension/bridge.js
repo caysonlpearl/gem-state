@@ -43,25 +43,7 @@ window.addEventListener("message", (event) => {
           ),
       );
   } else if (data.type === "gemlist-ext-refresh") {
-    chrome.runtime
-      .sendMessage({
-        type: "refresh",
-        streamReports: data.streamReports,
-        requestId: data.requestId,
-        targets: data.targets,
-        profiles: data.profiles,
-      })
-      .catch(() => {
-        window.postMessage(
-          {
-            type: "gemlist-fb-refresh-result",
-            requestId: data.requestId,
-            error:
-              "Chrome could not start the importer. Check the extension connection and try again.",
-          },
-          window.location.origin,
-        );
-      });
+    void startRefresh(data);
   }
 });
 
@@ -70,3 +52,27 @@ chrome.runtime.onMessage.addListener((message) => {
     window.postMessage(message.payload, window.location.origin);
   }
 });
+
+async function startRefresh(data) {
+  const requestId = data.requestId;
+  const unavailable =
+    "Chrome could not start the importer. Reload the Bluebird admin page and try again.";
+  let reply;
+  try {
+    reply = await chrome.runtime.sendMessage({
+      type: "refresh",
+      streamReports: data.streamReports,
+      requestId,
+      targets: data.targets,
+      profiles: data.profiles,
+    });
+  } catch {
+    // Treat an invalidated extension context like a rejected start.
+  }
+  window.postMessage(
+    reply?.accepted === true
+      ? { type: "gemlist-fb-refresh-started", requestId }
+      : { type: "gemlist-fb-refresh-result", requestId, error: reply?.error || unavailable },
+    window.location.origin,
+  );
+}
