@@ -25,13 +25,6 @@ if (bucketError || !bucket?.public)
   throw new Error(
     `The public homepage cache bucket must exist first (${bucketError?.status ?? "not public"}).`,
   );
-// Operator-only recovery of an abandoned refresh, never used by normal traffic.
-if (process.argv.includes("--retry")) {
-  const { error } = await client.storage
-    .from("homepage-snapshots")
-    .remove([`leases/${Math.floor(Date.now() / 300000)}.json`]);
-  if (error) throw new Error("Could not release the abandoned homepage refresh.");
-}
 const vite = await createServer({
   server: { middlewareMode: true, hmr: false },
   appType: "custom",
@@ -39,6 +32,13 @@ const vite = await createServer({
 });
 try {
   const module = await vite.ssrLoadModule("/src/lib/homepage-snapshot.server.ts");
+  // Operator-only recovery of an abandoned refresh, never used by normal traffic.
+  if (process.argv.includes("--retry")) {
+    const { error } = await client.storage
+      .from("homepage-snapshots")
+      .remove([module.homepageRefreshLeaseKey()]);
+    if (error) throw new Error("Could not release the abandoned homepage refresh.");
+  }
   const started = Date.now();
   const result = await module.refreshHomepageSnapshot(true);
   const snapshot = await module.readHomepageSnapshot();

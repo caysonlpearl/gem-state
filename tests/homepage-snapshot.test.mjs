@@ -11,6 +11,7 @@ import {
 import {
   HOME_MAX_STALE_MS,
   HOME_CACHE_LAYOUT_VERSION,
+  HOME_REFRESH_MS,
   HOME_SOURCE_KEYS,
   homepagePayload,
   homepageCard,
@@ -57,6 +58,9 @@ function store(initial) {
     writes: 0,
     async read() {
       this.reads++;
+      return this.value;
+    },
+    async readForRefresh() {
       return this.value;
     },
     async write(value) {
@@ -209,6 +213,101 @@ test("missing storage is an error, never cached empty inventory or a paid-provid
   await cache.refresh();
   assert.equal(builds, 1);
   assert.equal((await cache.read()).sections.native.cards.length, 1);
+});
+
+test("a failed public read and several source timeouts cannot erase the stored homepage rows", async () => {
+  const now = HOME_REFRESH_MS + 1_000;
+  const previous = snapshot(1_000, [card("native")]);
+  for (const key of HOME_SOURCE_KEYS)
+    previous.sections[key] ??= { updatedAt: 1_000, cards: [card(key)] };
+  const storage = store(previous);
+  storage.read = async () => {
+    throw Error("CDN read unavailable");
+  };
+  const sources = Object.fromEntries(
+    HOME_SOURCE_KEYS.map((key) => [
+      key,
+      async () => {
+        if (key === "jobs" || key === "pets") return { cards: [card(`new-${key}`)] };
+        throw Error("timeout");
+      },
+    ]),
+  );
+  const cache = createHomepageSnapshotCache(
+    storage,
+    (stored) => buildHomepageSnapshot(stored, { sources, removed: async () => new Set(), now }),
+    () => now,
+  );
+  assert.equal((await cache.refresh()).refreshed, true);
+  assert.equal(storage.writes, 1);
+  for (const key of ["native", "vehicles", "homes", "services", "merchandise"])
+    assert.deepEqual(storage.value.sections[key], previous.sections[key]);
+  assert.equal(storage.value.sections.jobs.cards[0].id, "new-jobs");
+  assert.equal(storage.value.sections.pets.cards[0].id, "new-pets");
+  assert.equal(storage.value.sourceFailures.native.reason, "timeout");
+});
+
+test("an unverified prior snapshot aborts refresh before a new snapshot can be built", async () => {
+  const prior = snapshot(1_000);
+  const storage = store(prior);
+  storage.readForRefresh = async () => {
+    throw Error("Storage unavailable");
+  };
+  const cache = createHomepageSnapshotCache(
+    storage,
+    () => assert.fail("a refresh must not build without its stored predecessor"),
+    () => HOME_REFRESH_MS + 1_000,
+  );
+  await assert.rejects(cache.refresh(), /Storage unavailable/);
+  assert.equal(storage.writes, 0);
+  assert.equal(storage.value, prior);
+});
+
+test("a refresh cannot publish into the next worker's lease window", async () => {
+  let now = HOME_REFRESH_MS + 1_000;
+  const original = snapshot(1_000);
+  const storage = store(original);
+  const cache = createHomepageSnapshotCache(
+    storage,
+    async () => {
+      now = 2 * HOME_REFRESH_MS - 1;
+      return snapshot(now);
+    },
+    () => now,
+  );
+  assert.equal((await cache.refresh()).reason, "lease_elapsed");
+  assert.equal(storage.writes, 0);
+  assert.equal(storage.value, original);
+});
+
+test("homepage publication runs moderation first and keeps concurrent source reads bounded", async () => {
+  let moderated = false;
+  let active = 0;
+  let peak = 0;
+  const sources = Object.fromEntries(
+    HOME_SOURCE_KEYS.map((key) => [
+      key,
+      async () => {
+        assert.ok(moderated, "moderation reads must finish before inventory reads");
+        active++;
+        peak = Math.max(peak, active);
+        await new Promise(setImmediate);
+        active--;
+        return { cards: [] };
+      },
+    ]),
+  );
+  const result = await buildHomepageSnapshot(null, {
+    sources,
+    removed: async () => {
+      await new Promise(setImmediate);
+      moderated = true;
+      return new Set();
+    },
+  });
+  assert.equal(peak, 2);
+  assert.equal(Object.keys(result.sections).length, HOME_SOURCE_KEYS.length);
+  assert.deepEqual(result.sourceFailures, {});
 });
 
 test("source failures retain only that source's last-good age; other sources update and moderation still applies", async () => {

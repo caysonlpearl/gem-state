@@ -102,21 +102,6 @@ export default {
         if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
         return await handleStripeWebhook(request, env);
       }
-      if (request.method === "GET" && url.pathname === "/") {
-        // Refresh outside the response lifetime. Saved public cards render
-        // immediately even when a source query or photo signer is slow.
-        if (background)
-          background(
-            Promise.all([
-              import("./lib/homepage-snapshot.server")
-                .then((module) => module.refreshHomepageSnapshot())
-                .catch(() => console.warn("Homepage refresh deferred; saved inventory retained.")),
-              import("./lib/seo-prewarm.server")
-                .then((module) => module.prewarmSeoPages())
-                .catch(() => null),
-            ]),
-          );
-      }
       const entryStarted = performance.now();
       const handler = await getServerEntry();
       const entryMs = performance.now() - entryStarted;
@@ -127,9 +112,19 @@ export default {
       // refresh after their saved HTML has been served.
       if (request.method === "GET" && background)
         background(
-          import("./lib/seo-page-cache.server")
-            .then((module) => Promise.all(module.pendingSeoPageRefreshes()))
-            .catch(() => null),
+          (async () => {
+            // Let homepage reads finish first. Inventory refresh, SEO and the
+            // request all draw from the same outgoing connection allowance.
+            if (url.pathname === "/") {
+              await refreshHomepageInventory();
+              await import("./lib/seo-prewarm.server")
+                .then((module) => module.prewarmSeoPages())
+                .catch(() => null);
+            }
+            await import("./lib/seo-page-cache.server")
+              .then((module) => Promise.all(module.pendingSeoPageRefreshes()))
+              .catch(() => null);
+          })(),
         );
       const renderMs = performance.now() - renderStarted;
       const normalized = lowerModulePreloadPriority(
@@ -152,44 +147,52 @@ export default {
   },
   async scheduled(controller: unknown, env: unknown, ctx: unknown) {
     registerRuntimeBindings(env);
-    const task = Promise.all([
-      import("./lib/dealer-inquiry.server")
-        .then((module) => module.processDealerInquiryNotifications())
-        .catch(() => console.warn("Dealer notifications deferred; inquiries retained.")),
-      import("./lib/seo-review-reports.server")
-        .then((module) => module.refreshSeoReviewReports())
-        .catch(() => null),
-      import("./lib/seo-prewarm.server")
-        .then((module) => module.prewarmSeoPages())
-        .catch(() => null),
-      import("./lib/homepage-snapshot.server")
-        .then((module) => module.refreshHomepageSnapshot())
-        .catch(() => null),
-      import("./lib/saved-search-worker.server").then(({ processSavedSearchAlerts }) =>
-        processSavedSearchAlerts(),
-      ),
-      import("./lib/dealer-inventory.functions").then(
-        ({ processScheduledDealerInventorySources }) => processScheduledDealerInventorySources(),
-      ),
-      import("./lib/editorial-store.server")
-        .then(({ refreshEditorialSources }) => refreshEditorialSources())
-        .catch(() => console.warn("Bluebird Local refresh deferred; stored stories retained.")),
+    const task = refreshHomepageInventory().then(() =>
+      Promise.all([
+        import("./lib/dealer-inquiry.server")
+          .then((module) => module.processDealerInquiryNotifications())
+          .catch(() => console.warn("Dealer notifications deferred; inquiries retained.")),
+        import("./lib/seo-review-reports.server")
+          .then((module) => module.refreshSeoReviewReports())
+          .catch(() => null),
+        import("./lib/seo-prewarm.server")
+          .then((module) => module.prewarmSeoPages())
+          .catch(() => null),
+        import("./lib/saved-search-worker.server").then(({ processSavedSearchAlerts }) =>
+          processSavedSearchAlerts(),
+        ),
+        import("./lib/dealer-inventory.functions").then(
+          ({ processScheduledDealerInventorySources }) => processScheduledDealerInventorySources(),
+        ),
+        import("./lib/editorial-store.server")
+          .then(({ refreshEditorialSources }) => refreshEditorialSources())
+          .catch(() => console.warn("Bluebird Local refresh deferred; stored stories retained.")),
 
-      ...(typeof controller === "object" &&
-      controller !== null &&
-      (controller as { cron?: string }).cron === "0 16 * * 4"
-        ? [
-            import("./lib/openwebninja-listings.server").then(({ refreshOpenWebNinjaSearches }) =>
-              refreshOpenWebNinjaSearches(),
-            ),
-            import("./lib/marketcheck.server").then(({ refreshMarketCheckSearches }) =>
-              refreshMarketCheckSearches(),
-            ),
-          ]
-        : []),
-    ]);
+        ...(typeof controller === "object" &&
+        controller !== null &&
+        (controller as { cron?: string }).cron === "0 16 * * 4"
+          ? [
+              import("./lib/openwebninja-listings.server").then(({ refreshOpenWebNinjaSearches }) =>
+                refreshOpenWebNinjaSearches(),
+              ),
+              import("./lib/marketcheck.server").then(({ refreshMarketCheckSearches }) =>
+                refreshMarketCheckSearches(),
+              ),
+            ]
+          : []),
+      ]),
+    );
     const runtime = ctx as { waitUntil?: (promise: Promise<unknown>) => void };
     if (typeof runtime.waitUntil === "function") runtime.waitUntil(task);
     else await task;
   },
 };
+
+async function refreshHomepageInventory() {
+  try {
+    const { refreshHomepageSnapshot } = await import("./lib/homepage-snapshot.server");
+    await refreshHomepageSnapshot();
+  } catch {
+    console.warn("Homepage refresh deferred; saved inventory retained.");
+  }
+}
