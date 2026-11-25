@@ -94,14 +94,37 @@ try {
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
         false,
       );
+    const assertRail = async (rail) => {
+      const geometry = await rail.evaluate((el) => {
+        const { right } = el.getBoundingClientRect();
+        const boxes = [...el.querySelectorAll("article")].map((card) =>
+          card.getBoundingClientRect(),
+        );
+        return {
+          heights: boxes.map((box) => box.height),
+          fourthFullyVisible: boxes[3].right <= right,
+          visibleFifthFraction: (right - boxes[4].left) / boxes[4].width,
+          canScroll: el.scrollWidth > el.clientWidth,
+        };
+      });
+      assert.ok(geometry.canScroll, "listing previews overflow inside their own rail");
+      assert.ok(geometry.heights.every((height) => height === geometry.heights[0]));
+      if (viewport.width >= 1024) {
+        assert.ok(geometry.fourthFullyVisible);
+        assert.ok(Math.abs(geometry.visibleFifthFraction - 0.5) < 0.02);
+      }
+      await rail.evaluate((el) => el.scrollTo({ left: el.scrollWidth, behavior: "instant" }));
+      assert.ok(await rail.evaluate((el) => el.scrollLeft > 0));
+      await rail.evaluate((el) => el.scrollTo({ left: 0, behavior: "instant" }));
+    };
     const readyCars = async () => {
       await page.waitForFunction(
         () =>
           document.querySelectorAll(
             '.homepage-lead-vehicles a[aria-label^="View listing: Synthetic car"]',
-          ).length === 4,
+          ).length === 6,
       );
-      assert.equal(await cards().count(), 4);
+      assert.equal(await cards().count(), 6);
       assert.equal(
         await lead.getByRole("link", { name: /View listing: Synthetic noise/ }).count(),
         0,
@@ -117,9 +140,9 @@ try {
       const hrefs = await cards().evaluateAll((links) =>
         links.map((link) => link.getAttribute("href")),
       );
-      assert.equal(new Set(hrefs).size, 4);
-      // The later rows do not repeat the four featured cards.
-      for (let i = 1; i <= 4; i++)
+      assert.equal(new Set(hrefs).size, 6);
+      // The later rows do not repeat any featured card.
+      for (let i = 1; i <= 6; i++)
         assert.equal(
           await page
             .getByRole("link", { name: `View listing: Synthetic car ${i}`, exact: true })
@@ -197,7 +220,9 @@ try {
         has: page.getByRole("heading", { name: "Synthetic car 1", exact: true }),
       });
       const body = vehicle.locator(".listing-preview-body");
-      const rows = await body.locator(":scope > *").allTextContents();
+      const rows = await body
+        .locator(":scope > *")
+        .evaluateAll((children) => children.map((row) => row.innerText.replace(/\s*·\s*/g, "·")));
       const age = body.locator("time");
       const location = body.getByText("Boise, ID", { exact: true });
       assert.deepEqual(rows, [
@@ -209,15 +234,18 @@ try {
       assert.equal(await age.getAttribute("datetime"), "2026-10-20T00:00:00Z");
       assert.ok((await age.innerText()).trim());
       assert.ok(Math.abs((await age.boundingBox()).y - (await location.boundingBox()).y) < 2);
-      assert.ok((await body.boundingBox()).height <= 108, "vehicle preview body stays compact");
+      assert.ok((await body.boundingBox()).height <= 120, "vehicle preview body stays compact");
       assert.equal(await body.getByRole("img", { name: "Verified dealership" }).count(), 1);
-      check.checks.push("compact vehicle card with posting age beside its city");
+      await assertRail(lead.getByRole("list", { name: "Vehicles in Idaho" }));
+      check.checks.push(
+        "compact vehicle cards in a scrollable row with a partial fifth card on desktop",
+      );
       await lead.scrollIntoViewIfNeeded();
       await capture("cars-trucks");
       await page.evaluate(() => scrollTo(0, 0));
       await capture("homepage");
       check.checks.push(
-        "40 newer parts/trailers cannot displace 4 featured cars; original cards and category links remain; no repeated featured cards",
+        "40 newer parts/trailers cannot displace 6 featured cars; original cards and category links remain; no repeated featured cards",
       );
       check.checks.push(
         "pending and slow loading are honest; success replaces skeleton without false empty state",
@@ -333,7 +361,36 @@ try {
         /A124890|medium coat|Rabbit · Longhaired Rabbit|Jobs by|Logo.dev|RescueGroups.org/,
       );
       assert.equal((previewCopy.match(/Adoption/g) || []).length, 1);
-      assert.equal(await recommendations.locator("article").count(), 4);
+      assert.equal(await recommendations.locator("article").count(), 6);
+      const freshRail = page.getByRole("list", { name: "Fresh local finds" });
+      await assertRail(freshRail);
+      await assertRail(recommendations.getByRole("list"));
+      for (const [title, town] of [
+        ["Vintage Leaf Saucer", "Star, ID"],
+        ["Occupational Therapist — Paying up to $129k", "Boise, ID"],
+        ["Legacy Utility Trailer", "Aberdeen, ID"],
+      ]) {
+        const card = recommendations
+          .locator("article")
+          .filter({ has: page.getByRole("heading", { name: title, exact: true }) });
+        const location = card.locator(".listing-preview-location");
+        assert.doesNotMatch(
+          await card.innerText(),
+          /Local pickup|Used — good|Apply now|Contact seller/,
+        );
+        const city = location.getByText(town, { exact: true });
+        const age = location.locator("time");
+        assert.ok((await age.innerText()).trim());
+        assert.ok(Math.abs((await city.boundingBox()).y - (await age.boundingBox()).y) < 2);
+        const priceGap = await card
+          .locator(".numeric")
+          .evaluate(
+            (price) =>
+              price.getBoundingClientRect().top -
+              price.previousElementSibling.getBoundingClientRect().bottom,
+          );
+        assert.ok(priceGap <= 4, "price follows metadata without an empty row");
+      }
       if (viewport.width < 640) {
         const boxes = await recommendations.locator("article").evaluateAll((cards) =>
           cards.map((card) => ({
@@ -356,15 +413,6 @@ try {
         assert.ok(
           Math.max(...boxes.map((box) => box.height)) < 260,
           "mixed preview cards stay compact",
-        );
-        const saucer = page
-          .locator(".listing-preview-card")
-          .filter({ hasText: "Vintage Leaf Saucer" })
-          .first();
-        assert.doesNotMatch(await saucer.innerText(), /Local pickup/);
-        assert.match(
-          await saucer.locator(".listing-preview-location").innerText(),
-          /Star, ID[\s\S]*ago/,
         );
       }
       await noOverflow();
@@ -407,8 +455,8 @@ try {
             'section[aria-labelledby="keep-browsing-heading"] a[aria-label^="View listing: Synthetic car"]',
           ).length === 8,
       );
-      assert.deepEqual(await feedIds(), [17, 18, 19, 20, 21, 22, 23, 24]);
-      await assertAllCars(24);
+      assert.deepEqual(await feedIds(), [25, 26, 27, 28, 29, 30, 31, 32]);
+      await assertAllCars(32);
       const allocationCheck = { viewport, mode, beforeFeed: await feedIds() };
       if (mode !== "allocation") {
         await feed.getByRole("button", { name: "Load more", exact: true }).click();
@@ -417,7 +465,7 @@ try {
             () =>
               document.querySelectorAll(
                 'section[aria-labelledby="keep-browsing-heading"] a[aria-label^="View listing: Synthetic car"]',
-              ).length === 32,
+              ).length === 24,
           );
           await assertAllCars(48);
         } else {
@@ -431,17 +479,17 @@ try {
         () =>
           document.querySelectorAll(
             '.homepage-lead-vehicles a[aria-label^="View listing: Synthetic car"]',
-          ).length === 4 &&
-          document.querySelectorAll('a[aria-label="View listing: Synthetic car 20"]').length > 0,
+          ).length === 6 &&
+          document.querySelectorAll('a[aria-label="View listing: Synthetic car 30"]').length > 0,
       );
-      // Wait for the secondary rows to move c17-c20 above Keep browsing.
+      // Wait for the secondary rows to move c25-c30 above Keep browsing.
       await page.waitForFunction(() =>
         [...document.querySelectorAll("section")]
           .filter(
             (section) => section.querySelector("h2")?.textContent === "More from local sellers",
           )
           .some((section) =>
-            section.querySelector('a[aria-label="View listing: Synthetic car 20"]'),
+            section.querySelector('a[aria-label="View listing: Synthetic car 30"]'),
           ),
       );
       allocationCheck.afterFeed = await feedIds();
@@ -455,19 +503,19 @@ try {
       await feed.scrollIntoViewIfNeeded();
       await capture(mode);
       if (mode === "allocation-inflight") {
-        await assertAllCars(24);
+        await assertAllCars(32);
         await page.evaluate(() => window.__bluebirdHomepageFixture.releaseFeedPage(2));
         await page.waitForFunction(
           () =>
             document.querySelectorAll(
               'section[aria-labelledby="keep-browsing-heading"] a[aria-label^="View listing: Synthetic car"]',
-            ).length === 28,
+            ).length === 18,
         );
       }
-      await assertAllCars(mode === "allocation" ? 24 : 48);
+      await assertAllCars(mode === "allocation" ? 32 : 48);
       assert.deepEqual(
         await feedIds(),
-        Array.from({ length: mode === "allocation" ? 4 : 28 }, (_, i) => i + 21),
+        Array.from({ length: mode === "allocation" ? 2 : 18 }, (_, i) => i + 31),
       );
       if (mode !== "allocation") {
         await feed.getByRole("button", { name: "Load more", exact: true }).click();
@@ -475,7 +523,7 @@ try {
           () =>
             document.querySelectorAll(
               'section[aria-labelledby="keep-browsing-heading"] a[aria-label^="View listing: Synthetic car"]',
-            ).length === 52,
+            ).length === 42,
         );
         await assertAllCars(72);
         assert.deepEqual(
@@ -498,25 +546,25 @@ try {
       );
     }
     await page.goto(origin + "/?fixture=cached-pagination");
-    for (const expected of [44, 68, 72]) {
+    for (const expected of [54, 78, 80]) {
       await page.waitForFunction(
         (n) =>
           document.querySelectorAll('a[aria-label^="View listing: Synthetic car"]').length === n,
         expected,
       );
       await assertAllCars(expected);
-      if (expected < 72) await feed.getByRole("button", { name: "Load more", exact: true }).click();
+      if (expected < 80) await feed.getByRole("button", { name: "Load more", exact: true }).click();
     }
     assert.equal(await feed.getByRole("button", { name: "Load more", exact: true }).count(), 0);
     const cachedProof = await page.evaluate(() => ({
       calls: window.__bluebirdHomepageFixture.cacheCalls,
       browse: window.__bluebirdHomepageFixture.feedCalls,
     }));
-    assert.deepEqual(cachedProof.calls, [44, 68]);
+    assert.deepEqual(cachedProof.calls, [54, 78]);
     assert.deepEqual(cachedProof.browse, []);
     await noOverflow();
     check.checks.push(
-      "initial transport renders44 unique cars; two cached pages reach all72 with zero browse requests or duplicate cards",
+      "initial transport renders 54 unique cars; two cached pages reach all 80 with zero browse requests or duplicate cards",
     );
     await context.close();
   }

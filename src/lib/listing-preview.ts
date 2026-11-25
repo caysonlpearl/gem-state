@@ -1,5 +1,7 @@
 import type { ListingCardSummary } from "./listing-card-summary";
 
+export const LISTING_PREVIEW_LIMIT = 6;
+
 const plain = (text: string) =>
   text
     .toLowerCase()

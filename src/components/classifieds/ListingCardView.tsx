@@ -28,7 +28,6 @@ import {
   listingLogoUrl,
   withoutLogo,
   formatMileage,
-  petPlacementLabels,
   postedAge,
   placeLabel,
 } from "@/lib/classifieds-display";
@@ -431,29 +430,10 @@ export function ListingCardPhoto({
 }
 
 function Facts({ listing }: { listing: ListingCardSummary }) {
-  if (listing.job) {
-    return (
-      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
-        {[
-          listing.job.employerName,
-          listing.job.employmentType === "Not specified" ? null : listing.job.employmentType,
-        ]
-          .filter(Boolean)
-          .join(" · ")}
-      </p>
-    );
-  }
-  if (listing.service) {
-    return (
-      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
-        {listing.service.subcategory}
-      </p>
-    );
-  }
-  if (listing.pet) {
-    const facts = petPreviewFacts(listing);
-    return facts.length ? (
-      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{facts.join(" · ")}</p>
+  if (listing.job || listing.service || listing.pet) {
+    const facts = previewFacts(listing);
+    return facts ? (
+      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{facts}</p>
     ) : null;
   }
   if (listing.home) {
@@ -525,19 +505,6 @@ function Price({
   );
 }
 
-function cardActionLabel(listing: ListingCardSummary) {
-  if (listing.job) return "Apply now";
-  if (listing.service) return "Get a quote";
-  if (listing.pet) return petPlacementLabels[listing.pet.placementType] ?? "Pet listing";
-  if (listing.home)
-    return listing.home.mode === "rent"
-      ? "Schedule a tour"
-      : listing.home.mode === "build"
-        ? "Explore new build"
-        : "Contact seller";
-  return formatFulfillmentLabel(listing.fulfillmentMode, Boolean(listing.vehicle));
-}
-
 /** soldAt marks a card in a Recently sold section: a Sold tag, the last asking price, no save button. */
 export function ListingCardView({
   listing,
@@ -563,7 +530,6 @@ export function ListingCardView({
   density?: "standard" | "compact" | "browse" | "mobile-compact";
 }) {
   const hasStandardBody = density === "standard" || density === "mobile-compact";
-  const showVehicleBody = hasStandardBody && Boolean(listing.vehicle);
   return (
     <article
       ref={elementRef}
@@ -579,7 +545,7 @@ export function ListingCardView({
                 : "item"
       }
       data-listing-density={density === "standard" ? undefined : density}
-      className={`group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md ${hasStandardBody ? "listing-preview-card" : ""} ${showVehicleBody ? "flex flex-col" : ""} ${className}`}
+      className={`group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md ${hasStandardBody ? "listing-preview-card flex flex-col" : ""} ${className}`}
     >
       <div className="relative">
         <ListingLink
@@ -604,11 +570,8 @@ export function ListingCardView({
           </div>
         )}
       </div>
-      {density !== "standard" && !showVehicleBody ? (
-        <ListingLink
-          listing={listing}
-          className={`shopping-preview-compact block px-2.5 pb-2.5 pt-2 ${density === "mobile-compact" ? "md:hidden" : ""}`}
-        >
+      {!hasStandardBody ? (
+        <ListingLink listing={listing} className="block px-2.5 pb-2.5 pt-2">
           <h3 className="line-clamp-2 text-[12.5px] font-semibold leading-4 group-hover:text-primary">
             {listing.vehicle
               ? [listing.vehicle.year, listing.vehicle.make, listing.vehicle.model]
@@ -653,111 +616,44 @@ export function ListingCardView({
             </p>
           )}
         </ListingLink>
-      ) : null}
-      {showVehicleBody ? (
+      ) : (
         <ListingLink
           listing={listing}
           className="listing-preview-body flex flex-1 flex-col gap-0.5 px-3.5 pb-3 pt-2.5"
         >
-          <VehicleCardBody listing={listing} soldAt={soldAt} />
+          <ListingPreviewBody listing={listing} soldAt={soldAt} />
         </ListingLink>
-      ) : hasStandardBody ? (
-        listing.home ? (
-          <ListingLink
-            listing={listing}
-            className={`listing-preview-body ${density === "mobile-compact" ? "hidden md:block" : "block"} px-3.5 pb-4 pt-3.5`}
-          >
-            <HomeCardBody listing={listing} soldAt={soldAt} />
-          </ListingLink>
-        ) : (
-          <ListingLink
-            listing={listing}
-            className={`listing-preview-body ${density === "mobile-compact" ? "hidden md:block" : "block"} px-3.5 pb-4 pt-3.5`}
-          >
-            {listing.directory ? (
-              <DirectoryRating directory={listing.directory} />
-            ) : (
-              <div className="numeric text-[17px] font-bold leading-none text-foreground">
-                {soldAt ? (
-                  <span className="mr-1 text-[11px] font-semibold text-muted-foreground">
-                    Asked
-                  </span>
-                ) : null}
-                <Price listing={listing} />
-              </div>
-            )}
-            <h3
-              className={`listing-preview-title mt-1.5 line-clamp-2 font-semibold leading-[1.3] group-hover:text-primary ${listing.externalMerchandise ? "min-h-[39px] text-[15px]" : "min-h-[34px] text-[13px]"}`}
-            >
-              {listingPreviewTitle(listing)}
-            </h3>
-            <Facts listing={listing} />
-            <p className="listing-preview-location mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
-              {listing.externalMerchandise ? (
-                <>
-                  <Truck size={12} weight="fill" className="shrink-0 text-primary" />
-                  Shipping Only
-                  <span className="ml-auto shrink-0 text-[10.5px]">
-                    {postedAge(soldAt ?? listing.createdAt)}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-                  <span className="min-w-0 truncate">
-                    {placeLabel(listing.city, listing.state)}
-                  </span>
-                  <span className="ml-auto shrink-0 text-[10px] sm:hidden">
-                    {postedAge(soldAt ?? listing.createdAt)}
-                  </span>
-                </>
-              )}
-            </p>
-            {!listing.externalMerchandise ? (
-              <div className="hidden mt-2 items-center justify-between gap-2 text-[10.5px] text-muted-foreground sm:flex">
-                <span className="truncate">
-                  {soldAt
-                    ? "Sold"
-                    : listing.directory
-                      ? (listing.directory.phone ?? "Call for details")
-                      : listing.pet
-                        ? null
-                        : cardActionLabel(listing)}
-                </span>
-                <span className="shrink-0">
-                  {listing.directory
-                    ? listing.directory.claimed
-                      ? "Owner verified"
-                      : "Local business"
-                    : postedAge(soldAt ?? listing.createdAt)}
-                </span>
-              </div>
-            ) : null}
-          </ListingLink>
-        )
-      ) : null}
+      )}
     </article>
   );
 }
 
-function VehicleCardBody({ listing, soldAt }: { listing: ListingCardSummary; soldAt?: string }) {
-  const location = placeLabel(listing.city, listing.state);
+function ListingPreviewBody({ listing, soldAt }: { listing: ListingCardSummary; soldAt?: string }) {
+  const location = listing.externalMerchandise
+    ? "Shipping Only"
+    : placeLabel(listing.city, listing.state);
+  const LocationIcon = listing.externalMerchandise ? Truck : MapPin;
   const date = soldAt ?? listing.createdAt;
   const age = postedAge(date);
+  const shortAge = age
+    .replace("Yesterday", "1d ago")
+    .replace(/(\d+) days? ago/, "$1d ago")
+    .replace(/(\d+) months? ago/, "$1mo ago");
   const seller = vehicleSourceLabel(listing);
+  const facts = seller ?? previewFacts(listing);
   return (
     <>
       <h3 className="line-clamp-2 text-[14px] font-semibold leading-[1.25] group-hover:text-primary">
         {listingPreviewTitle(listing)}
       </h3>
       {location || age ? (
-        <p className="flex min-w-0 items-center gap-1 text-[11.5px] leading-4 text-muted-foreground">
+        <p className="listing-preview-location flex min-w-0 items-center gap-1 text-[11.5px] leading-4 text-muted-foreground">
           {location ? (
             <>
-              <MapPin
+              <LocationIcon
                 size={12}
                 weight="fill"
-                className="shrink-0 text-primary"
+                className="listing-preview-location-icon shrink-0 text-primary"
                 aria-hidden="true"
               />
               <span className="truncate" title={location}>
@@ -767,74 +663,65 @@ function VehicleCardBody({ listing, soldAt }: { listing: ListingCardSummary; sol
           ) : null}
           {location && age ? <span aria-hidden="true">·</span> : null}
           {age ? (
-            <time dateTime={date} className="shrink-0 whitespace-nowrap text-[10.5px]">
-              {age}
+            <time
+              dateTime={date}
+              title={age}
+              aria-label={age}
+              className="shrink-0 whitespace-nowrap text-[10.5px]"
+            >
+              <span className="listing-preview-age-full">{age}</span>
+              <span className="listing-preview-age-short hidden" aria-hidden="true">
+                {shortAge}
+              </span>
             </time>
           ) : null}
         </p>
       ) : null}
-      {seller ? (
-        <p className="flex min-w-0 items-center gap-1 text-[11.5px] font-medium leading-4 text-primary">
-          <span className="truncate" title={seller}>
-            {seller}
+      {facts ? (
+        <p
+          className={`flex min-w-0 items-center gap-1 text-[11.5px] leading-4 ${seller ? "font-medium text-primary" : "text-muted-foreground"}`}
+        >
+          <span className="truncate" title={facts}>
+            {facts}
           </span>
-          {hasApprovedDealer(listing) ? <VerifiedDealerBadge size={15} /> : null}
+          {seller && hasApprovedDealer(listing) ? <VerifiedDealerBadge size={15} /> : null}
         </p>
       ) : null}
-      <p className="numeric mt-auto pt-1 text-[18px] font-bold leading-5 tracking-tight text-primary sm:text-[20px]">
-        {soldAt ? (
-          <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
-        ) : null}
-        <Price listing={listing} showRetail={false} />
-      </p>
+      {listing.directory ? (
+        <DirectoryRating directory={listing.directory} />
+      ) : (
+        <p className="numeric py-0.5 text-[18px] font-bold leading-5 tracking-tight text-primary sm:text-[20px]">
+          {soldAt ? (
+            <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
+          ) : null}
+          <Price listing={listing} />
+        </p>
+      )}
     </>
   );
 }
 
-/**
- * Home cards read like Zillow's and KSL's: price, then "3 bds | 2 ba |
- * 1,487 sqft - House for sale", then the address.
- */
-function HomeCardBody({ listing, soldAt }: { listing: ListingCardSummary; soldAt?: string }) {
-  const home = listing.home!;
-  const facts = [
-    home.bedrooms != null
-      ? [home.bedrooms === 0 ? "Studio" : String(home.bedrooms), home.bedrooms === 0 ? "" : "bds"]
-      : null,
-    home.bathrooms != null ? [String(home.bathrooms), "ba"] : null,
-    home.squareFeet != null ? [home.squareFeet.toLocaleString(), "sqft"] : null,
-  ].filter((fact): fact is string[] => fact != null);
-  return (
-    <>
-      <p className="numeric text-[19px] font-bold leading-none text-foreground">
-        {soldAt ? (
-          <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
-        ) : null}
-        <Price listing={listing} />
-      </p>
-      <p className="mt-2 truncate text-[12.5px] text-foreground">
-        {facts.map(([value, unit], index) => (
-          <span key={unit || value}>
-            {index > 0 ? <span className="mx-1.5 text-border">|</span> : null}
-            <span className="font-bold">{value}</span>
-            {unit ? ` ${unit}` : ""}
-          </span>
-        ))}
-        {facts.length ? <span className="mx-1.5 text-muted-foreground">-</span> : null}
-        <span className="text-muted-foreground">{soldAt ? "Sold" : homeStatusLabel(home)}</span>
-      </p>
-      <h3 className="mt-1.5 truncate text-[12.5px] font-semibold group-hover:text-primary">
-        {listing.title}
-      </h3>
-      <div className="mt-1 flex items-center justify-between gap-2 text-[11.5px] text-muted-foreground">
-        <span className="flex min-w-0 items-center gap-1 truncate">
-          <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-          {placeLabel(listing.city, listing.state)}
-        </span>
-        <span className="shrink-0 text-[10.5px]">{postedAge(soldAt ?? listing.createdAt)}</span>
-      </div>
-    </>
-  );
+function previewFacts(listing: ListingCardSummary) {
+  if (listing.job) {
+    return [
+      listing.job.employerName,
+      listing.job.employmentType === "Not specified" ? null : listing.job.employmentType,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  if (listing.service) return listing.service.subcategory;
+  if (listing.pet) return petPreviewFacts(listing).join(" · ");
+  const home = listing.home;
+  if (!home) return null;
+  return [
+    home.bedrooms === 0 ? "Studio" : home.bedrooms != null ? `${home.bedrooms} bds` : null,
+    home.bathrooms != null ? `${home.bathrooms} ba` : null,
+    home.squareFeet != null ? `${home.squareFeet.toLocaleString()} sqft` : null,
+    homeStatusLabel(home),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export function ListingRowView({

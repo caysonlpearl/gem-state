@@ -4,7 +4,7 @@ import type { ListingCardSummary } from "./listing-card-summary";
 import { homepageDistanceRow } from "./homepage-distance-row.ts";
 import { isGeneralHomepageListing, isHomepageVehicleListing } from "./homepage-listing-rows.ts";
 
-export const HOMEPAGE_ROW_SIZE = 4;
+const HOMEPAGE_ROW_SIZE = 4;
 export const HOMEPAGE_FEED_SIZE = 24;
 
 /** One allocation for server transport and browser rendering. Keep all candidates
@@ -12,8 +12,15 @@ export const HOMEPAGE_FEED_SIZE = 24;
 export function allocateHomepageRows(
   home: ClassifiedsHome,
   homeLead: Pick<ClassifiedsHomeLead, "motors"> | undefined,
-  matchesLocation: (card: ListingCardSummary) => boolean = (card) => card.state === "ID",
-  hasLocalArea = false,
+  {
+    matchesLocation = (card) => card.state === "ID",
+    hasLocalArea = false,
+    rowSize = HOMEPAGE_ROW_SIZE,
+  }: {
+    matchesLocation?: (card: ListingCardSummary) => boolean;
+    hasLocalArea?: boolean;
+    rowSize?: number;
+  } = {},
 ) {
   const localRecent = home.recent.filter(
     (listing) => !listing.externalMerchandise && matchesLocation(listing),
@@ -42,7 +49,7 @@ export function allocateHomepageRows(
   // The route loader has settled both snapshot queries before this renders.
   const leadMotors = selectDiscoveryCards(
     (homeLead?.motors ?? []).filter(isHomepageVehicleListing).filter(matchesLocation),
-    HOMEPAGE_ROW_SIZE,
+    rowSize,
   );
   const sellerCounts = new Map<string, number>();
   for (const card of leadMotors) {
@@ -51,7 +58,7 @@ export function allocateHomepageRows(
   }
   const shownIds = new Set<string>(leadMotors.map((listing) => listing.id));
   const pick = (candidates: ClassifiedsHome["recent"]) => {
-    const unseen = selectDiscoveryCards(candidates, HOMEPAGE_ROW_SIZE, sellerCounts, shownIds);
+    const unseen = selectDiscoveryCards(candidates, rowSize, sellerCounts, shownIds);
     for (const listing of unseen) shownIds.add(listing.id);
     return unseen;
   };
@@ -140,15 +147,19 @@ export function allocateHomepageRows(
 /** Filtering is a transport projection, never a smaller stored inventory pool.
  * Row selection is idempotent because it retains every winning candidate in
  * its original order, followed by the first visible feed page. */
-export function initialHomepagePayload(home: ClassifiedsHome, lead: ClassifiedsHomeLead) {
-  const rows = allocateHomepageRows(home, lead);
+export function initialHomepagePayload(
+  home: ClassifiedsHome,
+  lead: ClassifiedsHomeLead,
+  rowSize = HOMEPAGE_ROW_SIZE,
+) {
+  const rows = allocateHomepageRows(home, lead, { rowSize });
   const keep = new Set(rows.shownIds);
   for (const card of rows.feedStart.slice(0, HOMEPAGE_FEED_SIZE)) keep.add(card.id);
   // Retail rows have independent category pools and retain their exact cards.
   for (const category of ["outdoor-sporting", "apparel-accessories", "tools-equipment"])
     for (const card of (home.onlineMerchandise ?? [])
       .filter((card) => card.categorySlug === category)
-      .slice(0, HOMEPAGE_ROW_SIZE))
+      .slice(0, rowSize))
       keep.add(card.id);
   return {
     ...home,

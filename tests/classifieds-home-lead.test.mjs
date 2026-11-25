@@ -208,7 +208,7 @@ test("homepage lead loading, successful empty, and request-error states stay dis
   assert.match(errorBoundary, /onClick=\{this\.retry\}/);
   assert.match(
     source,
-    /leadMotors\.length > 0 \? \([\s\S]*?<EmptyState\s+title=\{homeLead\.inventoryUnavailable \? "Featured vehicles couldn’t load\." : EMPTY_ROW_TITLE\}/,
+    /leadMotors\.length > 0 \? \([\s\S]*?<EmptyState\s+title=\{\s*homeLead\.inventoryUnavailable\s*\? "Featured vehicles couldn’t load\."\s*:\s*EMPTY_ROW_TITLE\s*\}/,
   );
   assert.doesNotMatch(source, /withTimeoutFallback|showing the empty state/);
   const client = makeClient(0);

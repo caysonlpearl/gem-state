@@ -5,6 +5,7 @@ import type {
   ClassifiedCard,
 } from "../../src/lib/classifieds.functions";
 import { initialHomepagePayload, homepageFeedPage } from "../../src/lib/homepage-initial-payload";
+import { LISTING_PREVIEW_LIMIT } from "../../src/lib/listing-preview";
 import { productionHomeLead } from "virtual:production-home-query";
 
 const mode = new URLSearchParams(location.search).get("fixture") ?? "success";
@@ -98,7 +99,20 @@ const previewItems = [
     imageUrl: "/category-icons/other-real-estate.webp",
     home: { mode: "rent", propertyType: "Apartment", bedrooms: 0, bathrooms: 1, squareFeet: 364 },
   },
+  {
+    ...make("preview-trailer", "trailers"),
+    title: "Legacy Utility Trailer",
+    priceCents: 1600000,
+    city: "Aberdeen",
+  },
+  {
+    ...make("preview-chair", "furniture"),
+    title: "Oak Dining Chair",
+  },
 ] as ClassifiedCard[];
+const freshItems = Array.from({ length: 4 }, (_, i) =>
+  make(`Synthetic-find-${i + 1}`, "collectibles"),
+);
 // More than a full newer Motors page precedes the cars. Client-side filtering
 // after a broad page would leave the featured row empty or filled with noise.
 const noise = Array.from({ length: 40 }, (_, i) =>
@@ -107,7 +121,7 @@ const noise = Array.from({ length: 40 }, (_, i) =>
 const cars =
   mode === "empty"
     ? []
-    : Array.from({ length: allocation ? (paginated ? 72 : 24) : 6 }, (_, i) => {
+    : Array.from({ length: cached ? 80 : paginated ? 72 : allocation ? 32 : 6 }, (_, i) => {
         const car = make(`Synthetic-car-${i + 1}`, "cars-trucks");
         if (!allocation && i === 0) {
           car.dealer = {
@@ -182,15 +196,19 @@ export const getClassifiedsHomeLead = () =>
 const cachedHome = { ...categoryData, motors: cars, recent: cars };
 export const getClassifiedsHome = async () =>
   cached
-    ? initialHomepagePayload(cachedHome, { ...categoryData, motors: cars.slice(0, 24) })
+    ? initialHomepagePayload(
+        cachedHome,
+        { ...categoryData, motors: cars.slice(0, 24) },
+        LISTING_PREVIEW_LIMIT,
+      )
     : {
         ...categoryData,
-        motors: allocation ? cars.slice(0, 24) : [...noise.slice(0, 2), ...cars],
+        motors: allocation ? cars.slice(0, 32) : [...noise.slice(0, 2), ...cars],
         recent:
           mode === "card-layout"
-            ? [...previewItems, ...cars]
+            ? [...previewItems, ...freshItems, ...cars]
             : allocation
-              ? cars.slice(0, 24)
+              ? cars.slice(0, 32)
               : [...noise.slice(0, 2), ...cars],
       };
 export const browseClassifieds = async ({
