@@ -496,16 +496,63 @@ test("an unavailable dealership authority retains the saved vehicle section and 
   assert.equal(homepagePayload(snapshot(now, []), now).lead.inventoryUnavailable, undefined);
 });
 
-test("an empty dealership feed and an unavailable aggregator cannot overwrite a saved vehicle row", async () => {
-  await assert.rejects(
-    loadHomepageVehicles(
-      async () => ({ cards: [], dealers: [] }),
-      async () => {
-        throw Error("Vehicle cache timeout");
-      },
-    ),
-    /Vehicle cache timeout/,
+test("a successful dealership read keeps eligible saved aggregator cars through a timeout", async () => {
+  const now = Date.now();
+  const savedAt = now - 1000;
+  const previous = snapshot(savedAt);
+  const vehicle = (id, extra = {}) => card(id, { categorySlug: "cars-trucks", ...extra });
+  previous.sections.vehicles = {
+    updatedAt: savedAt,
+    cards: [
+      vehicle("dealerfeed-no-longer-published"),
+      vehicle("marketcheck-fsbo-saved"),
+      vehicle("marketcheck-fsbo-reported"),
+      vehicle("marketcheck-dealer-duplicate", { dealer: { website: "https://www.example.com" } }),
+      vehicle("marketcheck-dealer-duplicate-vin", { vehicle: { vin: "TESTVIN" } }),
+      vehicle("marketcheck-dealer-other", { dealer: { website: "https://others.example" } }),
+    ],
+  };
+  const sources = Object.fromEntries(
+    HOME_SOURCE_KEYS.map((key) => [key, async () => ({ cards: [] })]),
   );
+  const removed = async () => new Set(["marketcheck-fsbo-reported"]);
+  const unavailable = async () => {
+    throw Error("Vehicle cache timeout");
+  };
+  sources.vehicles = () =>
+    loadHomepageVehicles(
+      async () => ({
+        cards: [vehicle("dealerfeed-published", { vehicle: { vin: "TESTVIN" } })],
+        dealers: [{ website: "https://example.com" }],
+      }),
+      unavailable,
+    );
+
+  const next = await buildHomepageSnapshot(previous, { sources, removed, now });
+  assert.equal(next.sourceFailures.vehicles.reason, "timeout");
+  assert.equal(next.sections.vehicles.updatedAt, savedAt);
+  assert.deepEqual(next.sections.vehicles.cards.map((card) => card.id).sort(), [
+    "dealerfeed-published",
+    "marketcheck-dealer-other",
+    "marketcheck-fsbo-saved",
+  ]);
+
+  const later = savedAt + HOME_MAX_STALE_MS + 1;
+  const expired = await buildHomepageSnapshot(next, { sources, removed, now: later });
+  assert.equal(expired.sections.vehicles.updatedAt, later);
+  assert.deepEqual(
+    expired.sections.vehicles.cards.map((card) => card.id),
+    ["dealerfeed-published"],
+  );
+
+  sources.vehicles = () =>
+    loadHomepageVehicles(async () => ({ cards: [], dealers: [] }), unavailable);
+  const emptyDealer = await buildHomepageSnapshot(next, { sources, removed, now });
+  assert.equal(emptyDealer.sections.vehicles.updatedAt, savedAt);
+  assert.deepEqual(emptyDealer.sections.vehicles.cards.map((card) => card.id).sort(), [
+    "marketcheck-dealer-other",
+    "marketcheck-fsbo-saved",
+  ]);
 });
 
 test("full shopping coverage bounds concurrent source reads and preserves a failed source without extending its freshness", async () => {

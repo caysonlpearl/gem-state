@@ -20,6 +20,8 @@ A background refresh can run once per five minutes across all server instances. 
 
 Each source reads already-saved inventory. The refresh checks moderation first, gives the core inventory reads priority, and runs at most two source loaders at once. Homepage rendering, provider maintenance and SEO warming have separate connection windows in each invocation. A source failure retains that source's prior data for up to six hours without changing its timestamp. A failed moderation check or storage write retains the previous snapshot. Successful empty inventory stays empty. Expired sections are omitted.
 
+If the dealership read succeeds and the vehicle aggregator times out, the refreshed dealership inventory replaces the old dealership cards. Eligible saved aggregator cards keep their previous expiry and are checked against dealership duplicates and moderation before publication.
+
 ## Deployment
 
 Use the GemList production project (`udxxfuticbxwiehoepeg`). Create the public `homepage-snapshots` bucket, allowing JSON objects up to 2 MB. Keep uploads restricted to the service role; public access is read-only. No provider keys belong in this bucket.

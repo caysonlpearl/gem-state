@@ -86,7 +86,8 @@ export function mergeDealerFeedVehicles<
   T extends {
     id: string;
     vehicle?: { vin?: string | null } | null;
-    externalVehicle?: MarketCheckListing;
+    externalVehicle?: Partial<Pick<MarketCheckListing, "sourceKind" | "sourceUrl">>;
+    dealer?: { website?: string | null } | null;
   },
 >(direct: T[], aggregated: T[], dealers: PublishedFeedDealer[]): T[] {
   const vins = new Set(direct.map((v) => v.vehicle?.vin).filter(Boolean));
@@ -95,7 +96,7 @@ export function mergeDealerFeedVehicles<
     ...direct,
     ...aggregated.filter((card) => {
       if (card.vehicle?.vin && vins.has(card.vehicle.vin)) return false;
-      const url = card.externalVehicle?.sourceUrl;
+      const url = card.externalVehicle?.sourceUrl ?? card.dealer?.website;
       if (url) {
         try {
           if (hosts.has(new URL(url).hostname.replace(/^www\./, ""))) return false;
