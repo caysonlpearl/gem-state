@@ -107,9 +107,20 @@ const noise = Array.from({ length: 40 }, (_, i) =>
 const cars =
   mode === "empty"
     ? []
-    : Array.from({ length: allocation ? (paginated ? 72 : 24) : 6 }, (_, i) =>
-        make(`Synthetic-car-${i + 1}`, "cars-trucks"),
-      );
+    : Array.from({ length: allocation ? (paginated ? 72 : 24) : 6 }, (_, i) => {
+        const car = make(`Synthetic-car-${i + 1}`, "cars-trucks");
+        if (!allocation && i === 0) {
+          car.dealer = {
+            displayName: "Synthetic Motors",
+            slug: "synthetic-motors",
+            logoUrl: null,
+            city: "Boise",
+            state: "ID",
+          };
+          car.vehiclePricing = { msrpCents: 2900000 };
+        }
+        return car;
+      });
 const rows = allocation
   ? cars
   : [...noise, ...cars, { ...make("Synthetic-far-car", "cars-trucks"), state: "UT" }];
