@@ -765,22 +765,31 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
     const admin = supabaseAdmin as any;
 
     const { allImportRows } = await import("./import-pagination.server");
-    const batches = await allImportRows(() =>
+    const [batches, items, paused, archived] = await Promise.all([
+      allImportRows(() =>
+        admin
+          .from("fb_marketplace_import_batches")
+          .select("source_profile_url,seller_name,created_at,id", { count: "exact" })
+          .order("created_at", { ascending: false })
+          .order("id"),
+      ),
+      allImportRows(() =>
+        admin
+          .from("fb_marketplace_import_items")
+          .select(
+            "source_profile_url,status,seller_id,id,listing_id,last_applied_snapshot,listing:asks!listing_id(status)",
+            { count: "exact" },
+          )
+          .order("id"),
+      ),
+      admin.from("managed_import_sellers").select("source_profile_url").eq("sync_enabled", false),
       admin
-        .from("fb_marketplace_import_batches")
-        .select("source_profile_url,seller_name,created_at,id", { count: "exact" })
-        .order("created_at", { ascending: false })
-        .order("id"),
-    );
-    const items = await allImportRows(() =>
-      admin
-        .from("fb_marketplace_import_items")
-        .select(
-          "source_profile_url,status,seller_id,id,listing_id,last_applied_snapshot,listing:asks!listing_id(status)",
-          { count: "exact" },
-        )
-        .order("id"),
-    );
+        .from("import_source_archives")
+        .select("source_profile_url,archived_at")
+        .not("archived_at", "is", null),
+    ]);
+    if (paused.error) throw new Error(paused.error.message);
+    if (archived.error) throw new Error(archived.error.message);
     const counts = countImportedSellerListings(items ?? []);
     const sellerByProfile = new Map<string, string>();
     for (const row of items ?? []) {
@@ -806,22 +815,14 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
 
     // Paused sellers are surfaced so scans skip them before any source page
     // is opened; staging still rejects them server-side as a backstop.
-    const { data: pausedRows, error: pausedError } = await admin
-      .from("managed_import_sellers")
-      .select("source_profile_url")
-      .eq("sync_enabled", false);
-    if (pausedError) throw new Error(pausedError.message);
     const pausedProfiles = new Set<string>(
-      (pausedRows ?? []).map((row: { source_profile_url: string }) => row.source_profile_url),
+      (paused.data ?? []).map((p: { source_profile_url: string }) => p.source_profile_url),
     );
-
-    const { data: archives, error: archiveError } = await admin
-      .from("import_source_archives")
-      .select("source_profile_url,archived_at")
-      .not("archived_at", "is", null);
-    if (archiveError) throw new Error(archiveError.message);
     const archivedByProfile = new Map<string, string>(
-      (archives ?? []).map((r: any) => [r.source_profile_url, r.archived_at]),
+      (archived.data ?? []).map((r: { source_profile_url: string; archived_at: string }) => [
+        r.source_profile_url,
+        r.archived_at,
+      ]),
     );
     const profiles = new Map<string, FbImportProfile>();
     for (const batch of batches ?? []) {
