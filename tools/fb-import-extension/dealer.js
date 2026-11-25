@@ -1,5 +1,22 @@
 /** Diesel Depot's own Sandhills catalog. No KSL dependency or scheduled reads. */
 const DEALER_INVENTORY_RE = /^https:\/\/(?:www\.)?diesel-depot\.com\/inventory\/(?:[?#]|$)/i;
+const DEALER_CATALOG_HOME = "https://www.diesel-depot.com/default.htm";
+
+function isDealerCatalogHome(value) {
+  try {
+    const url = new URL(value);
+    return (
+      url.origin === "https://www.diesel-depot.com" &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      ["/", "/default.htm"].includes(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 function dealerListingId(value) {
   try {
     const url = new URL(value);
@@ -76,8 +93,11 @@ function dealerCollectInventoryPage() {
       byUrl.set(anchor.href, { sourceUrl: anchor.href, title: anchor.textContent.trim() });
   }
   const names = new Set([
+    "trucks",
     "trucks for sale",
+    "trailers",
     "trailers for sale",
+    "construction attachments",
     "truck bodies",
     "other",
     "attachments",
@@ -102,8 +122,17 @@ function dealerCollectInventoryPage() {
     expected: counts ? counts[2] : Number(catalog?.offers?.offerCount) || 0,
     pageCount: counts ? (counts[2] ? counts[1] - counts[0] + 1 : 0) : null,
     recognized: !!catalog || !!counts,
+    explicitEnd: !!counts && counts.every((count) => count === 0),
     nextUrl: next?.href || null,
+    nextButton: !!document.querySelector('button[aria-label="Next Page"]:not([disabled])'),
   };
+}
+
+function dealerClickNextPage() {
+  const next = document.querySelector('button[aria-label="Next Page"]:not([disabled])');
+  if (!next) return false;
+  next.click();
+  return true;
 }
 
 function dealerExtractListingInPage(withPhotos) {
@@ -256,93 +285,14 @@ async function runDealer(tabId) {
       `<strong>Bluebird import · Diesel Depot</strong><div style="margin-top:6px">${body}</div>`,
     );
   await say("Finding all inventory sections…");
-  const first = await exec(tabId, dealerCollectInventoryPage);
-  if (!first.sections.length)
-    throw new Error("Could not find the dealer's inventory sections. No batch was created.");
-  const pages = first.sections
-      .filter((value) => {
-        try {
-          const url = new URL(value);
-          return (
-            url.origin === "https://www.diesel-depot.com" &&
-            url.pathname === "/inventory/" &&
-            url.search.startsWith("?/listings/")
-          );
-        } catch {
-          return false;
-        }
-      })
-      .map((url) => ({ url, kind: dealerCatalogKind(url) })),
-    visited = new Set(),
-    byId = new Map();
-  let complete = true;
-  while (pages.length && visited.size < 100) {
-    const { url, kind } = pages.shift();
-    if (visited.has(url)) continue;
-    visited.add(url);
-    await chrome.tabs.update(tabId, { url });
-    const isCatalog = (current) => {
-      try {
-        const u = new URL(current);
-        return (
-          u.origin === "https://www.diesel-depot.com" &&
-          u.pathname === "/inventory/" &&
-          /^\?\/listings\/(for-sale|search)\b/.test(u.search)
-        );
-      } catch {
-        return false;
-      }
-    };
-    if (!(await waitForPage(tabId, isCatalog, 25000, 1500))) {
-      complete = false;
-      break;
-    }
-    if (await exec(tabId, isBotCheckPage)) {
-      const tab = await chrome.tabs.get(tabId);
-      if (
-        !(await waitForHuman({ id: tab.windowId }, tabId, "Diesel Depot", say, false)) ||
-        !(await waitForPage(tabId, isCatalog, 25000, 1500))
-      ) {
-        complete = false;
-        break;
-      }
-    }
-    const page = await exec(tabId, dealerCollectInventoryPage);
-    if (
-      !page?.recognized ||
-      !dealerCatalogHeadingMatches(kind, page.heading) ||
-      (page.pageCount !== null && page.items.length < page.pageCount) ||
-      (page.expected > page.items.length && !page.nextUrl && page.pageCount === page.expected)
-    ) {
-      complete = false;
-      break;
-    }
-    for (const item of page.items) {
-      const id = dealerListingId(item.sourceUrl);
-      if (id && !byId.has(id)) byId.set(id, item);
-    }
-    if (page.nextUrl) {
-      const next = new URL(page.nextUrl);
-      if (
-        next.origin !== "https://www.diesel-depot.com" ||
-        !next.search.startsWith("?/listings/")
-      ) {
-        complete = false;
-        break;
-      }
-      if (!visited.has(page.nextUrl)) pages.push({ url: page.nextUrl, kind });
-    } else if (page.pageCount !== null && page.expected > page.pageCount) {
-      complete = false;
-      break;
-    }
-    await say(`${visited.size} inventory page(s), ${byId.size} unique listing(s) found…`);
-  }
-  if (pages.length) complete = false;
-  if (!complete)
-    throw new Error(
-      "An inventory page could not be read. Complete any site verification and retry; no partial batch was created.",
-    );
-  const items = [...byId.values()];
+  const sourceProfileUrl = "https://www.diesel-depot.com/inventory/";
+  const { items, scan } = await collectSellerScan(
+    sourceProfileUrl,
+    profileScanConfig(sourceProfileUrl),
+    say,
+  );
+  if (!scan.complete)
+    throw new Error("Could not finish reading the dealer's catalog. No batch was created.");
   let done = 0;
   await readListingsPaced(items, {
     siteName: "Diesel Depot",
@@ -361,7 +311,7 @@ async function runDealer(tabId) {
     say,
     "",
     {
-      sourceProfileUrl: "https://www.diesel-depot.com/inventory/",
+      sourceProfileUrl,
       sellerName: "Diesel Depot",
       items: usable.map(dealerToImportItem),
     },

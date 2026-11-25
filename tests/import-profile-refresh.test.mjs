@@ -138,12 +138,15 @@ function profileHarness(site, pages) {
     VINTED_MEMBER_RE: /vinted/,
     WHATNOT_USER_RE: /whatnot/,
     DEALER_INVENTORY_RE: /diesel/,
+    DEALER_CATALOG_HOME: "https://www.diesel-depot.com/default.htm",
+    isDealerCatalogHome: (url) => url === "https://www.diesel-depot.com/default.htm",
     isBotCheckPage() {},
     readerAccessRestriction() {},
     kslCollectFromMemberPage() {},
     vintedCollectFromProfile() {},
     whatnotCollectFromShop() {},
     dealerCollectInventoryPage() {},
+    dealerClickNextPage() {},
     kslToImportItem: (i) => i,
     vintedToImportItem: (i) => i,
     whatnotToImportItem: (i) => i,
@@ -160,6 +163,7 @@ function profileHarness(site, pages) {
         },
       },
       tabs: {
+        get: async () => ({ url: current }),
         update: async (_id, { url }) => {
           current = url;
           visits++;
@@ -171,7 +175,7 @@ function profileHarness(site, pages) {
     exec: async (_id, fn) => (fn.name === "isBotCheckPage" ? false : pages[current]),
   });
   vm.runInContext(load("profile-scan.js"), c);
-  return { c, profile, stats: () => ({ visits, removed }) };
+  return { c, profile, stats: () => ({ visits, removed }), setCurrent: (url) => (current = url) };
 }
 
 test("a failed profile check skips the next KSL seller and still reports another source", async () => {
@@ -240,7 +244,7 @@ test("Diesel Depot reconciles cumulative pages, not the size of its final page",
     a = p + "?/listings/for-sale/trucks",
     b = a + "?page=2";
   const h = profileHarness("Diesel Depot", {
-    [p]: { sections: [a], items: [] },
+    ["https://www.diesel-depot.com/default.htm"]: { sections: [a], items: [] },
     [a]: {
       recognized: true,
       heading: "Trucks",
@@ -261,6 +265,62 @@ test("Diesel Depot reconciles cumulative pages, not the size of its final page",
   assert.equal(result.scan.complete, true);
   assert.equal(result.items.length, 3);
 });
+test("Diesel Depot follows the rendered Next Page button and keeps explicit empty sections", async () => {
+  const p = "https://www.diesel-depot.com/inventory/";
+  const home = "https://www.diesel-depot.com/default.htm";
+  const trucks = p + "?/listings/for-sale/trucks/27";
+  const page1 = p + "?/listings/search?ScopeCategoryIDs=27";
+  const page2 = page1 + "&page=2";
+  const empty = p + "?/listings/for-sale/farm-equipment/464";
+  const pages = {
+    [home]: { sections: [trucks, empty], items: [] },
+    [page1]: {
+      recognized: true,
+      heading: "Trucks",
+      expected: 2,
+      pageCount: 1,
+      items: [{ sourceUrl: p + "1" }],
+      nextButton: true,
+    },
+    [page2]: {
+      recognized: true,
+      heading: "Trucks",
+      expected: 2,
+      pageCount: 1,
+      items: [{ sourceUrl: p + "2" }],
+    },
+    [empty]: {
+      recognized: true,
+      heading: "Farm equipment",
+      expected: 0,
+      pageCount: 0,
+      explicitEnd: true,
+      items: [],
+    },
+  };
+  const h = profileHarness("Diesel Depot", pages);
+  h.c.dealerCatalogKind = (url) => (url.includes("farm-equipment") ? "farm" : "trucks");
+  const update = h.c.chrome.tabs.update;
+  h.c.chrome.tabs.update = (id, { url }) => update(id, { url: url === trucks ? page1 : url });
+  h.c.waitForPage = async (_id, matches) => matches((await h.c.chrome.tabs.get()).url);
+  const exec = h.c.exec;
+  let clicks = 0;
+  h.c.exec = async (id, fn) => {
+    if (fn.name === "dealerClickNextPage") {
+      clicks++;
+      h.setCurrent(page2);
+      return true;
+    }
+    return exec(id, fn);
+  };
+  const result = await h.c.collectSellerScan(p, h.c.profileScanConfig(p), () => {});
+  assert.equal(result.sourceProfileUrl, p);
+  assert.equal(result.scan.complete, true);
+  assert.equal(result.items.length, 2);
+  assert.equal(clicks, 1);
+  assert.equal(h.stats().visits, 3);
+});
+
 test("Vinted count shortfall is incomplete, not absence evidence", async () => {
   const p = "https://www.vinted.com/member/1";
   const h = profileHarness("Vinted", {
@@ -388,7 +448,7 @@ test("Diesel Depot retains earlier advertised catalog total when final page coun
     a = p + "?/listings/for-sale/trucks",
     b = a + "?page=2";
   const h = profileHarness("Diesel Depot", {
-    [p]: { sections: [a], items: [] },
+    ["https://www.diesel-depot.com/default.htm"]: { sections: [a], items: [] },
     [a]: {
       recognized: true,
       heading: "Trucks",
@@ -415,7 +475,7 @@ test("Diesel Depot excess distinct inventory also fails catalog reconciliation",
   const p = "https://www.diesel-depot.com/inventory/",
     a = p + "?/listings/for-sale/trucks";
   const h = profileHarness("Diesel Depot", {
-    [p]: { sections: [a], items: [] },
+    ["https://www.diesel-depot.com/default.htm"]: { sections: [a], items: [] },
     [a]: {
       recognized: true,
       heading: "Trucks",

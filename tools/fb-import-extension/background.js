@@ -1253,7 +1253,7 @@ chrome.action.onClicked.addListener(async (tab) => {
         ? ["Vinted", () => runVinted(tab.id)]
         : WHATNOT_USER_RE.test(tab.url)
           ? ["Whatnot", () => runWhatnot(tab.id, tab.url)]
-          : DEALER_INVENTORY_RE.test(tab.url)
+          : DEALER_INVENTORY_RE.test(tab.url) || isDealerCatalogHome(tab.url)
             ? ["Diesel Depot", () => runDealer(tab.id)]
             : null
     : null;
