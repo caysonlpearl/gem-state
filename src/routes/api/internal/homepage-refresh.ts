@@ -9,16 +9,12 @@ export const Route = createFileRoute("/api/internal/homepage-refresh")({
         if (unauthorized) return unauthorized;
         const { refreshHomepageSnapshot } = await import("@/lib/homepage-snapshot.server");
         const { prewarmSeoPages } = await import("@/lib/seo-prewarm.server");
-        // Independent public cache maintenance; a homepage-source failure
-        // must not cancel preparation of an otherwise available SEO page.
-        const seo = prewarmSeoPages().catch(() => ({ checked: 0, available: 0 }));
-        try {
-          const result = await refreshHomepageSnapshot();
-          return Response.json({ ...result, seo: await seo });
-        } catch {
-          await seo;
-          return Response.json({ refreshed: false, reason: "unavailable" }, { status: 503 });
-        }
+        const result = await refreshHomepageSnapshot().catch(() => null);
+        // Warming still runs on failure, with its own connection window.
+        const seo = await prewarmSeoPages().catch(() => ({ checked: 0, available: 0 }));
+        return result
+          ? Response.json({ ...result, seo })
+          : Response.json({ refreshed: false, reason: "unavailable", seo }, { status: 503 });
       },
     },
   },

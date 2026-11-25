@@ -38,19 +38,17 @@ export const Route = createFileRoute("/api/internal/service-ratings")({
         const { refreshAdzunaHomeJobs } = await import("@/lib/adzuna-home-refresh.server");
         // Each existing homes subscription advances once per run. Database
         // reservations enforce monthly caps and preserve weekly-update credits.
-        const [ratings, homes, merchandise, homepage] = await Promise.all([
+        const [ratings, homes, merchandise, jobs] = await Promise.all([
           rateNextTradeCity().catch(() => null),
           advanceHomeFeed().catch((error) => ({ error: String(error?.message ?? error) })),
           advanceMerchandiseFeed().catch(() => ({ skipped: true, reason: "unavailable" })),
-          (async () => {
-            // This installed scheduler, not a shopper page/refresh, maintains
-            // the broad six-hour jobs cache. The existing provider reservation
-            // owns the budget and concurrent-call gate. Capture it before the
-            // snapshot; an unavailable job source does not cancel other rows.
-            const jobs = await refreshAdzunaHomeJobs();
-            return { ...(await refreshHomepageSnapshot()), jobs };
-          })().catch(() => ({ refreshed: false, reason: "unavailable" })),
+          refreshAdzunaHomeJobs().catch(() => ({ skipped: true, reason: "unavailable" })),
         ]);
+        // The installed scheduler saves provider results first. The snapshot
+        // then reads the saved inventory without competing with those jobs.
+        const homepage = await refreshHomepageSnapshot()
+          .then((result) => ({ ...result, jobs }))
+          .catch(() => ({ refreshed: false, reason: "unavailable", jobs }));
         return Response.json({
           ratings: ratings ?? { skipped: true },
           homes,

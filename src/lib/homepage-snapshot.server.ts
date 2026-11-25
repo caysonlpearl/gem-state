@@ -10,8 +10,13 @@ import {
 
 export const HOMEPAGE_BUCKET = "homepage-snapshots";
 export const HOMEPAGE_OBJECT = "v1/home.json";
+const STORAGE_WRITE_TIMEOUT_MS = 8_000;
+const refreshSlot = (now: number) => Math.floor(now / HOME_REFRESH_MS);
+export const homepageRefreshLeaseKey = (slot = refreshSlot(Date.now())) =>
+  `leases/layout-${HOME_CACHE_LAYOUT_VERSION}/${slot}.json`;
 type Store = {
   read(): Promise<unknown>;
+  readForRefresh(): Promise<unknown | null>;
   write(value: HomepageSnapshot): Promise<void>;
   acquire(slot: number): Promise<boolean>;
 };
@@ -27,6 +32,10 @@ export function createHomepageSnapshotCache(store: Store, build: Builder, clock 
   const usable = (value: HomepageSnapshot | null) =>
     value &&
     Object.values(value.sections).some((s) => s && clock() - s.updatedAt <= HOME_MAX_STALE_MS);
+  const fresh = (value: HomepageSnapshot | null) =>
+    value?.layoutVersion === HOME_CACHE_LAYOUT_VERSION &&
+    clock() - value.generatedAt < HOME_REFRESH_MS &&
+    !Object.keys(value.sourceFailures ?? {}).length;
   async function read(): Promise<HomepageSnapshot> {
     if (usable(memory) && clock() - checkedAt < 30_000) return memory!;
     if (reading) return reading;
@@ -35,9 +44,10 @@ export function createHomepageSnapshotCache(store: Store, build: Builder, clock 
         const value = await store.read();
         if (!validHomepageSnapshot(value) || !usable(value))
           throw new Error("No current homepage snapshot.");
-        memory = value;
+        // A CDN hit can lag a write this instance has already seen.
+        if (!memory || value.generatedAt >= memory.generatedAt || !usable(memory)) memory = value;
         checkedAt = clock();
-        return value;
+        return memory;
       } catch {
         if (usable(memory)) {
           checkedAt = clock();
@@ -53,18 +63,23 @@ export function createHomepageSnapshotCache(store: Store, build: Builder, clock 
   async function refresh(force = false) {
     if (refreshing) return refreshing;
     refreshing = (async () => {
-      const previous = await read().catch(() => null);
-      if (
-        !force &&
-        previous?.layoutVersion === HOME_CACHE_LAYOUT_VERSION &&
-        clock() - previous.generatedAt < HOME_REFRESH_MS
-      )
+      if (!force && fresh(await read().catch(() => null)))
         return { refreshed: false, reason: "fresh" };
-      if (!(await store.acquire(Math.floor(clock() / HOME_REFRESH_MS))))
-        return { refreshed: false, reason: "in_progress" };
+      const slot = refreshSlot(clock());
+      if (!(await store.acquire(slot))) return { refreshed: false, reason: "in_progress" };
+      // Public CDN and process memory are hints for the cheap no-op path.
+      // A failed lookup is not evidence that the previous inventory is empty.
+      const previous = await store.readForRefresh();
+      if (previous !== null && !validHomepageSnapshot(previous))
+        throw new Error("Previous homepage inventory could not be verified.");
+      if (!force && fresh(previous)) return { refreshed: false, reason: "fresh" };
       const next = await build(previous);
       if (!validHomepageSnapshot(next) || !usable(next))
         throw new Error("No successful homepage sources; previous snapshot retained.");
+      // Leave enough time for the bounded upload within this lease. A worker
+      // from the previous slot must not finish after the next slot can write.
+      if (refreshSlot(clock() + STORAGE_WRITE_TIMEOUT_MS) !== slot)
+        return { refreshed: false, reason: "lease_elapsed" };
       await store.write(next);
       memory = next;
       checkedAt = clock();
@@ -77,8 +92,16 @@ export function createHomepageSnapshotCache(store: Store, build: Builder, clock 
   return { read, refresh };
 }
 
-async function db() {
-  return (await import("@/integrations/supabase/client.server")).supabaseAdmin;
+async function storageClient() {
+  const { createSupabaseAdminClient } = await import("@/integrations/supabase/client.server");
+  return createSupabaseAdminClient(AbortSignal.timeout(STORAGE_WRITE_TIMEOUT_MS)).storage.from(
+    HOMEPAGE_BUCKET,
+  );
+}
+
+function parseSnapshot(body: string): unknown {
+  if (body.length > 2_000_000) throw new Error("Homepage cache is too large.");
+  return JSON.parse(body);
 }
 const shared = createHomepageSnapshotCache(
   {
@@ -92,35 +115,43 @@ const shared = createHomepageSnapshotCache(
         { signal: AbortSignal.timeout(2500) },
       );
       if (!response.ok) throw new Error("Homepage cache could not be read.");
-      const body = await response.text();
-      if (body.length > 2_000_000) throw new Error("Homepage cache is too large.");
-      return JSON.parse(body);
+      return parseSnapshot(await response.text());
+    },
+    async readForRefresh() {
+      const { data, error } = await (
+        await storageClient()
+      ).download(HOMEPAGE_OBJECT, { cacheNonce: crypto.randomUUID() }, { cache: "no-store" });
+      if (error) {
+        if (("code" in error && error.code === "NoSuchKey") || error.statusCode === "404")
+          return null;
+        throw new Error("Previous homepage inventory could not be read.");
+      }
+      const previous = parseSnapshot(await data.text());
+      if (!validHomepageSnapshot(previous))
+        throw new Error("Previous homepage inventory could not be verified.");
+      return previous;
     },
     async write(value) {
       const body = JSON.stringify(value);
       if (body.length > 2_000_000) throw new Error("Homepage cache is too large.");
       const { error } = await (
-        await db()
-      ).storage
-        .from(HOMEPAGE_BUCKET)
-        .upload(HOMEPAGE_OBJECT, body, {
-          contentType: "application/json",
-          cacheControl: "60",
-          upsert: true,
-        });
+        await storageClient()
+      ).upload(HOMEPAGE_OBJECT, body, {
+        contentType: "application/json",
+        cacheControl: "60",
+        upsert: true,
+      });
       if (error) throw new Error("Could not save the refreshed homepage.");
     },
     async acquire(slot) {
       // Storage's unique object key is a cross-instance five-minute lease.
       // Other workers lose this insert without doing the expensive source reads.
       const { error } = await (
-        await db()
-      ).storage
-        .from(HOMEPAGE_BUCKET)
-        .upload(`leases/layout-${HOME_CACHE_LAYOUT_VERSION}/${slot}.json`, "{}", {
-          contentType: "application/json",
-          upsert: false,
-        });
+        await storageClient()
+      ).upload(homepageRefreshLeaseKey(slot), "{}", {
+        contentType: "application/json",
+        upsert: false,
+      });
       if (error && !/already exists|duplicate/i.test(error.message))
         throw new Error("Homepage refresh lease is unavailable.");
       return !error;

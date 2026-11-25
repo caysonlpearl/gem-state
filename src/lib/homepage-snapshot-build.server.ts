@@ -168,33 +168,17 @@ export async function buildHomepageSnapshot(
           },
         }
       : sources);
-  let results: PromiseSettledResult<Result>[];
-  let removed: Set<string>;
-  if (fullInventory) {
-    removed = await (injected?.removed ?? moderatedIds)();
-    results = [];
-    // Background coverage reads are complete, rather than homepage samples.
-    // Keep connection use bounded while preserving independent source failures.
-    for (const key of HOME_SOURCE_KEYS) {
-      try {
-        results.push({ status: "fulfilled", value: await loaders[key]() });
-      } catch (reason) {
-        results.push({ status: "rejected", reason });
-      }
-    }
-  } else {
-    // Give the vehicle feed an independent connection window so concurrent
-    // providers cannot exhaust the edge runtime's open connection slots.
-    const vehicles = loaders.vehicles();
-    const vehicleWindow = Promise.allSettled([vehicles]);
-    [results, removed] = await Promise.all([
-      Promise.allSettled(
-        HOME_SOURCE_KEYS.map((key) =>
-          key === "vehicles" ? vehicles : vehicleWindow.then(loaders[key]),
-        ),
-      ),
-      (injected?.removed ?? moderatedIds)(),
-    ]);
+  // Moderation is required for both new cards and retained cards. Give those
+  // reads their own connection window before starting any inventory work.
+  const removed = await (injected?.removed ?? moderatedIds)();
+  const results: PromiseSettledResult<Result>[] = [];
+  const batchSize = fullInventory ? 1 : 2;
+  for (let offset = 0; offset < HOME_SOURCE_KEYS.length; offset += batchSize) {
+    // Individual sources can open multiple connections internally. A small
+    // batch starts native inventory and vehicles first without queuing all
+    // seven sources behind the worker's connection limit.
+    const batch = HOME_SOURCE_KEYS.slice(offset, offset + batchSize);
+    results.push(...(await Promise.allSettled(batch.map(async (key) => loaders[key]()))));
   }
   const sections: HomepageSnapshot["sections"] = {};
   const sourceFailures: NonNullable<HomepageSnapshot["sourceFailures"]> = {};
