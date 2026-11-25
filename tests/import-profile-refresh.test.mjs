@@ -350,7 +350,7 @@ test("Facebook stagnation is incomplete even after finding listings", async () =
     },
   });
   h.c.collectListingsFromPage = function collectListingsFromPage() {};
-  h.c.autoScroll = async () => {};
+  h.c.collectFacebookSeller = (id) => h.c.exec(id, h.c.collectListingsFromPage);
   h.c.inferCategory = () => "general";
   const result = await h.c.collectSellerScan(p, h.c.profileScanConfig(p), () => {});
   assert.equal(result.scan.complete, false);

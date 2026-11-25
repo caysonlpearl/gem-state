@@ -100,13 +100,7 @@ async function collectSellerScan(profile, config, notify) {
           break;
         }
       }
-      // Facebook virtualized cards must be accumulated while scrolling.
-      let facebookPages = [];
-      if (config.site === "Facebook") {
-        await autoScroll(tabId, async () => {
-          facebookPages.push(await exec(tabId, collectListingsFromPage));
-        });
-      } else if (config.site === "Whatnot") {
+      if (config.site === "Whatnot") {
         const scroll = await autoScrollWhatnot(tabId, (state) =>
           notify(
             `Whatnot: loaded ${state.count}${state.expected ? `/${state.expected}` : ""} shop products`,
@@ -114,7 +108,12 @@ async function collectSellerScan(profile, config, notify) {
         );
         if (!scroll.complete) complete = false;
       }
-      const page = await exec(tabId, config.collect);
+      const page =
+        config.site === "Facebook"
+          ? await collectFacebookSeller(tabId, (count) =>
+              notify(`Facebook: ${count} listings found`),
+            )
+          : await exec(tabId, config.collect);
       const stillChallenged = await exec(tabId, isBotCheckPage);
       if (!page || stillChallenged) {
         complete = false;
@@ -142,16 +141,14 @@ async function collectSellerScan(profile, config, notify) {
       }
       sellerName ||= page.sellerName || "";
       if (!dealer) expected = Math.max(expected, page.expected || 0);
-      for (const chunk of [...facebookPages, page]) {
-        for (const item of chunk?.items || []) {
-          const id = readerForSource(item.sourceUrl)?.idOf(item.sourceUrl);
-          if (id)
-            items.set(id, {
-              ...item,
-              city: item.city || page.city || "",
-              state: item.state || page.state || "",
-            });
-        }
+      for (const item of page.items || []) {
+        const id = readerForSource(item.sourceUrl)?.idOf(item.sourceUrl);
+        if (id)
+          items.set(id, {
+            ...item,
+            city: item.city || page.city || "",
+            state: item.state || page.state || "",
+          });
       }
       let nextUrl = page.nextUrl;
       let nextAlreadyOpen = false;

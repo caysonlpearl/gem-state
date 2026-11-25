@@ -69,3 +69,5 @@ Version 1.5.14 confirms whether Chrome started a scan and accepts requests from 
 Version 1.5.15 uses one reader window for KSL seller scans, pauses for verification even when the check appears during detail extraction, and focuses the check from Show running importer. The last scan keeps per-seller unread counts and reasons after reloading the dashboard.
 
 Version 1.5.16 starts Diesel Depot scans from the official homepage and follows its current inventory links. It follows the catalog’s Next Page button, recognizes explicitly empty sections, and verifies each category before accepting its listings. The Bluebird source URL stays the same.
+
+Facebook discovery keeps listings even after their cards scroll out of view and allows slow result pages more time to load.
