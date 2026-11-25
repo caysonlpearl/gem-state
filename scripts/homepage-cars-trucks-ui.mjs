@@ -193,6 +193,25 @@ try {
       await capture("loading");
       await page.evaluate(() => window.__bluebirdHomepageFixture.release());
       await readyCars();
+      const vehicle = lead.locator("article").filter({
+        has: page.getByRole("heading", { name: "Synthetic car 1", exact: true }),
+      });
+      const body = vehicle.locator(".listing-preview-body");
+      const rows = await body.locator(":scope > *").allTextContents();
+      const age = body.locator("time");
+      const location = body.getByText("Boise, ID", { exact: true });
+      assert.deepEqual(rows, [
+        "Synthetic car 1",
+        `Boise, ID·${await age.innerText()}`,
+        "Synthetic Motors",
+        "$25,000",
+      ]);
+      assert.equal(await age.getAttribute("datetime"), "2026-10-20T00:00:00Z");
+      assert.ok((await age.innerText()).trim());
+      assert.ok(Math.abs((await age.boundingBox()).y - (await location.boundingBox()).y) < 2);
+      assert.ok((await body.boundingBox()).height <= 108, "vehicle preview body stays compact");
+      assert.equal(await body.getByRole("img", { name: "Verified dealership" }).count(), 1);
+      check.checks.push("compact vehicle card with posting age beside its city");
       await lead.scrollIntoViewIfNeeded();
       await capture("cars-trucks");
       await page.evaluate(() => scrollTo(0, 0));

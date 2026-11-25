@@ -3,7 +3,6 @@ import { PhotoImage } from "@/components/marketplace/PhotoImage";
 import { listingPreviewTitle, petPreviewFacts } from "@/lib/listing-preview";
 import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
-import { VehiclePrice } from "@/components/dealers/VehiclePrice";
 import { hasApprovedDealer } from "@/lib/vehicle-shopping";
 import { retailSavings } from "@/lib/retail-savings";
 import {
@@ -563,6 +562,8 @@ export function ListingCardView({
   /** Native home discovery uses the same photos/actions with a shorter body. */
   density?: "standard" | "compact" | "browse" | "mobile-compact";
 }) {
+  const hasStandardBody = density === "standard" || density === "mobile-compact";
+  const showVehicleBody = hasStandardBody && Boolean(listing.vehicle);
   return (
     <article
       ref={elementRef}
@@ -578,7 +579,7 @@ export function ListingCardView({
                 : "item"
       }
       data-listing-density={density === "standard" ? undefined : density}
-      className={`group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md ${density === "standard" || density === "mobile-compact" ? "listing-preview-card" : ""} ${className}`}
+      className={`group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md ${hasStandardBody ? "listing-preview-card" : ""} ${showVehicleBody ? "flex flex-col" : ""} ${className}`}
     >
       <div className="relative">
         <ListingLink
@@ -603,7 +604,7 @@ export function ListingCardView({
           </div>
         )}
       </div>
-      {density !== "standard" ? (
+      {density !== "standard" && !showVehicleBody ? (
         <ListingLink
           listing={listing}
           className={`shopping-preview-compact block px-2.5 pb-2.5 pt-2 ${density === "mobile-compact" ? "md:hidden" : ""}`}
@@ -653,7 +654,14 @@ export function ListingCardView({
           )}
         </ListingLink>
       ) : null}
-      {density === "standard" || density === "mobile-compact" ? (
+      {showVehicleBody ? (
+        <ListingLink
+          listing={listing}
+          className="listing-preview-body flex flex-1 flex-col gap-0.5 px-3.5 pb-3 pt-2.5"
+        >
+          <VehicleCardBody listing={listing} soldAt={soldAt} />
+        </ListingLink>
+      ) : hasStandardBody ? (
         listing.home ? (
           <ListingLink
             listing={listing}
@@ -675,11 +683,7 @@ export function ListingCardView({
                     Asked
                   </span>
                 ) : null}
-                {listing.vehicle ? (
-                  <VehiclePrice listing={listing} compact />
-                ) : (
-                  <Price listing={listing} />
-                )}
+                <Price listing={listing} />
               </div>
             )}
             <h3
@@ -688,12 +692,6 @@ export function ListingCardView({
               {listingPreviewTitle(listing)}
             </h3>
             <Facts listing={listing} />
-            {vehicleSourceLabel(listing) ? (
-              <p className="mt-1 flex min-w-0 items-center gap-1 text-[11.5px] font-medium text-primary">
-                <span className="truncate">{vehicleSourceLabel(listing)}</span>
-                {hasApprovedDealer(listing) ? <VerifiedDealerBadge size={15} /> : null}
-              </p>
-            ) : null}
             <p className="listing-preview-location mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
               {listing.externalMerchandise ? (
                 <>
@@ -709,11 +707,9 @@ export function ListingCardView({
                   <span className="min-w-0 truncate">
                     {placeLabel(listing.city, listing.state)}
                   </span>
-                  {!listing.vehicle && (
-                    <span className="ml-auto shrink-0 text-[10px] sm:hidden">
-                      {postedAge(soldAt ?? listing.createdAt)}
-                    </span>
-                  )}
+                  <span className="ml-auto shrink-0 text-[10px] sm:hidden">
+                    {postedAge(soldAt ?? listing.createdAt)}
+                  </span>
                 </>
               )}
             </p>
@@ -741,6 +737,57 @@ export function ListingCardView({
         )
       ) : null}
     </article>
+  );
+}
+
+function VehicleCardBody({ listing, soldAt }: { listing: ListingCardSummary; soldAt?: string }) {
+  const location = placeLabel(listing.city, listing.state);
+  const date = soldAt ?? listing.createdAt;
+  const age = postedAge(date);
+  const seller = vehicleSourceLabel(listing);
+  return (
+    <>
+      <h3 className="line-clamp-2 text-[14px] font-semibold leading-[1.25] group-hover:text-primary">
+        {listingPreviewTitle(listing)}
+      </h3>
+      {location || age ? (
+        <p className="flex min-w-0 items-center gap-1 text-[11.5px] leading-4 text-muted-foreground">
+          {location ? (
+            <>
+              <MapPin
+                size={12}
+                weight="fill"
+                className="shrink-0 text-primary"
+                aria-hidden="true"
+              />
+              <span className="truncate" title={location}>
+                {location}
+              </span>
+            </>
+          ) : null}
+          {location && age ? <span aria-hidden="true">·</span> : null}
+          {age ? (
+            <time dateTime={date} className="shrink-0 whitespace-nowrap text-[10.5px]">
+              {age}
+            </time>
+          ) : null}
+        </p>
+      ) : null}
+      {seller ? (
+        <p className="flex min-w-0 items-center gap-1 text-[11.5px] font-medium leading-4 text-primary">
+          <span className="truncate" title={seller}>
+            {seller}
+          </span>
+          {hasApprovedDealer(listing) ? <VerifiedDealerBadge size={15} /> : null}
+        </p>
+      ) : null}
+      <p className="numeric mt-auto pt-1 text-[18px] font-bold leading-5 tracking-tight text-primary sm:text-[20px]">
+        {soldAt ? (
+          <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
+        ) : null}
+        <Price listing={listing} showRetail={false} />
+      </p>
+    </>
   );
 }
 
