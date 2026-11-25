@@ -4,7 +4,10 @@ import {
   createHomepageSnapshotCache,
   readHomepageSnapshot,
 } from "../src/lib/homepage-snapshot.server.ts";
-import { buildHomepageSnapshot } from "../src/lib/homepage-snapshot-build.server.ts";
+import {
+  buildHomepageSnapshot,
+  loadHomepageVehicles,
+} from "../src/lib/homepage-snapshot-build.server.ts";
 import {
   HOME_MAX_STALE_MS,
   HOME_CACHE_LAYOUT_VERSION,
@@ -326,6 +329,84 @@ test("a homes-source outage cannot restore previews from a snapshot before the c
     removed: async () => new Set(),
   });
   assert.equal(current.sections.homes.cards[0].id, "preview-only-home");
+});
+
+test("the homepage keeps fresh authorized dealership stock when the aggregator cache fails", async () => {
+  const now = Date.now();
+  const dealerCar = (id) => card(id, { categorySlug: "cars-trucks" });
+  const sources = Object.fromEntries(
+    HOME_SOURCE_KEYS.map((key) => [key, async () => ({ cards: [] })]),
+  );
+  sources.vehicles = () =>
+    loadHomepageVehicles(
+      async () => ({
+        cards: [dealerCar("dealerfeed-available"), dealerCar("dealerfeed-removed")],
+        dealers: [],
+      }),
+      async () => {
+        throw Error("Vehicle cache timeout");
+      },
+    );
+
+  const next = await buildHomepageSnapshot(null, {
+    sources,
+    removed: async () => new Set(["dealerfeed-removed"]),
+    now,
+  });
+  assert.equal(next.sourceFailures.vehicles.reason, "timeout");
+  assert.deepEqual(
+    homepagePayload(next, now).lead.motors.map((car) => car.id),
+    ["dealerfeed-available"],
+  );
+});
+
+test("an unavailable dealership authority retains the saved vehicle section and skips an unchecked merge", async () => {
+  const now = Date.now();
+  const previous = snapshot(now - 1000);
+  previous.sections.vehicles = {
+    updatedAt: now - 1000,
+    cards: [card("prior-vehicle", { categorySlug: "cars-trucks" })],
+  };
+  const sources = Object.fromEntries(
+    HOME_SOURCE_KEYS.map((key) => [key, async () => ({ cards: [] })]),
+  );
+  let aggregatedRead = false;
+  sources.vehicles = () =>
+    loadHomepageVehicles(
+      async () => {
+        throw Error("Dealer feed unavailable");
+      },
+      async () => {
+        aggregatedRead = true;
+        return [];
+      },
+    );
+
+  const next = await buildHomepageSnapshot(previous, {
+    sources,
+    removed: async () => new Set(),
+    now,
+  });
+  assert.equal(aggregatedRead, false);
+  assert.deepEqual(next.sections.vehicles, previous.sections.vehicles);
+  assert.equal(next.sourceFailures.vehicles.reason, "unavailable");
+
+  const empty = await buildHomepageSnapshot(null, { sources, removed: async () => new Set(), now });
+  assert.equal(homepagePayload(empty, now).lead.inventoryUnavailable, true);
+  assert.equal(homepagePayload(empty, now).lead.motors.length, 0);
+  assert.equal(homepagePayload(snapshot(now, []), now).lead.inventoryUnavailable, undefined);
+});
+
+test("an empty dealership feed and an unavailable aggregator cannot overwrite a saved vehicle row", async () => {
+  await assert.rejects(
+    loadHomepageVehicles(
+      async () => ({ cards: [], dealers: [] }),
+      async () => {
+        throw Error("Vehicle cache timeout");
+      },
+    ),
+    /Vehicle cache timeout/,
+  );
 });
 
 test("full shopping coverage bounds concurrent source reads and preserves a failed source without extending its freshness", async () => {

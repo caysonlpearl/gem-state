@@ -197,6 +197,9 @@ export function homepagePayload(
     lead: {
       categoryCounts,
       totalActive,
+      ...(snapshot.sourceFailures?.vehicles || snapshot.sourceFailures?.native
+        ? { inventoryUnavailable: true }
+        : {}),
       motors: selectDiscoveryCards(
         motors.filter((c) => c.categorySlug === "cars-trucks"),
         24,
