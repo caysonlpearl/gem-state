@@ -634,7 +634,7 @@ function ImportedSellers() {
             {importJournal.last.phase === "completed"
               ? "Last seller scan completed"
               : importJournal.last.phase === "partial"
-                ? "Last seller scan finished with unread results"
+                ? "Last seller scan was incomplete"
                 : "Last seller scan stopped before finishing"}
           </p>
           <p className="mt-1">
