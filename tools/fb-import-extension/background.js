@@ -81,39 +81,44 @@ function overlay(tabId, html) {
   );
 }
 
-function countOwnListings(tabId) {
-  return exec(
-    tabId,
-    () =>
-      Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]')).filter((a) =>
-        /[?&]ref=marketplace_profile\b/.test(a.getAttribute("href") || ""),
-      ).length,
-  );
-}
-
-async function autoScroll(tabId, onProgress) {
+async function collectFacebookSeller(tabId, onProgress) {
+  const items = new Map();
+  let previous;
+  let sellerName;
+  let stationary = 0;
   await chrome.debugger.attach({ tabId }, "1.3");
   try {
-    let last = await countOwnListings(tabId);
-    let stagnant = 0;
-    for (let i = 0; i < 100 && stagnant < 5; i++) {
+    for (let step = 0; step < 240; step++) {
+      const page = await exec(tabId, collectListingsFromPage);
+      if (!page || (previous && page.sourceProfileUrl !== previous.sourceProfileUrl))
+        throw new Error("Facebook navigated away from the seller profile.");
+      sellerName ||= page.sellerName;
+      const size = items.size;
+      for (const item of page.items) items.set(item.id, item);
+      const position = page.scroll;
+      stationary =
+        items.size === size &&
+        position.top === previous?.scroll.top &&
+        position.height === previous?.scroll.height
+          ? stationary + 1
+          : 0;
+      await onProgress?.(items.size);
+      previous = page;
+      // Facebook may recycle cards or pause several seconds at the bottom before it appends a page.
+      if (page.explicitEnd || stationary >= 12) break;
       await chrome.debugger.sendCommand({ tabId }, "Input.dispatchMouseEvent", {
         type: "mouseWheel",
-        x: 400,
-        y: 400,
+        x: position.x,
+        y: position.y,
         deltaX: 0,
         deltaY: 700,
       });
-      await sleep(400);
-      const count = await countOwnListings(tabId);
-      if (onProgress) await onProgress(count);
-      if (count === last) stagnant++;
-      else stagnant = 0;
-      last = count;
+      await sleep(850);
     }
   } finally {
     await chrome.debugger.detach({ tabId }).catch(() => {});
   }
+  return { ...previous, sellerName, items: [...items.values()] };
 }
 
 function whatnotShopStatus(tabId) {
@@ -258,11 +263,38 @@ function collectListingsFromPage() {
     const parsed = parseLink(a);
     if (parsed && !byId.has(parsed.id)) byId.set(parsed.id, parsed);
   }
+  let pane = links[0]?.parentElement;
+  while (pane && !/^(auto|scroll)$/.test(getComputedStyle(pane).overflowY))
+    pane = pane.parentElement;
+  const rect = pane?.getBoundingClientRect();
+  const scroller = pane || document.scrollingElement;
   return {
-    explicitEnd: /no more listings|has no listings/i.test(document.body?.innerText || ""),
+    explicitEnd: /no more listings|has no listings/i.test((pane || document.body)?.innerText || ""),
     sellerName: findSellerName(),
     sourceProfileUrl: location.href.split("?")[0],
     items: Array.from(byId.values()),
+    scroll: {
+      x: Math.round(
+        Math.max(
+          1,
+          Math.min(
+            window.innerWidth - 2,
+            rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+          ),
+        ),
+      ),
+      y: Math.round(
+        Math.max(
+          1,
+          Math.min(
+            window.innerHeight - 2,
+            rect ? rect.top + rect.height / 2 : window.innerHeight / 2,
+          ),
+        ),
+      ),
+      top: scroller?.scrollTop ?? 0,
+      height: scroller?.scrollHeight ?? 0,
+    },
   };
 }
 
@@ -1184,14 +1216,12 @@ async function run(tabId) {
     tabId,
     "<strong>GemList import</strong><div style='margin-top:6px'>Scrolling to load every listing…</div>",
   );
-  await autoScroll(tabId, (count) => {
+  const { sellerName, sourceProfileUrl, items } = await collectFacebookSeller(tabId, (count) =>
     overlay(
       tabId,
       `<strong>GemList import</strong><div style="margin-top:6px">Scrolling… ${count} found</div>`,
-    );
-  });
-
-  const { sellerName, sourceProfileUrl, items } = await exec(tabId, collectListingsFromPage);
+    ),
+  );
   if (!items.length) {
     await overlay(
       tabId,
@@ -1253,7 +1283,7 @@ chrome.action.onClicked.addListener(async (tab) => {
         ? ["Vinted", () => runVinted(tab.id)]
         : WHATNOT_USER_RE.test(tab.url)
           ? ["Whatnot", () => runWhatnot(tab.id, tab.url)]
-          : DEALER_INVENTORY_RE.test(tab.url)
+          : DEALER_INVENTORY_RE.test(tab.url) || isDealerCatalogHome(tab.url)
             ? ["Diesel Depot", () => runDealer(tab.id)]
             : null
     : null;

@@ -57,17 +57,27 @@ async function collectSellerScan(profile, config, notify) {
     sellerName = "",
     blockedReason = "",
     expected = 0;
-  const pages = [{ url: config.site === "Whatnot" ? profile + "/shop" : profile, kind: null }];
+  const dealer = config.site === "Diesel Depot";
+  const startUrl = dealer
+    ? DEALER_CATALOG_HOME
+    : config.site === "Whatnot"
+      ? profile + "/shop"
+      : profile;
+  const pages = [{ url: startUrl, kind: null }];
   try {
     while (pages.length && visited.size < SELLER_SCAN_PAGE_LIMIT) {
-      const { url, kind } = pages.shift();
+      const { url, kind, alreadyOpen } = pages.shift();
       if (visited.has(url)) {
         complete = false;
         break;
       }
       visited.add(url);
-      await chrome.tabs.update(tabId, { url });
-      if (!(await waitForPage(tabId, (current) => current === url, 25000, 2000, true))) {
+      if (!alreadyOpen) await chrome.tabs.update(tabId, { url });
+      const matchesPage = (current) => {
+        if (!dealer) return current === url;
+        return kind ? scanPageURL(profile, current, config.site) : isDealerCatalogHome(current);
+      };
+      if (!(await waitForPage(tabId, matchesPage, 25000, 2000, true))) {
         complete = false;
         break;
       }
@@ -81,19 +91,16 @@ async function collectSellerScan(profile, config, notify) {
       }
       if (await exec(tabId, isBotCheckPage)) {
         challenged = true;
-        if (!(await waitForHuman(win, tabId, config.site, notify).catch(() => false))) {
+        if (
+          !(await waitForHuman(win, tabId, config.site, notify).catch(() => false)) ||
+          !(await waitForPage(tabId, matchesPage, 25000, 2000, true))
+        ) {
           blockedReason = "verification_incomplete";
           complete = false;
           break;
         }
       }
-      // Facebook virtualized cards must be accumulated while scrolling.
-      let facebookPages = [];
-      if (config.site === "Facebook") {
-        await autoScroll(tabId, async () => {
-          facebookPages.push(await exec(tabId, collectListingsFromPage));
-        });
-      } else if (config.site === "Whatnot") {
+      if (config.site === "Whatnot") {
         const scroll = await autoScrollWhatnot(tabId, (state) =>
           notify(
             `Whatnot: loaded ${state.count}${state.expected ? `/${state.expected}` : ""} shop products`,
@@ -101,7 +108,12 @@ async function collectSellerScan(profile, config, notify) {
         );
         if (!scroll.complete) complete = false;
       }
-      const page = await exec(tabId, config.collect);
+      const page =
+        config.site === "Facebook"
+          ? await collectFacebookSeller(tabId, (count) =>
+              notify(`Facebook: ${count} listings found`),
+            )
+          : await exec(tabId, config.collect);
       const stillChallenged = await exec(tabId, isBotCheckPage);
       if (!page || stillChallenged) {
         complete = false;
@@ -117,46 +129,66 @@ async function collectSellerScan(profile, config, notify) {
         complete = false;
         break;
       }
-      sellerName ||= page.sellerName || "";
-      expected = Math.max(expected, page.expected || 0);
-      for (const chunk of [...facebookPages, page]) {
-        for (const item of chunk?.items || []) {
-          const id = readerForSource(item.sourceUrl)?.idOf(item.sourceUrl);
-          if (id)
-            items.set(id, {
-              ...item,
-              city: item.city || page.city || "",
-              state: item.state || page.state || "",
-            });
-        }
+      if (
+        dealer &&
+        kind &&
+        (!page.recognized ||
+          !dealerCatalogHeadingMatches(kind, page.heading) ||
+          (page.pageCount !== null && page.items.length < page.pageCount))
+      ) {
+        complete = false;
+        break;
       }
-      if (config.site === "Diesel Depot" && !kind) {
+      sellerName ||= page.sellerName || "";
+      if (!dealer) expected = Math.max(expected, page.expected || 0);
+      for (const item of page.items || []) {
+        const id = readerForSource(item.sourceUrl)?.idOf(item.sourceUrl);
+        if (id)
+          items.set(id, {
+            ...item,
+            city: item.city || page.city || "",
+            state: item.state || page.state || "",
+          });
+      }
+      let nextUrl = page.nextUrl;
+      let nextAlreadyOpen = false;
+      if (dealer && !kind) {
         if (!page.sections?.length) {
           complete = false;
           break;
         }
         for (const section of page.sections) {
-          if (!scanPageURL(profile, section, config.site)) {
+          const sectionKind =
+            scanPageURL(profile, section, config.site) && dealerCatalogKind(section);
+          if (!sectionKind) {
             complete = false;
             break;
           }
-          pages.push({ url: section, kind: dealerCatalogKind(section) });
+          pages.push({ url: section, kind: sectionKind });
         }
-      } else if (config.site === "Diesel Depot") {
-        if (
-          !page.recognized ||
-          !dealerCatalogHeadingMatches(kind, page.heading) ||
-          (page.pageCount !== null && page.items.length < page.pageCount)
-        ) {
-          complete = false;
-          break;
-        }
+      } else if (dealer) {
         const count = sectionCounts.get(kind) || new Set();
         for (const item of page.items) count.add(dealerListingId(item.sourceUrl));
         sectionCounts.set(kind, count);
         const total = Math.max(sectionExpected.get(kind) || 0, page.expected || 0);
         sectionExpected.set(kind, total);
-        if (!page.nextUrl && (count.size !== total || !(total > 0 || page.explicitEnd))) {
+        if (!nextUrl && count.size < total && page.nextButton) {
+          const before = (await chrome.tabs.get(tabId)).url;
+          if (
+            (await exec(tabId, dealerClickNextPage)) &&
+            (await waitForPage(
+              tabId,
+              (current) => current !== before && scanPageURL(profile, current, config.site),
+              25000,
+              1500,
+              true,
+            ))
+          ) {
+            nextUrl = (await chrome.tabs.get(tabId)).url;
+            nextAlreadyOpen = true;
+          }
+        }
+        if (!nextUrl && (count.size !== total || !(total > 0 || page.explicitEnd))) {
           complete = false;
           break;
         }
@@ -183,12 +215,12 @@ async function collectSellerScan(profile, config, notify) {
         if (!countReached && !ended) complete = false;
         termination = countReached ? "count" : ended ? "end" : "incomplete";
       }
-      if (page.nextUrl) {
-        if (!scanPageURL(profile, page.nextUrl, config.site) || visited.has(page.nextUrl)) {
+      if (nextUrl) {
+        if (!scanPageURL(profile, nextUrl, config.site) || visited.has(nextUrl)) {
           complete = false;
           break;
         }
-        pages.push({ url: page.nextUrl, kind });
+        pages.unshift({ url: nextUrl, kind, alreadyOpen: nextAlreadyOpen });
       }
       notify(
         `${config.site}: ${visited.size} profile page(s), ${items.size} source listing(s) discovered`,

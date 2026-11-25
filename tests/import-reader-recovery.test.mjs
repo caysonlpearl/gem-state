@@ -60,6 +60,54 @@ test("Vinted waits for wardrobe hydration, keeps the first cards and parses curr
   assert.equal(r.items[1].priceCents, 750);
 });
 
+test("Facebook keeps the first cards and waits through delayed virtualized pages", async () => {
+  let reads = 0;
+  let detached = false;
+  const counts = [];
+  const profile = "https://www.facebook.com/marketplace/profile/1/";
+  const c = vm.createContext({
+    chrome: {
+      debugger: {
+        attach: async () => {},
+        sendCommand: async () => {},
+        detach: async () => {
+          detached = true;
+        },
+      },
+    },
+    sleep: async () => {},
+    collectListingsFromPage() {},
+    exec: async () => {
+      const n = reads++;
+      const ids = n === 0 ? ["first", "second"] : n < 8 ? ["second", "third"] : ["fourth", "fifth"];
+      return {
+        sourceProfileUrl: profile,
+        sellerName: n === 0 ? "Seller" : null,
+        explicitEnd: n === 9,
+        items: ids.map((id) => ({ id })),
+        scroll: { x: 100, y: 200, top: 300, height: 800 },
+      };
+    },
+  });
+  const src = load("background.js");
+  vm.runInContext(
+    src.slice(
+      src.indexOf("async function collectFacebookSeller"),
+      src.indexOf("function whatnotShopStatus"),
+    ),
+    c,
+  );
+  const result = await c.collectFacebookSeller(1, (count) => counts.push(count));
+  assert.deepEqual(
+    Array.from(result.items, (item) => item.id),
+    ["first", "second", "third", "fourth", "fifth"],
+  );
+  assert.equal(result.sellerName, "Seller");
+  assert.equal(counts[0], 2);
+  assert.equal(counts.at(-1), 5);
+  assert.equal(detached, true);
+});
+
 test("Facebook discounted and decimal prices do not require a leaf with the current price", async () => {
   for (const [line, cents] of [
     ["$2,750$3,250", 275000],

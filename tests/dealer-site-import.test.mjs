@@ -208,60 +208,64 @@ test("wrong listing, verification, missing price, and explicit unavailability re
   assert.equal("photoUrls" in value, false);
 });
 
-test("whole-dealer scan accepts Sandhills URL rewrites but verifies each section heading", async () => {
+test("the toolbar imports a complete official catalog under the existing source identity", async () => {
   const catalogs = fixture("catalogs");
-  const pages = new Map(
-    catalogs.map((data) => [data.url, reader(data)("dealerCollectInventoryPage()")]),
-  );
-  let current = catalogs[0].url;
-  let normalized = current;
+  const items = catalogs.flatMap((data) => reader(data)("dealerCollectInventoryPage()").items);
+  const rows = [
+    ...new Map(items.map((item) => [dieselDepotListingId(item.sourceUrl), item])).values(),
+  ];
+  const profile = "https://www.diesel-depot.com/inventory/";
+  let complete = true;
   let delivered;
-  let pagesByKind;
   const context = vm.createContext({
     URL,
-    isBotCheckPage: function isBotCheckPage() {},
     overlay: async () => {},
-    chrome: {
-      tabs: {
-        async update(_id, { url }) {
-          current = url;
-          normalized =
-            "https://www.diesel-depot.com/inventory/?/listings/search?ScopeCategoryIDs=27&dlr=1";
-        },
-      },
+    profileScanConfig: (sourceProfile) => ({ sourceProfile }),
+    async collectSellerScan(sourceProfile, config) {
+      assert.equal(sourceProfile, profile);
+      assert.equal(config.sourceProfile, profile);
+      return { items: rows, scan: { complete } };
     },
-    async waitForPage(_id, matches) {
-      return matches(normalized);
-    },
-    async exec(_id, fn) {
-      return fn.name === "isBotCheckPage"
-        ? false
-        : (pages.get(current) ?? pagesByKind.get(context.dealerCatalogKind(current)));
-    },
-    async readListingsPaced(items) {
-      for (const item of items) {
-        item.priceCents = 100;
-        item.city = "Boise";
-        item.state = "ID";
-      }
+    async readListingsPaced(listings) {
+      for (const item of listings) item.priceCents = 100;
     },
     async deliverImport(_id, _say, _seller, payload) {
       delivered = payload;
     },
   });
   vm.runInContext(source, context);
-  pagesByKind = new Map(
-    catalogs.map((data) => [
-      context.dealerCatalogKind(data.url),
-      reader(data)("dealerCollectInventoryPage()"),
-    ]),
-  );
   await context.runDealer(1);
-  assert.equal(delivered.sourceProfileUrl, "https://www.diesel-depot.com/inventory/");
+  assert.equal(delivered.sourceProfileUrl, profile);
   assert.equal(delivered.items.length, 68);
-  assert.equal(new Set(delivered.items.map((i) => dieselDepotListingId(i.sourceUrl))).size, 68);
   assert.equal(
     reader(catalogs[0])('dealerCatalogHeadingMatches("bodies","Trucks For Sale")'),
     false,
   );
+  complete = false;
+  delivered = undefined;
+  await assert.rejects(context.runDealer(1), /No batch was created/);
+  assert.equal(delivered, undefined);
+});
+
+test("the official homepage links and explicit zero-result headings parse correctly", () => {
+  const p = "https://www.diesel-depot.com";
+  const home = p + "/default.htm";
+  const trucks = p + "/inventory/?/listings/for-sale/trucks/27?dlr=1";
+  const attachment = p + "/inventory/?/listings/for-sale/construction-attachments/81?dlr=1";
+  const links = [
+    { href: trucks, text: "Trucks" },
+    { href: attachment, text: "Construction Attachments" },
+  ];
+  const evaluate = reader({ url: home, structured: [], links });
+  assert.deepEqual(evaluate("dealerCollectInventoryPage()").sections, [trucks, attachment]);
+  assert.equal(evaluate("isDealerCatalogHome(location.href)"), true);
+  assert.equal(evaluate('isDealerCatalogHome("https://www.diesel-depot.com.evil.test/")'), false);
+  const emptySection = reader({
+    url: attachment,
+    structured: [],
+    headings: ["0 - 0 of 0 Listings"],
+  })("dealerCollectInventoryPage()");
+  assert.equal(emptySection.explicitEnd, true);
+  assert.equal(emptySection.recognized, true);
+  assert.equal(emptySection.pageCount, 0);
 });
