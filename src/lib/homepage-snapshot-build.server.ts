@@ -11,12 +11,13 @@ import {
 } from "./homepage-snapshot-contract.ts";
 import { selectLandingCoverage } from "./landing-coverage.ts";
 import { mergeDealerFeedVehicles, type PublishedFeedDealer } from "./dealer-feed-contract.ts";
+import { MARKETCHECK_ID } from "./marketcheck-contract.ts";
 import type { ClassifiedCard } from "./classifieds.functions";
 type Result = {
   cards: ClassifiedCard[];
   total?: number;
   categoryCounts?: Record<string, number>;
-  partialFailure?: { cause: unknown };
+  partialFailure?: { cause: unknown; dealers: PublishedFeedDealer[] };
 };
 type Sources = Record<HomeSourceKey, () => Promise<Result>>;
 const bounded = (q: any) => q.abortSignal(AbortSignal.timeout(8000)).retry(false);
@@ -42,8 +43,7 @@ export async function loadHomepageVehicles(
   try {
     aggregated = await readAggregated();
   } catch (cause) {
-    if (!direct.cards.length) throw cause;
-    return { cards: direct.cards, partialFailure: { cause } };
+    return { cards: direct.cards, partialFailure: { cause, dealers: direct.dealers } };
   }
   return { cards: mergeDealerFeedVehicles(direct.cards, aggregated, direct.dealers) };
 }
@@ -184,26 +184,55 @@ export async function buildHomepageSnapshot(
   const sourceFailures: NonNullable<HomepageSnapshot["sourceFailures"]> = {};
   for (const [index, key] of HOME_SOURCE_KEYS.entries()) {
     const result = results[index];
+    const saved = previous?.sections[key];
+    const usableSaved =
+      saved &&
+      now - saved.updatedAt <= HOME_MAX_STALE_MS &&
+      (key !== "homes" || previous?.layoutVersion === HOME_CACHE_LAYOUT_VERSION)
+        ? saved
+        : undefined;
     let section: HomeSection | undefined;
     if (result.status === "fulfilled") {
       const value = result.value;
-      const cards = (
-        fullInventory
-          ? value.cards
-          : selectLandingCoverage(
-              value.cards,
-              key === "native" ? 400 : key === "vehicles" ? 200 : 120,
-            )
-      ).map(homepageCard);
-      section = { updatedAt: now, cards, total: value.total, categoryCounts: value.categoryCounts };
+      if (value.partialFailure) {
+        // A successful dealership read is authoritative, including when the feed
+        // is empty. Keep only the still-usable aggregator cards from the old read.
+        const direct = value.cards.map(homepageCard);
+        const savedAggregated =
+          usableSaved?.cards.filter(
+            (card) => MARKETCHECK_ID.test(card.id) && !removed.has(card.id),
+          ) ?? [];
+        const merged = mergeDealerFeedVehicles(
+          direct,
+          savedAggregated,
+          value.partialFailure.dealers,
+        );
+        const cards = fullInventory ? merged : selectLandingCoverage(merged, 200);
+        const retainedAggregatorCards =
+          usableSaved && cards.some((card) => MARKETCHECK_ID.test(card.id));
+        if (cards.length)
+          section = {
+            updatedAt: retainedAggregatorCards ? usableSaved.updatedAt : now,
+            cards,
+          };
+      } else {
+        const cards = (
+          fullInventory
+            ? value.cards
+            : selectLandingCoverage(
+                value.cards,
+                key === "native" ? 400 : key === "vehicles" ? 200 : 120,
+              )
+        ).map(homepageCard);
+        section = {
+          updatedAt: now,
+          cards,
+          total: value.total,
+          categoryCounts: value.categoryCounts,
+        };
+      }
     } else {
-      const saved = previous?.sections[key];
-      if (
-        saved &&
-        now - saved.updatedAt <= HOME_MAX_STALE_MS &&
-        (key !== "homes" || previous?.layoutVersion === HOME_CACHE_LAYOUT_VERSION)
-      )
-        section = saved;
+      section = usableSaved;
     }
     const failure =
       result.status === "rejected" ? { cause: result.reason } : result.value.partialFailure;
