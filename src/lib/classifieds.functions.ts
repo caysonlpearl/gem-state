@@ -2936,8 +2936,11 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
       import("./homepage-snapshot-contract"),
     ]);
     const payload = homepagePayload(await readHomepageSnapshot());
-    const { initialHomepagePayload } = await import("./homepage-initial-payload");
-    return initialHomepagePayload(payload.home, payload.lead);
+    const [{ initialHomepagePayload }, { LISTING_PREVIEW_LIMIT }] = await Promise.all([
+      import("./homepage-initial-payload"),
+      import("./listing-preview"),
+    ]);
+    return initialHomepagePayload(payload.home, payload.lead, LISTING_PREVIEW_LIMIT);
   },
 );
 

@@ -12,6 +12,7 @@ import {
   isWithinClassifiedRadius,
 } from "../src/config/classifieds.ts";
 import { allocateHomepageRows } from "../src/lib/homepage-initial-payload.ts";
+import { LISTING_PREVIEW_LIMIT } from "../src/lib/listing-preview.ts";
 import { homepageDistanceRow } from "../src/lib/homepage-distance-row.ts";
 import { isGeneralHomepageListing } from "../src/lib/homepage-listing-rows.ts";
 
@@ -41,7 +42,7 @@ function context(extra = {}) {
     isGeneralHomepageListing,
     homepageDistanceRow,
     allocateHomepageRows,
-    HOMEPAGE_ROW_SIZE: 4,
+    LISTING_PREVIEW_LIMIT,
     homepageCategoryHighlights: [],
     homeQuery: {},
     homeLeadQuery: {},
@@ -120,7 +121,7 @@ test("legacy Industrial trucks and tractors stay out of general finds while shop
 });
 
 test("dedicated rows fill from statewide saved inventory without jobs displacing Fresh local finds", () => {
-  const motors = Array.from({ length: 24 }, (_, i) =>
+  const motors = Array.from({ length: 36 }, (_, i) =>
     card(`vehicle-${i}`, "cars-trucks", {
       city: i % 2 ? "Twin Falls" : "Boise",
       vehicle: { bodyStyle: "SUV" },
@@ -129,7 +130,7 @@ test("dedicated rows fill from statewide saved inventory without jobs displacing
   const jobs = Array.from({ length: 16 }, (_, i) =>
     card(`job-${i}`, "jobs", { job: { employmentType: "Part-time" } }),
   );
-  const services = Array.from({ length: 12 }, (_, i) =>
+  const services = Array.from({ length: 18 }, (_, i) =>
     card(`service-${i}`, "services", {
       city: i % 2 ? "Boise" : "Pocatello",
       service: { subcategory: "Home repair" },
@@ -144,7 +145,7 @@ test("dedicated rows fill from statewide saved inventory without jobs displacing
   };
   const c = context({
     useSuspenseQuery: () => ({ data: home }),
-    useQuery: () => ({ data: { motors: motors.slice(0, 4) } }),
+    useQuery: () => ({ data: { motors: motors.slice(0, LISTING_PREVIEW_LIMIT) } }),
   });
   const rows = nodes(c.HomeSections({ where: c.homeLocation("", undefined, 25) })).filter(
     (n) => n.type === "HomepageListingRow",
@@ -159,7 +160,11 @@ test("dedicated rows fill from statewide saved inventory without jobs displacing
     "Services for your next project",
     "Home services and repairs",
   ])
-    assert.equal(rows.find((r) => r.props.title === title).props.listings.length, 4, title);
+    assert.equal(
+      rows.find((r) => r.props.title === title).props.listings.length,
+      LISTING_PREVIEW_LIMIT,
+      title,
+    );
   const fresh = rows.find((r) => r.props.title === "Fresh local finds").props;
   assert.ok(fresh.listings.every(isGeneralHomepageListing));
   const allIds = rows.flatMap((r) => r.props.listings.map((c) => c.id));

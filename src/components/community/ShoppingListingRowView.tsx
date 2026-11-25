@@ -1,7 +1,7 @@
-import { ScrollRail } from "@/components/marketplace/ScrollRail";
+import { ListingPreviewRail } from "@/components/classifieds/ListingPreviewRail";
+import { LISTING_PREVIEW_LIMIT } from "@/lib/listing-preview";
 import type { ReactNode } from "react";
 
-/** Shared website/app layout; each platform retains its own navigation and learning adapter. */
 export function ShoppingListingRowView<T extends { id: string }>({
   title,
   items,
@@ -17,28 +17,18 @@ export function ShoppingListingRowView<T extends { id: string }>({
   onCardClick?: (card: T, position: number) => void;
   className?: string;
 }) {
-  const visible = items.slice(0, 4);
+  const visible = items.slice(0, LISTING_PREVIEW_LIMIT);
   if (!visible.length) return null;
   return (
     <section className={className}>
       <h2 className="mb-4 text-lg font-semibold">{title}</h2>
-      <ScrollRail
-        role="list"
-        aria-label={`${title} listings`}
-        tabIndex={0}
-        className="shopping-listing-rail no-scrollbar flex gap-2.5 overflow-x-auto pb-1 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible"
-      >
-        {visible.map((card, position) => (
-          <div
-            key={card.id}
-            role="listitem"
-            className="shopping-rail-card flex min-w-0 shrink-0 flex-col [&>article]:flex-1"
-            onClick={onCardClick ? () => onCardClick(card, position) : undefined}
-          >
-            {renderCard(card, position)}
-          </div>
-        ))}
-      </ScrollRail>
+      <ListingPreviewRail
+        label={`${title} listings`}
+        items={visible}
+        renderCard={renderCard}
+        onCardClick={onCardClick}
+        className="shopping-listing-rail"
+      />
       {renderFooter?.(visible)}
     </section>
   );

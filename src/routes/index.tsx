@@ -9,6 +9,7 @@ import { selectDiscoveryCards } from "@/lib/discovery-ranking";
 import { listingCardImageUrl } from "@/lib/listing-card-image";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
 import { allocateHomepageRows } from "@/lib/homepage-initial-payload";
+import { LISTING_PREVIEW_LIMIT } from "@/lib/listing-preview";
 import { requestHomepageLocation } from "@/lib/homepage-geolocation";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -40,6 +41,7 @@ import { HomeCategoryShortcuts } from "@/components/classifieds/HomeCategoryShor
 import { HomeLocationSheet } from "@/components/classifieds/HomeLocationSheet";
 import { HomeSearchDropdown } from "@/components/classifieds/HomeSearchDropdown";
 import { ListingCard } from "@/components/classifieds/ListingCard";
+import { ListingPreviewRail } from "@/components/classifieds/ListingPreviewRail";
 import { PersonalizedShopping } from "@/components/community/ShoppingExperience";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import type { LocationPoint } from "@/components/classifieds/LocationRadiusPicker";
@@ -122,7 +124,6 @@ export const Route = createFileRoute("/")({
 const seeAll =
   "inline-flex min-h-11 shrink-0 items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline";
 
-const HOMEPAGE_ROW_SIZE = 4;
 const HOMEPAGE_LEAD_SLOW_NOTICE_MS = 8_000;
 
 const homepageCategoryHighlights = [
@@ -528,7 +529,7 @@ function HomepageLeadVehicles({
   const { matchesLocation } = where;
   const leadMotors = selectDiscoveryCards(
     homeLead.motors.filter(matchesLocation),
-    HOMEPAGE_ROW_SIZE,
+    LISTING_PREVIEW_LIMIT,
   );
   const sectionRef = useRef<HTMLElement>(null);
   const firstId = leadMotors[0]?.id;
@@ -546,19 +547,17 @@ function HomepageLeadVehicles({
     <section ref={sectionRef} className="homepage-lead-vehicles mt-6 sm:mt-14">
       <HomepageLeadHeader where={where} />
       {leadMotors.length > 0 ? (
-        <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto pb-2 sm:mt-5 sm:gap-4 lg:grid lg:grid-cols-4 lg:overflow-visible">
-          {leadMotors.map((listing, index) => (
-            <div
-              key={listing.id}
-              className="flex w-[235px] shrink-0 flex-col lg:w-auto lg:min-w-0 [&>article]:flex-1"
-            >
-              <ListingCard listing={listing} priority={index === 0} />
-            </div>
-          ))}
-        </div>
+        <ListingPreviewRail
+          label="Vehicles in Idaho"
+          items={leadMotors}
+          renderCard={(listing, index) => <ListingCard listing={listing} priority={index === 0} />}
+          className="mt-3 sm:mt-5"
+        />
       ) : (
         <EmptyState
-          title={homeLead.inventoryUnavailable ? "Featured vehicles couldn’t load." : EMPTY_ROW_TITLE}
+          title={
+            homeLead.inventoryUnavailable ? "Featured vehicles couldn’t load." : EMPTY_ROW_TITLE
+          }
           body={
             homeLead.inventoryUnavailable
               ? "Use the link above to browse current car and truck listings."
@@ -598,9 +597,12 @@ function HomepageLeadLoading({ where }: { where: ReturnType<typeof homeLocation>
     <section className="homepage-lead-vehicles mt-6 sm:mt-14">
       <HomepageLeadHeader where={where} />
       <div className="mt-5" aria-busy="true">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden="true">
-          {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="aspect-[4/3] rounded-2xl bg-secondary" />
+        <div
+          className="listing-preview-rail flex gap-3 overflow-hidden sm:gap-4"
+          aria-hidden="true"
+        >
+          {Array.from({ length: LISTING_PREVIEW_LIMIT }, (_, index) => (
+            <div key={index} className="aspect-[4/3] shrink-0 rounded-2xl bg-secondary" />
           ))}
         </div>
         <p
@@ -757,7 +759,11 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
     localSellerPicks,
     feedStart,
     shownIds,
-  } = allocateHomepageRows(home, homeLead, matchesLocation, hasLocalArea);
+  } = allocateHomepageRows(home, homeLead, {
+    matchesLocation,
+    hasLocalArea,
+    rowSize: LISTING_PREVIEW_LIMIT,
+  });
 
   return (
     <>
@@ -944,7 +950,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
             title="Outdoor gear available online"
             listings={(home.onlineMerchandise ?? [])
               .filter((listing) => listing.categorySlug === "outdoor-sporting")
-              .slice(0, HOMEPAGE_ROW_SIZE)}
+              .slice(0, LISTING_PREVIEW_LIMIT)}
             search={{ category: "outdoor-sporting" }}
             action="Browse outdoor gear"
           />
@@ -953,7 +959,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
             title="Apparel available online"
             listings={(home.onlineMerchandise ?? [])
               .filter((listing) => listing.categorySlug === "apparel-accessories")
-              .slice(0, HOMEPAGE_ROW_SIZE)}
+              .slice(0, LISTING_PREVIEW_LIMIT)}
             search={{ category: "apparel-accessories" }}
             action="Browse apparel"
           />
@@ -962,7 +968,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
             title="Tools and supplies available online"
             listings={(home.onlineMerchandise ?? [])
               .filter((listing) => listing.categorySlug === "tools-equipment")
-              .slice(0, HOMEPAGE_ROW_SIZE)}
+              .slice(0, LISTING_PREVIEW_LIMIT)}
             search={{ category: "tools-equipment" }}
             action="Browse tools and supplies"
           />
@@ -1046,16 +1052,12 @@ function HomepageListingRow({
       }
     >
       {listings.length > 0 ? (
-        <div className="no-scrollbar mt-3 flex gap-3 overflow-x-auto pb-2 sm:mt-5 sm:gap-4 lg:grid lg:grid-cols-4 lg:overflow-visible">
-          {listings.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
-            <div
-              key={listing.id}
-              className="flex w-[235px] shrink-0 flex-col lg:w-auto lg:min-w-0 [&>article]:flex-1"
-            >
-              <ListingCard listing={listing} />
-            </div>
-          ))}
-        </div>
+        <ListingPreviewRail
+          label={title}
+          items={listings}
+          renderCard={(listing) => <ListingCard listing={listing} />}
+          className="mt-3 sm:mt-5"
+        />
       ) : (
         // A slim line rather than the full card: with little inventory most
         // rows are empty, and the vehicles section already shows the card.

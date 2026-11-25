@@ -82,7 +82,7 @@ const listings = Array.from({ length: 6 }, (_, index) => ({
 test("homepage and results grids prioritize only their first listing card", () => {
   assert.match(
     homeSource,
-    /leadMotors\.map\(\(listing, index\) => \([\s\S]*?ListingCard listing=\{listing\} priority=\{index === 0\}/,
+    /items=\{leadMotors\}\s+renderCard=\{\(listing, index\) => <ListingCard listing=\{listing\} priority=\{index === 0\}/,
   );
   assert.match(
     resultsSource,

@@ -773,51 +773,55 @@
   }
 }
 
-/* Match the app's swipe cue while keeping website recommendation cards in one row. */
+.listing-preview-rail > * {
+  flex-basis: 235px;
+}
+.listing-preview-rail .listing-preview-body {
+  min-block-size: 120px;
+}
+@media (min-width: 1024px) {
+  .listing-preview-rail {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .listing-preview-rail > * {
+    /* Four 16px gaps between four full cards and half of the fifth. */
+    flex-basis: calc((100% - 64px) / 4.5);
+  }
+}
+
+/* Recommendation rows retain the app's partial third card on small screens. */
 @media (max-width: 767px) {
-  .shopping-listing-rail > .shopping-rail-card {
+  .shopping-listing-rail {
+    gap: 10px;
+  }
+  .shopping-listing-rail > * {
     flex-basis: calc((100% - 20px) / 2.5);
   }
-  .shopping-listing-rail [data-listing-density] .numeric {
+  .shopping-listing-rail .listing-preview-body {
+    min-block-size: 104px;
+    padding: 8px;
+  }
+  .shopping-listing-rail .listing-preview-body h3 {
+    font-size: 12.5px;
+    line-height: 16px;
+  }
+  .shopping-listing-rail .listing-preview-location-icon,
+  .shopping-listing-rail .listing-preview-age-full {
+    display: none;
+  }
+  .shopping-listing-rail .listing-preview-age-short {
+    display: inline;
+  }
+  .shopping-listing-rail .listing-preview-body .numeric {
     font-size: clamp(11px, 3.5vw, 14px);
-    line-height: 20px;
-    white-space: nowrap;
+    line-height: 18px;
+    overflow-wrap: anywhere;
   }
 }
 @media (max-width: 639px) {
   .listing-preview-body {
     padding: 10px 11px 11px;
-  }
-  .listing-preview-title {
-    min-height: 0;
-    margin-top: 5px;
-  }
-  .listing-preview-location {
-    margin-top: 6px;
-  }
-}
-
-.shopping-rail-card > article {
-  display: flex;
-  flex-direction: column;
-}
-@media (max-width: 767px) {
-  .shopping-rail-card > article > .shopping-preview-compact {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-  }
-  .shopping-preview-compact > h3 + div {
-    margin-top: auto;
-    padding-top: 4px;
-  }
-}
-
-@media (max-width: 767px) {
-  .shopping-listing-rail [data-preview-kind="job"] .numeric {
-    font-size: clamp(10.5px, 3.3vw, 13px);
-    letter-spacing: -0.02em;
-    white-space: nowrap;
   }
 }
 

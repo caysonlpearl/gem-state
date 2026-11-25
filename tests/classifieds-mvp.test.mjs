@@ -989,7 +989,7 @@ test("main homepage presents category-curated listing rows", async () => {
   const distanceRowSource = await read("src/lib/homepage-distance-row.ts");
   assert.match(distanceRowSource, /Farther away/);
   assert.match(distanceRowSource, /Around Idaho/);
-  assert.match(homeSource, /no-scrollbar mt-3 flex gap-3/);
+  assert.match(homeSource, /<ListingPreviewRail/);
 });
 
 test("browse heroes surface the Bluebird sponsorship opportunity", () => {

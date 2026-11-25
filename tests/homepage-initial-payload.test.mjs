@@ -10,6 +10,7 @@ import {
   homepageFeedPage,
 } from "../src/lib/homepage-initial-payload.ts";
 import { homepagePayload, HOME_MAX_STALE_MS } from "../src/lib/homepage-snapshot-contract.ts";
+import { LISTING_PREVIEW_LIMIT } from "../src/lib/listing-preview.ts";
 
 const card = (id, categorySlug = "general", details = {}) => ({
   id,
@@ -72,8 +73,8 @@ function visibleAllocation(rows) {
       .map(([key, value]) => [
         key,
         key === "distanceRow"
-          ? { ...value, listings: value.listings.slice(0, 4).map((c) => c.id) }
-          : value.slice(0, key === "feedStart" ? 24 : 4).map((c) => c.id),
+          ? { ...value, listings: value.listings.slice(0, LISTING_PREVIEW_LIMIT).map((c) => c.id) }
+          : (key === "feedStart" ? value.slice(0, 24) : value).map((c) => c.id),
       ]),
   );
 }
@@ -81,10 +82,11 @@ function visibleAllocation(rows) {
 test("initial transport preserves every allocated row and first feed page, without truncating stored pools", () => {
   const { home, lead } = inventory();
   const before = JSON.stringify(home);
-  const full = allocateHomepageRows(home, lead);
-  const projected = initialHomepagePayload(home, lead);
+  const options = { rowSize: LISTING_PREVIEW_LIMIT };
+  const full = allocateHomepageRows(home, lead, options);
+  const projected = initialHomepagePayload(home, lead, LISTING_PREVIEW_LIMIT);
   assert.deepEqual(
-    visibleAllocation(allocateHomepageRows(projected, lead)),
+    visibleAllocation(allocateHomepageRows(projected, lead, options)),
     visibleAllocation(full),
   );
   assert.equal(JSON.stringify(home), before);
@@ -96,9 +98,13 @@ test("initial transport preserves every allocated row and first feed page, witho
     JSON.stringify(projected).length < before.length / 5,
     "omit unused candidates, not visible cards",
   );
-  assert.equal(allocateHomepageRows(projected, lead).feedStart.length, 24);
+  assert.equal(full.freshListings.length, LISTING_PREVIEW_LIMIT);
+  assert.equal(allocateHomepageRows(projected, lead, options).feedStart.length, 24);
   for (const category of ["outdoor-sporting", "apparel-accessories", "tools-equipment"])
-    assert.equal(projected.onlineMerchandise.filter((c) => c.categorySlug === category).length, 4);
+    assert.equal(
+      projected.onlineMerchandise.filter((c) => c.categorySlug === category).length,
+      LISTING_PREVIEW_LIMIT,
+    );
 });
 
 test("cached continuation reaches every remaining Idaho card once across page boundaries", () => {
