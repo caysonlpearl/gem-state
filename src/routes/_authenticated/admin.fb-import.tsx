@@ -500,6 +500,12 @@ function ImportedSellers() {
 
   if (!data?.length) return null;
 
+  const previousReadIssues = (importJournal?.last?.readIssues ?? []).filter(
+    (issue) =>
+      data.some((seller) => seller.sourceProfileUrl === issue.sourceProfileUrl) &&
+      !scanReports.some((report) => report.profile === issue.sourceProfileUrl),
+  );
+
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
@@ -621,6 +627,39 @@ function ImportedSellers() {
               {importJournal.last.staged} new · {importJournal.last.updated ?? 0} updates queued for
               review
             </p>
+          )}
+          {previousReadIssues.length > 0 && (
+            <details className="mt-2">
+              <summary>Why listings could not be read</summary>
+              <ul className="mt-1 space-y-2">
+                {previousReadIssues.map((issue) => {
+                  const seller = data.find(
+                    (entry) => entry.sourceProfileUrl === issue.sourceProfileUrl,
+                  );
+                  const groups = groupUnreadable(issue.unreadableReasons, issue.unreadable);
+                  const sourceReason = issue.sourceIssue ?? "";
+                  return (
+                    <li key={issue.sourceProfileUrl}>
+                      <strong>
+                        {seller?.sellerName || sourceSiteName(issue.sourceProfileUrl)}
+                      </strong>
+                      {issue.unreadable > 0 && ` · ${issue.unreadable} unread`}
+                      <ul className="mt-1 space-y-1">
+                        {groups.map((group) => (
+                          <li key={`${group.site}-${group.reason}`}>
+                            {group.count} · {UNREADABLE_REASON_LABELS[group.reason]}
+                          </li>
+                        ))}
+                        {Object.hasOwn(UNREADABLE_REASON_LABELS, sourceReason) &&
+                          !groups.some((group) => group.reason === sourceReason) && (
+                            <li>{UNREADABLE_REASON_LABELS[sourceReason]}</li>
+                          )}
+                      </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
           )}
         </div>
       )}

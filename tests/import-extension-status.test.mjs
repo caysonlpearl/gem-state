@@ -93,6 +93,19 @@ test("show importer focuses a live reader, falls back to owner, and never opens 
   assert.ok((await h.status()).run, "closed windows must not force-unlock a still-running task");
 });
 
+test("verification status and Show running importer point to the reader asking for help", async () => {
+  const h = harness();
+  vm.runInContext(
+    'beginImportRun(5, "Seller refresh"); trackImportReader(5,true); trackImportReader(9,true); setImportVerification(9, "KSL"); recordImportProgress({type:"gemlist-fb-refresh-progress",done:1,total:8});',
+    h.ctx,
+  );
+  assert.match((await h.status()).run.message, /KSL asked for human verification/);
+  assert.equal((await h.status("show-import")).shown, true);
+  assert.equal(h.focused[0][1], 9);
+  vm.runInContext("setImportVerification(9)", h.ctx);
+  assert.match((await h.status()).run.message, /Reading listing details/);
+});
+
 test("foreign origins cannot inspect or focus an importer", async () => {
   const h = harness();
   vm.runInContext('beginImportRun(5, "Seller refresh")', h.ctx);
@@ -155,7 +168,9 @@ test("a closed admin tab and a restarted worker leave completed seller results r
   const profile = "https://classifieds.ksl.com/search/member/123";
   const report = {
     sourceProfileUrl: profile,
-    scan: { complete: true },
+    scan: { complete: false, unreadable: 8 },
+    unreadableReasons: [{ site: "KSL", reason: "verification_incomplete", count: 8 }],
+    sourceIssue: "verification_incomplete",
     results: [{ title: "Chair" }],
   };
   const journal = { last: null, pending: [] };
@@ -211,6 +226,15 @@ test("a closed admin tab and a restarted worker leave completed seller results r
   const saved = await h.status();
   assert.equal(saved.pending.length, 0);
   assert.equal(saved.last.staged, 1);
+  assert.deepEqual(saved.last.readIssues, [
+    {
+      sourceProfileUrl: profile,
+      unreadable: 8,
+      unreadableReasons: report.unreadableReasons,
+      sourceIssue: "verification_incomplete",
+    },
+  ]);
+  assert.doesNotMatch(JSON.stringify(saved.last.readIssues), /Chair/);
 });
 
 function scanPage() {

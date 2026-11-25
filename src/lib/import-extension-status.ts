@@ -76,6 +76,12 @@ export type ImportJournal = {
     staged?: number;
     updated?: number;
     message?: string;
+    readIssues?: {
+      sourceProfileUrl: string;
+      unreadable: number;
+      unreadableReasons?: unknown;
+      sourceIssue?: string;
+    }[];
   } | null;
   pending: PendingImportReport[];
   journalError?: boolean;

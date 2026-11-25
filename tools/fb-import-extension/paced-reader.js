@@ -109,24 +109,29 @@ function waitForPage(
 
 // Brings the window forward and waits for you to finish a site's check.
 async function waitForHuman(win, tabId, siteName, notify, resize = true) {
-  await chrome.windows
-    .update(win.id, { focused: true, ...(resize ? { width: 1000, height: 900 } : {}) })
-    .catch(() => {});
-  notify &&
-    notify(
-      `${siteName} asked to verify you're human. Complete the check in the window that just opened; the import continues on its own.`,
-    );
-  const deadline = Date.now() + BOT_CHECK_WAIT_MS;
-  while (Date.now() < deadline) {
-    await sleep(2000);
-    const stillChecking = await exec(tabId, isBotCheckPage).catch(async () => {
-      if (!(await chrome.tabs.get(tabId).catch(() => null)))
-        throw readFailure("reader_window_failed");
-      return true;
-    });
-    if (!stillChecking) return true;
+  typeof setImportVerification === "function" && setImportVerification(tabId, siteName);
+  try {
+    await chrome.windows
+      .update(win.id, { focused: true, ...(resize ? { width: 1000, height: 900 } : {}) })
+      .catch(() => {});
+    notify &&
+      notify(
+        `${siteName} asked to verify you're human. Complete the check in the window that just opened; the import continues on its own.`,
+      );
+    const deadline = Date.now() + BOT_CHECK_WAIT_MS;
+    while (Date.now() < deadline) {
+      await sleep(2000);
+      const stillChecking = await exec(tabId, isBotCheckPage).catch(async () => {
+        if (!(await chrome.tabs.get(tabId).catch(() => null)))
+          throw readFailure("reader_window_failed");
+        return true;
+      });
+      if (!stillChecking) return true;
+    }
+    return false;
+  } finally {
+    typeof setImportVerification === "function" && setImportVerification(tabId);
   }
-  return false;
 }
 
 /**
@@ -188,9 +193,11 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
             throw readFailure(reason);
           };
           await checkAccess();
-          if (await exec(tabId, isBotCheckPage)) {
-            // Serialize manual handoffs; a second challenged window must get
-            // its own handoff after the first, rather than sharing its result.
+          let askedForVerification = false;
+          const verifyListing = async () => {
+            if (askedForVerification) throw readFailure("challenge_detected");
+            askedForVerification = true;
+            // Only one reader can prompt the operator at a time.
             if (humanGate) await humanGate.catch(() => {});
             if (blockedSites.has(siteName)) throw readFailure(blockedSites.get(siteName));
             const ownGate = waitForHuman(win, tabId, siteName, notify)
@@ -203,12 +210,14 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
             const passed = await ownGate.finally(() => {
               if (humanGate === ownGate) humanGate = null;
             });
-            if (!passed || !(await waitForPage(tabId, matches, 25000, settleMs, true)))
-              throw readFailure("verification_incomplete");
-          }
+            if (!passed) throw readFailure("verification_incomplete");
+            await checkAccess();
+            if (!(await waitForPage(tabId, matches, 25000, settleMs, true)))
+              throw readFailure("page_not_verified");
+          };
+          if (await exec(tabId, isBotCheckPage)) await verifyListing();
           const current = await chrome.tabs.get(tabId);
           if (!matches(current.url)) throw readFailure("page_not_verified");
-          if (await exec(tabId, isBotCheckPage)) throw readFailure("challenge_detected");
           let details;
           // Hydrated detail content can arrive after navigation completes.
           // Retry extraction in the same two windows; never open extra tabs.
@@ -225,9 +234,13 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
               details = undefined;
               failure = "injection_failed";
             }
-            if (failure === "challenge_detected") throw readFailure(failure);
-            if (details?.unavailable || (details && !details.incomplete && !details.challenge))
-              break;
+            if (failure === "challenge_detected" || (await exec(tabId, isBotCheckPage))) {
+              await verifyListing();
+              // Verification is a manual pause and does not use an extraction attempt.
+              attempt--;
+              continue;
+            }
+            if (details?.unavailable || (details && !details.incomplete)) break;
             if (attempt < attempts - 1) await sleep(1500);
           }
           if (failure) throw readFailure(failure);
@@ -284,7 +297,9 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
     Array.from(
       {
         length: Math.min(
-          jobs.every((job) => job.siteName === "Vinted") ? 1 : LISTING_READER_CONCURRENCY,
+          jobs.every((job) => job.siteName === "Vinted" || job.siteName === "KSL")
+            ? 1
+            : LISTING_READER_CONCURRENCY,
           queue.length,
         ),
       },
