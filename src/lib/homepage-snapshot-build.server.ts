@@ -10,8 +10,14 @@ import {
   type HomepageSnapshot,
 } from "./homepage-snapshot-contract.ts";
 import { selectLandingCoverage } from "./landing-coverage.ts";
+import { mergeDealerFeedVehicles, type PublishedFeedDealer } from "./dealer-feed-contract.ts";
 import type { ClassifiedCard } from "./classifieds.functions";
-type Result = { cards: ClassifiedCard[]; total?: number; categoryCounts?: Record<string, number> };
+type Result = {
+  cards: ClassifiedCard[];
+  total?: number;
+  categoryCounts?: Record<string, number>;
+  partialFailure?: { cause: unknown };
+};
 type Sources = Record<HomeSourceKey, () => Promise<Result>>;
 const bounded = (q: any) => q.abortSignal(AbortSignal.timeout(8000)).retry(false);
 async function db(): Promise<any> {
@@ -25,27 +31,37 @@ async function cachedRows(table: string, pattern?: string) {
   return data ?? [];
 }
 
+export async function loadHomepageVehicles(
+  readDealers: () => Promise<{ cards: ClassifiedCard[]; dealers: PublishedFeedDealer[] }>,
+  readAggregated: () => Promise<ClassifiedCard[]>,
+): Promise<Result> {
+  // Direct inventory is also the authority for suppressing duplicate dealer
+  // inventory. Preserve the prior section if that authority cannot be read.
+  const direct = await readDealers();
+  let aggregated: ClassifiedCard[];
+  try {
+    aggregated = await readAggregated();
+  } catch (cause) {
+    if (!direct.cards.length) throw cause;
+    return { cards: direct.cards, partialFailure: { cause } };
+  }
+  return { cards: mergeDealerFeedVehicles(direct.cards, aggregated, direct.dealers) };
+}
+
 const sources: Sources = {
   async native() {
     const result = await (await import("./classifieds.functions")).loadNativeHomepageInventory();
     return { cards: result.listings, total: result.total, categoryCounts: result.categoryCounts };
   },
   async vehicles() {
-    const adapter = await import("./marketcheck.server");
-    const [aggregated, direct] = await Promise.all([
-      adapter.marketCheckCards(
-        { state: "ID" },
-        { cacheOnly: true, preparedHomeCache: adapter.prepareHomeMarketCheckCache(8000, true) },
-      ),
-      (await import("./dealer-feed.server")).dealerFeedCards({ state: "ID" }),
-    ]);
-    return {
-      cards: (await import("./dealer-feed-contract")).mergeDealerFeedVehicles(
-        direct.cards,
-        aggregated,
-        direct.dealers,
-      ),
-    };
+    return loadHomepageVehicles(
+      async () => (await import("./dealer-feed.server")).dealerFeedCards({ state: "ID" }),
+      async () =>
+        (await import("./marketcheck.server")).marketCheckCards(
+          { state: "ID" },
+          { cacheOnly: true, cacheReadTimeoutMs: 8000 },
+        ),
+    );
   },
   async homes() {
     const { openWebNinjaCards } = await import("./openwebninja-listings.server");
@@ -140,11 +156,7 @@ export async function buildHomepageSnapshot(
               );
             const direct = await (await import("./dealer-feed.server")).dealerFeedCards({});
             return {
-              cards: (await import("./dealer-feed-contract")).mergeDealerFeedVehicles(
-                direct.cards,
-                states.flat(),
-                direct.dealers,
-              ),
+              cards: mergeDealerFeedVehicles(direct.cards, states.flat(), direct.dealers),
             };
           },
           async homes() {
@@ -171,8 +183,16 @@ export async function buildHomepageSnapshot(
       }
     }
   } else {
+    // Give the vehicle feed an independent connection window so concurrent
+    // providers cannot exhaust the edge runtime's open connection slots.
+    const vehicles = loaders.vehicles();
+    const vehicleWindow = Promise.allSettled([vehicles]);
     [results, removed] = await Promise.all([
-      Promise.allSettled(HOME_SOURCE_KEYS.map((key) => loaders[key]())),
+      Promise.allSettled(
+        HOME_SOURCE_KEYS.map((key) =>
+          key === "vehicles" ? vehicles : vehicleWindow.then(loaders[key]),
+        ),
+      ),
       (injected?.removed ?? moderatedIds)(),
     ]);
   }
@@ -200,7 +220,11 @@ export async function buildHomepageSnapshot(
         (key !== "homes" || previous?.layoutVersion === HOME_CACHE_LAYOUT_VERSION)
       )
         section = saved;
-      const message = result.reason instanceof Error ? result.reason.message : "";
+    }
+    const failure =
+      result.status === "rejected" ? { cause: result.reason } : result.value.partialFailure;
+    if (failure) {
+      const message = failure.cause instanceof Error ? failure.cause.message : "";
       const reason = /subrequests|request limit/i.test(message)
         ? "request_limit"
         : /timeout|aborted|too long|deadline/i.test(message)

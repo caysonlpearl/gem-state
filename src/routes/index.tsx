@@ -558,8 +558,12 @@ function HomepageLeadVehicles({
         </div>
       ) : (
         <EmptyState
-          title={EMPTY_ROW_TITLE}
-          body="Cars and trucks show up here as soon as Idaho sellers post them. Have one to sell? Be one of the first."
+          title={homeLead.inventoryUnavailable ? "Featured vehicles couldn’t load." : EMPTY_ROW_TITLE}
+          body={
+            homeLead.inventoryUnavailable
+              ? "Use the link above to browse current car and truck listings."
+              : "Cars and trucks show up here as soon as Idaho sellers post them. Have one to sell? Be one of the first."
+          }
         />
       )}
     </section>

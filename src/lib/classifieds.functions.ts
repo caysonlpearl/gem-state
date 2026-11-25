@@ -2770,6 +2770,7 @@ export type ClassifiedsHome = {
 };
 
 export type ClassifiedsHomeLead = {
+  inventoryUnavailable?: boolean;
   /** Temporary numeric diagnostics only; no user, query, or credential data. */
   timingsMs?: Record<string, number>;
   totalActive: number;
