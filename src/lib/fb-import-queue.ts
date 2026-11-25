@@ -146,7 +146,9 @@ export function groupUnreadable(diagnostics: unknown, totalUnread: number): Unre
     const d = raw as Partial<UnreadableDiagnostic> | null;
     const count = Math.floor(Number(d?.count));
     if (!d || !Number.isFinite(count) || count <= 0) continue;
-    const reason = UNREADABLE_REASON_LABELS[String(d.reason)] ? String(d.reason) : "read_failed";
+    const reason = Object.hasOwn(UNREADABLE_REASON_LABELS, String(d.reason))
+      ? String(d.reason)
+      : "read_failed";
     const site = ["Facebook", "KSL", "Vinted", "Whatnot", "Diesel Depot"].includes(String(d.site))
       ? String(d.site)
       : "Unknown site";

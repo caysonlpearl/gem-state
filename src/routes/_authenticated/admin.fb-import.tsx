@@ -1,6 +1,7 @@
 import {
   watchImportRun,
   requestImportReport,
+  requestSellerImportScan,
   supportsImportRunStatus,
   type ImportJournal,
   type ImportRunStatus,
@@ -220,6 +221,7 @@ function ImportedSellers() {
       }),
     [],
   );
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [activeScan, setActiveScan] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [scanReports, setScanReports] = useState<
@@ -254,6 +256,7 @@ function ImportedSellers() {
   }, []);
 
   const refreshMutation = useMutation({
+    onMutate: () => setScanMessage(null),
     mutationFn: async (profileUrl: string | null | { recover: true }) => {
       if (!extensionReady)
         throw new Error(
@@ -405,90 +408,40 @@ function ImportedSellers() {
         }
         let staging = Promise.resolve();
         const received = new Set<string>();
-        let scanError: string | undefined;
-        await new Promise<void>((resolve) => {
-          let timer: ReturnType<typeof setTimeout>;
-          let observedRun = false;
-          let stopWatching: (() => void) | undefined;
-          const cleanup = () => {
-            clearTimeout(timer);
-            stopWatching?.();
-            window.removeEventListener("message", onMessage);
-          };
-          const heartbeat = () => {
-            clearTimeout(timer);
-            timer = setTimeout(
-              () => {
-                cleanup();
-                scanError = "No scan progress received. Check the importer status before retrying.";
-                resolve();
-              },
-              8 * 60 * 1000,
+        const scanError = await requestSellerImportScan<ProfileScanReport>(
+          window,
+          {
+            requestId,
+            streamReports: journalSupported,
+            profiles: profiles.map((p) => ({
+              sourceProfileUrl: p.sourceProfileUrl,
+              targets: targetsByProfile.get(p.sourceProfileUrl) ?? [],
+            })),
+          },
+          extensionConnection.version ?? "",
+          (progress) => {
+            setActiveScan(
+              progress.message ?? `Reading ${progress.done ?? 0}/${progress.total ?? 0}`,
             );
-          };
-          const onMessage = (event: MessageEvent) => {
+            setProgress({ done: progress.done ?? 0, total: progress.total ?? profiles.length });
+          },
+          (report) => {
             if (
-              event.source !== window ||
-              event.origin !== window.location.origin ||
-              event.data?.requestId !== requestId
+              !profiles.some((p) => p.sourceProfileUrl === report?.sourceProfileUrl) ||
+              received.has(report.sourceProfileUrl)
             )
               return;
-            heartbeat();
-            const m = event.data;
-            if (m.type === "gemlist-fb-refresh-progress") {
-              setActiveScan(
-                `${m.sourceProfileUrl ?? ""} · ${m.message ?? `Reading ${m.done ?? 0}/${m.total ?? 0}`}`,
-              );
-              setProgress({ done: m.done ?? 0, total: m.total ?? profiles.length });
-            } else if (m.type === "gemlist-fb-profile-result") {
-              const report: ProfileScanReport = m.report;
-              if (
-                !profiles.some((p) => p.sourceProfileUrl === report?.sourceProfileUrl) ||
-                received.has(report.sourceProfileUrl)
-              )
-                return;
-              received.add(report.sourceProfileUrl);
-              staging = staging.then(() =>
-                stageReport(report, journalSupported ? requestId : undefined),
-              );
-              // A listener can receive several reports before the server finishes staging.
-              void staging.catch(() => {});
-            } else if (m.type === "gemlist-fb-refresh-result") {
-              cleanup();
-              scanError = m.error;
-              resolve();
-            }
-          };
-          window.addEventListener("message", onMessage);
-          if (journalSupported) {
-            stopWatching = watchImportRun(window, (_, journal) => {
-              const last = journal?.last;
-              if (last?.requestId !== requestId) return;
-              if (last.phase === "running") observedRun = true;
-              if (last.phase === "interrupted" && observedRun) {
-                cleanup();
-                scanError =
-                  "Chrome interrupted the scan. Completed seller results can still be saved.";
-                resolve();
-              }
-            });
-          }
-          heartbeat();
-          window.postMessage(
-            {
-              type: "gemlist-ext-refresh",
-              requestId,
-              streamReports: journalSupported,
-              profiles: profiles.map((p) => ({
-                sourceProfileUrl: p.sourceProfileUrl,
-                targets: targetsByProfile.get(p.sourceProfileUrl) ?? [],
-              })),
-            },
-            window.location.origin,
-          );
-        });
+            received.add(report.sourceProfileUrl);
+            staging = staging.then(() =>
+              stageReport(report, journalSupported ? requestId : undefined),
+            );
+            // A listener can receive several reports before the server finishes staging.
+            void staging.catch(() => {});
+          },
+        );
         await staging;
         if (scanError && !received.size) throw new Error(scanError);
+        if (scanError) setScanMessage(scanError);
         for (const profile of profiles.filter((p) => !received.has(p.sourceProfileUrl))) {
           setScanReports((current) => [
             ...current,
@@ -534,11 +487,24 @@ function ImportedSellers() {
             : "."),
       );
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not refresh."),
-    onSettled: () => setProgress(null),
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Could not refresh.";
+      setScanMessage(message);
+      toast.error(message);
+    },
+    onSettled: () => {
+      setProgress(null);
+      setActiveScan("");
+    },
   });
 
   if (!data?.length) return null;
+
+  const previousReadIssues = (importJournal?.last?.readIssues ?? []).filter(
+    (issue) =>
+      data.some((seller) => seller.sourceProfileUrl === issue.sourceProfileUrl) &&
+      !scanReports.some((report) => report.profile === issue.sourceProfileUrl),
+  );
 
   return (
     <section className="rounded-lg border border-border bg-card">
@@ -579,7 +545,9 @@ function ImportedSellers() {
           className="h-9 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
         >
           {refreshMutation.isPending && progress
-            ? `Checking ${progress.done}/${progress.total}…`
+            ? runningImport || activeScan
+              ? `Checking ${progress.done}/${progress.total}…`
+              : "Starting scan…"
             : "Refresh all"}
         </Button>
       </div>
@@ -616,11 +584,28 @@ function ImportedSellers() {
           {extensionConnection.status === "checking" ? "Checking…" : "Check extension again"}
         </Button>
       </div>
-      {importStatusKnown && !runningImport && !importJournal?.last && (
-        <p role="status" className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
-          No importer running. Ready for your next refresh.
+      {scanMessage && (
+        <p role="status" className="border-b border-border px-4 py-2 text-xs text-amber-950">
+          {scanMessage}
         </p>
       )}
+      {refreshMutation.isPending && progress && !runningImport && !activeScan && (
+        <p role="status" className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
+          Waiting for Chrome to start the scan…
+        </p>
+      )}
+      {importStatusKnown &&
+        !runningImport &&
+        !importJournal?.last &&
+        !refreshMutation.isPending &&
+        !scanMessage && (
+          <p
+            role="status"
+            className="border-b border-border px-4 py-2 text-xs text-muted-foreground"
+          >
+            No importer running. Ready for your next refresh.
+          </p>
+        )}
       {importJournal?.last && !runningImport && (
         <div role="status" className="border-b border-border px-4 py-3 text-xs">
           <p className="font-semibold">
@@ -642,6 +627,39 @@ function ImportedSellers() {
               {importJournal.last.staged} new · {importJournal.last.updated ?? 0} updates queued for
               review
             </p>
+          )}
+          {previousReadIssues.length > 0 && (
+            <details className="mt-2">
+              <summary>Why listings could not be read</summary>
+              <ul className="mt-1 space-y-2">
+                {previousReadIssues.map((issue) => {
+                  const seller = data.find(
+                    (entry) => entry.sourceProfileUrl === issue.sourceProfileUrl,
+                  );
+                  const groups = groupUnreadable(issue.unreadableReasons, issue.unreadable);
+                  const sourceReason = issue.sourceIssue ?? "";
+                  return (
+                    <li key={issue.sourceProfileUrl}>
+                      <strong>
+                        {seller?.sellerName || sourceSiteName(issue.sourceProfileUrl)}
+                      </strong>
+                      {issue.unreadable > 0 && ` · ${issue.unreadable} unread`}
+                      <ul className="mt-1 space-y-1">
+                        {groups.map((group) => (
+                          <li key={`${group.site}-${group.reason}`}>
+                            {group.count} · {UNREADABLE_REASON_LABELS[group.reason]}
+                          </li>
+                        ))}
+                        {Object.hasOwn(UNREADABLE_REASON_LABELS, sourceReason) &&
+                          !groups.some((group) => group.reason === sourceReason) && (
+                            <li>{UNREADABLE_REASON_LABELS[sourceReason]}</li>
+                          )}
+                      </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
           )}
         </div>
       )}

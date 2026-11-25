@@ -189,6 +189,7 @@ test("a concurrent Refresh request returns a visible busy error instead of openi
     { tab: { id: 1 }, url: "https://onbluebird.com/admin/fb-import" },
     () => {},
   );
+  let reply;
   h.listeners[0](
     {
       type: "refresh",
@@ -196,10 +197,10 @@ test("a concurrent Refresh request returns a visible busy error instead of openi
       targets: [{ sourceUrl: "https://classifieds.ksl.com/listing/2" }],
     },
     { tab: { id: 1 }, url: "https://onbluebird.com/admin/fb-import" },
-    () => {},
+    (value) => (reply = value),
   );
   await delay(30);
-  assert.match(h.messages.find((m) => m.requestId === "two").error, /already running/);
+  assert.match(reply.error, /already running/);
   assert.equal(h.stats().creates, 1);
   assert.equal(h.stats().open, 0);
 });
@@ -307,9 +308,10 @@ test("extraction injection errors, empty results and challenges get distinct cod
       "injection_failed",
     ],
     [() => null, "empty_result"],
-    [() => ({ challenge: true }), "challenge_detected"],
+    [() => ({ challenge: true }), "verification_incomplete"],
   ]) {
     const h = harness();
+    h.context.waitForHuman = async () => false;
     h.context.exec = async (_t, fn) => (fn.name === "isBotCheckPage" ? false : behavior());
     const input = [{ ...jobs[0], item: { sourceUrl: "https://source.test/x" } }];
     await h.context.readListingJobs(input);
@@ -393,7 +395,30 @@ test("failed verification stops later sellers on the same source while other sou
   assert.equal(h.stats().open, 0);
 });
 
-test("a challenge returned by extraction stops that source after the first read", async () => {
+test("a late KSL check pauses the reader and resumes that listing after manual verification", async () => {
+  const h = harness();
+  const manualChecks = [];
+  const originalExec = h.context.exec;
+  h.context.exec = async (id, fn) => {
+    if (fn.name === "extract" && !manualChecks.length) return { challenge: true };
+    return originalExec(id, fn);
+  };
+  h.context.waitForHuman = async (_window, tabId, site) => {
+    manualChecks.push([h.tabs.get(tabId).url, site]);
+    return true;
+  };
+  const input = jobs.slice(0, 3).map((job) => ({
+    ...job,
+    siteName: "KSL",
+    item: { ...job.item },
+  }));
+  await h.context.readListingJobs(input);
+  assert.deepEqual(manualChecks, [[input[0].item.sourceUrl, "KSL"]]);
+  assert.equal(h.stats().creates, 1);
+  assert.ok(input.every(({ item }) => item.description && !item.unreadable));
+});
+
+test("a KSL check that returns after manual verification stops further KSL reads", async () => {
   const h = harness();
   let extracts = 0;
   h.context.exec = async (_id, fn) => {
@@ -402,14 +427,15 @@ test("a challenge returned by extraction stops that source after the first read"
     extracts++;
     return { challenge: true };
   };
+  h.context.waitForHuman = async () => true;
   const blockedSites = new Map();
   const first = { ...jobs[0], siteName: "KSL", item: { sourceUrl: "https://source.test/ksl-a" } };
   await h.context.readListingJobs([first], { blockedSites });
-  assert.equal(extracts, 1);
+  assert.equal(extracts, 2);
   assert.equal(blockedSites.get("KSL"), "challenge_detected");
   await h.context.readListingJobs(
     [{ ...first, item: { sourceUrl: "https://source.test/ksl-b" } }],
     { blockedSites },
   );
-  assert.equal(extracts, 1);
+  assert.equal(extracts, 2);
 });

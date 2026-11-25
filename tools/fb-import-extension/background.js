@@ -925,6 +925,7 @@ async function refreshListings(adminTabId, requestId, targets) {
 
 let importInProgress = false;
 let activeImportRun = null;
+let importVerification = null;
 const importReaderTabs = new Set();
 let importKeepAlive;
 
@@ -958,6 +959,7 @@ function finishImportRun() {
   importKeepAlive = undefined;
   importInProgress = false;
   activeImportRun = null;
+  importVerification = null;
   importReaderTabs.clear();
 }
 function trackImportReader(tabId, open) {
@@ -977,15 +979,28 @@ function recordImportProgress(payload) {
     total: Number.isFinite(payload.total) ? payload.total : null,
   });
 }
+function setImportVerification(tabId, siteName) {
+  if (!activeImportRun) return;
+  if (siteName) importVerification = { tabId, siteName };
+  else if (importVerification?.tabId === tabId) importVerification = null;
+}
 function importRunStatus() {
   if (!activeImportRun) return null;
   const { ownerTabId, ...status } = activeImportRun;
+  if (importVerification)
+    status.message = `${importVerification.siteName} asked for human verification. Use Show running importer to open the check.`;
   return status;
 }
 async function showImportRun() {
   if (!activeImportRun) return false;
   // Focus existing windows only. Never launch another scan or reopen a closed source.
-  for (const tabId of [...importReaderTabs, activeImportRun.ownerTabId]) {
+  const tabs = new Set([
+    importVerification?.tabId,
+    ...importReaderTabs,
+    activeImportRun.ownerTabId,
+  ]);
+  for (const tabId of tabs) {
+    if (tabId == null) continue;
     try {
       const tab = await chrome.tabs.get(tabId);
       await chrome.tabs.update(tabId, { active: true });
@@ -1019,9 +1034,18 @@ function sendImportEvent(tabId, payload) {
 }
 
 function refreshPageOrigin(sender) {
-  if (!trustedImportPage(sender)) return null;
-  const url = new URL(sender.url || sender.tab?.url);
-  return /^\/admin\/fb-import\/?$/.test(url.pathname) ? url.origin : null;
+  if (!trustedImportPage(sender) || (sender.frameId != null && sender.frameId !== 0)) return null;
+  try {
+    const source = new URL(sender.url || sender.tab?.url);
+    // Client-side routing can change the tab URL without replacing the
+    // document that originally loaded the content script.
+    const tab = new URL(sender.tab?.url || source);
+    return source.origin === tab.origin && /^\/admin\/fb-import\/?$/.test(tab.pathname)
+      ? tab.origin
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 async function runSellerRefresh(tabId, origin, message) {
@@ -1033,6 +1057,7 @@ async function runSellerRefresh(tabId, origin, message) {
     done: 0,
     total: profiles.length,
     incomplete: 0,
+    readIssues: [],
   };
   await refreshJournal(origin, (journal) => {
     journal.last = last;
@@ -1043,6 +1068,14 @@ async function runSellerRefresh(tabId, origin, message) {
       async saveReport(report) {
         last.done++;
         if (!report.scan.complete || report.scan.challenged) last.incomplete++;
+        if (report.scan.unreadable || report.sourceIssue) {
+          last.readIssues.push({
+            sourceProfileUrl: report.sourceProfileUrl,
+            unreadable: report.scan.unreadable,
+            unreadableReasons: report.unreadableReasons,
+            sourceIssue: report.sourceIssue,
+          });
+        }
         await refreshJournal(origin, (journal) => {
           journal.last = { ...journal.last, ...last };
           if (!report.results.length) return;
@@ -1068,8 +1101,10 @@ async function runSellerRefresh(tabId, origin, message) {
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (!message || message.type !== "refresh" || !sender.tab?.id) return;
   const origin = refreshPageOrigin(sender);
-  if (!origin) return;
-  respond({ accepted: true });
+  if (!origin) {
+    respond({ error: "Open the Bluebird seller import page directly and try again." });
+    return;
+  }
   const sendError = (error) =>
     sendImportEvent(sender.tab.id, {
       type: "gemlist-fb-refresh-result",
@@ -1078,7 +1113,8 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       error,
     });
   if (importInProgress) {
-    sendError("An import or refresh is already running. Let it finish before starting another.");
+    const error = "An import or refresh is already running. Let it finish before starting another.";
+    respond({ error });
     return;
   }
   beginImportRun(
@@ -1086,6 +1122,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     message.profiles ? "Seller refresh" : "Listing refresh",
     message.requestId,
   );
+  respond({ accepted: true });
   (message.profiles
     ? runSellerRefresh(sender.tab.id, origin, message)
     : refreshListings(sender.tab.id, message.requestId, message.targets)
