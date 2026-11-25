@@ -53,8 +53,11 @@ function facebookUnavailableLanding(expectedUrl) {
   const headings = document.querySelectorAll(
     ':is(main, [role="main"]) :is(h2, [role="heading"][aria-level="2"])',
   );
-  return Array.from(headings).some((heading) =>
-    /^This listing isn['’]t available anymore[.!]?$/.test(heading.innerText.trim()),
+  return Array.from(headings).some(
+    (heading) =>
+      heading.getClientRects().length > 0 &&
+      getComputedStyle(heading).visibility === "visible" &&
+      /^This listing isn['’]t available anymore[.!]?$/.test(heading.innerText.trim()),
   );
 }
 

@@ -302,10 +302,13 @@ test("a page that never finishes loading is reported as a timeout", async () => 
 
 test("Facebook refresh recognizes explicit unavailable redirects without using a previous item page", async () => {
   const h = harness();
-  const itemUrls = [1, 2, 3, 4, 5].map((id) => `https://www.facebook.com/marketplace/item/${id}/`);
+  const itemUrls = [1, 2, 3, 4, 5, 6].map(
+    (id) => `https://www.facebook.com/marketplace/item/${id}/`,
+  );
   const landing = "https://www.facebook.com/marketplace/106098172753874/";
   const exactHeading = "This listing isn't available anymore";
   const headings = new Map();
+  const hiddenHeadings = new Map();
   const navigations = [];
   const update = h.context.chrome.tabs.update;
   h.context.chrome.tabs.update = async (tabId, { url }) => {
@@ -314,7 +317,8 @@ test("Facebook refresh recognizes explicit unavailable redirects without using a
     // Keep the old landing page in place for one timing check if the next
     // request follows the redirect without clearing the previously loaded page.
     if (index === 2 && headings.get(tabId) === exactHeading) return;
-    headings.set(tabId, [0, 1, 4].includes(index) ? exactHeading : "Today's picks");
+    headings.set(tabId, [0, 1, 4, 5].includes(index) ? exactHeading : "Today's picks");
+    hiddenHeadings.set(tabId, index === 5);
     return update(tabId, { url: index === 3 || index === -1 ? url : landing });
   };
   h.context.waitForPage = async (tabId, sameListing, _timeout, _settle, _interactive, redirect) => {
@@ -325,7 +329,15 @@ test("Facebook refresh recognizes explicit unavailable redirects without using a
   h.context.exec = async (tabId, fn, args) => {
     if (fn.name !== "facebookUnavailableLanding") return exec(tabId, fn, args);
     h.context.location = { href: h.tabs.get(tabId).url };
-    h.context.document = { querySelectorAll: () => [{ innerText: headings.get(tabId) }] };
+    h.context.getComputedStyle = () => ({ visibility: "visible" });
+    h.context.document = {
+      querySelectorAll: () => [
+        {
+          innerText: headings.get(tabId),
+          getClientRects: () => (hiddenHeadings.get(tabId) ? [] : [{}]),
+        },
+      ],
+    };
     return h.context.facebookUnavailableLanding(...args);
   };
 
@@ -342,7 +354,7 @@ test("Facebook refresh recognizes explicit unavailable redirects without using a
   );
   assert.ok(unavailable.every((item) => !item.sold));
   assert.equal(result.results.find((item) => item.sourceUrl === itemUrls[3]).unavailable, false);
-  assert.equal(result.unreadable, 1);
+  assert.equal(result.unreadable, 2);
   assert.equal(result.unreadableReasons[0].reason, "page_timeout");
   const next = navigations.findIndex(([, url]) => url === itemUrls[2]);
   const previousForSameTab = navigations
