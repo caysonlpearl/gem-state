@@ -199,10 +199,11 @@ function ImportedSellers() {
     onError: (e) => toast.error(e.message),
   });
   const stage = useImportStage();
-  const { data } = useQuery({
+  const profilesQuery = useQuery({
     queryKey: ["fb-import-profiles"],
     queryFn: () => fetchProfiles(),
   });
+  const data = profilesQuery.data ?? [];
 
   const [extensionConnection, setExtensionConnection] = useState<ImportExtensionConnection>({
     status: "checking",
@@ -498,8 +499,6 @@ function ImportedSellers() {
     },
   });
 
-  if (!data?.length) return null;
-
   const previousReadIssues = (importJournal?.last?.readIssues ?? []).filter(
     (issue) =>
       data.some((seller) => seller.sourceProfileUrl === issue.sourceProfileUrl) &&
@@ -533,7 +532,11 @@ function ImportedSellers() {
           type="button"
           onClick={() => refreshMutation.mutate(null)}
           disabled={
-            !extensionReady || !scanAuthorized || refreshMutation.isPending || !!runningImport
+            !data.length ||
+            !extensionReady ||
+            !scanAuthorized ||
+            refreshMutation.isPending ||
+            !!runningImport
           }
           title={
             !extensionReady
@@ -584,6 +587,25 @@ function ImportedSellers() {
           {extensionConnection.status === "checking" ? "Checking…" : "Check extension again"}
         </Button>
       </div>
+      {profilesQuery.isPending && (
+        <p role="status" className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
+          Loading imported sellers…
+        </p>
+      )}
+      {profilesQuery.isError && (
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 text-xs">
+          <p role="status">Couldn't load imported sellers.</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={profilesQuery.isFetching}
+            onClick={() => void profilesQuery.refetch()}
+          >
+            Retry loading sellers
+          </Button>
+        </div>
+      )}
       {scanMessage && (
         <p role="status" className="border-b border-border px-4 py-2 text-xs text-amber-950">
           {scanMessage}
@@ -1041,7 +1063,7 @@ function ImportedSellers() {
             );
           })}
       </ul>
-      {!data.some((p) => Boolean(p.archivedAt) === showRemoved) && (
+      {profilesQuery.isSuccess && !data.some((p) => Boolean(p.archivedAt) === showRemoved) && (
         <p className="p-4 text-xs text-muted-foreground">
           {showRemoved
             ? "No removed imports. Removed sources can be restored here."
