@@ -299,6 +299,71 @@ test("a page that never finishes loading is reported as a timeout", async () => 
   assert.equal(input[0].item.unreadable, true);
   assert.equal(input[0].item.unreadableReason, "page_timeout");
 });
+
+test("Facebook refresh recognizes explicit unavailable redirects without using a previous item page", async () => {
+  const h = harness();
+  const itemUrls = [1, 2, 3, 4, 5, 6].map(
+    (id) => `https://www.facebook.com/marketplace/item/${id}/`,
+  );
+  const landing = "https://www.facebook.com/marketplace/106098172753874/";
+  const exactHeading = "This listing isn't available anymore";
+  const headings = new Map();
+  const hiddenHeadings = new Map();
+  const navigations = [];
+  const update = h.context.chrome.tabs.update;
+  h.context.chrome.tabs.update = async (tabId, { url }) => {
+    navigations.push([tabId, url]);
+    const index = itemUrls.indexOf(url);
+    // Keep the old landing page in place for one timing check if the next
+    // request follows the redirect without clearing the previously loaded page.
+    if (index === 2 && headings.get(tabId) === exactHeading) return;
+    headings.set(tabId, [0, 1, 4, 5].includes(index) ? exactHeading : "Today's picks");
+    hiddenHeadings.set(tabId, index === 5);
+    return update(tabId, { url: index === 3 || index === -1 ? url : landing });
+  };
+  h.context.waitForPage = async (tabId, sameListing, _timeout, _settle, _interactive, redirect) => {
+    const tab = h.tabs.get(tabId);
+    return sameListing(tab.url) || Boolean(await redirect?.(tab));
+  };
+  const exec = h.context.exec;
+  h.context.exec = async (tabId, fn, args) => {
+    if (fn.name !== "facebookUnavailableLanding") return exec(tabId, fn, args);
+    h.context.location = { href: h.tabs.get(tabId).url };
+    h.context.getComputedStyle = () => ({ visibility: "visible" });
+    h.context.document = {
+      querySelectorAll: () => [
+        {
+          innerText: headings.get(tabId),
+          getClientRects: () => (hiddenHeadings.get(tabId) ? [] : [{}]),
+        },
+      ],
+    };
+    return h.context.facebookUnavailableLanding(...args);
+  };
+
+  await h.context.refreshListings(
+    1,
+    "facebook-redirect",
+    itemUrls.map((sourceUrl) => ({ sourceUrl })),
+  );
+  const result = h.messages.find((message) => message.type === "gemlist-fb-refresh-result");
+  const unavailable = result.results.filter((item) => item.unavailable);
+  assert.deepEqual(
+    Array.from(unavailable, (item) => item.sourceUrl),
+    [itemUrls[0], itemUrls[1], itemUrls[4]],
+  );
+  assert.ok(unavailable.every((item) => !item.sold));
+  assert.equal(result.results.find((item) => item.sourceUrl === itemUrls[3]).unavailable, false);
+  assert.equal(result.unreadable, 2);
+  assert.equal(result.unreadableReasons[0].reason, "page_timeout");
+  const next = navigations.findIndex(([, url]) => url === itemUrls[2]);
+  const previousForSameTab = navigations
+    .slice(0, next)
+    .findLast(([tabId]) => tabId === navigations[next][0]);
+  assert.equal(previousForSameTab?.[1], "about:blank");
+  assert.deepEqual(h.seen, [itemUrls[3]]);
+});
+
 test("extraction injection errors, empty results and challenges get distinct codes", async () => {
   for (const [behavior, code] of [
     [

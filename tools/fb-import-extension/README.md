@@ -1,4 +1,4 @@
-# Bluebird Listing Import 1.5.16
+# Bluebird Listing Import 1.5.17
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
@@ -71,3 +71,5 @@ Version 1.5.15 uses one reader window for KSL seller scans, pauses for verificat
 Version 1.5.16 starts Diesel Depot scans from the official homepage and follows its current inventory links. It follows the catalog’s Next Page button, recognizes explicitly empty sections, and verifies each category before accepting its listings. The Bluebird source URL stays the same.
 
 Facebook discovery keeps listings even after their cards scroll out of view and allows slow result pages more time to load.
+
+Version 1.5.17 recognizes Facebook's explicit unavailable message when a known listing redirects to Marketplace. The importer reports the source as unavailable and Bluebird keeps the existing listing live.

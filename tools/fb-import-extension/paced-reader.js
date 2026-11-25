@@ -44,19 +44,39 @@ function readerDocumentState() {
   };
 }
 
+function isFacebookMarketplaceLanding(url) {
+  return /^https:\/\/www\.facebook\.com\/marketplace\/\d+\/?(?:[?#].*)?$/.test(url || "");
+}
+
+function facebookUnavailableLanding(expectedUrl) {
+  if (location.href !== expectedUrl) return false;
+  const headings = document.querySelectorAll(
+    ':is(main, [role="main"]) :is(h2, [role="heading"][aria-level="2"])',
+  );
+  return Array.from(headings).some(
+    (heading) =>
+      heading.getClientRects().length > 0 &&
+      getComputedStyle(heading).visibility === "visible" &&
+      /^This listing isn['’]t available anymore[.!]?$/.test(heading.innerText.trim()),
+  );
+}
+
 function waitForPage(
   tabId,
   sameListing,
   timeoutMs = 25000,
   settleMs = 1200,
   allowInteractive = false,
+  redirectedPageReady,
 ) {
   return new Promise((resolve) => {
     let settled = false;
     let settleTimer;
     const timer = setTimeout(() => finish(false), timeoutMs);
     const matches = async (tab) => {
-      if (!tab || (sameListing && !sameListing(tab.url))) return false;
+      if (!tab) return false;
+      if (sameListing && !sameListing(tab.url))
+        return redirectedPageReady ? redirectedPageReady(tab) : false;
       if (tab.status === "complete") return true;
       if (!allowInteractive) return false;
       const state = await exec(tabId, readerDocumentState).catch(() => null);
@@ -176,10 +196,29 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
           const expected = idOf(item.sourceUrl);
           if (!expected) throw readFailure("unsupported_url");
           const matches = (url) => idOf(url) === expected;
+          const redirectedPageReady =
+            siteName === "Facebook" && withPhotos === false
+              ? async (tab) =>
+                  !tab.pendingUrl &&
+                  isFacebookMarketplaceLanding(tab.url) &&
+                  (await exec(tabId, facebookUnavailableLanding, [tab.url]).catch(() => false))
+              : undefined;
+          const waitForListing = () =>
+            waitForPage(tabId, matches, 25000, settleMs, true, redirectedPageReady);
           const open = async () => {
             if (blockedSites.has(siteName)) throw readFailure(blockedSites.get(siteName));
+            // Every unavailable listing can land at the same URL. Clear the
+            // last document so its heading can't be attributed to the next item.
+            if (
+              redirectedPageReady &&
+              isFacebookMarketplaceLanding((await chrome.tabs.get(tabId))?.url)
+            ) {
+              await chrome.tabs.update(tabId, { url: "about:blank" });
+              if (!(await waitForPage(tabId, (url) => url === "about:blank", 5000, 0)))
+                return false;
+            }
             await chrome.tabs.update(tabId, { url: item.sourceUrl });
-            return waitForPage(tabId, matches, 25000, settleMs, true);
+            return waitForListing();
           };
           if (!(await open())) throw readFailure("page_timeout");
           const checkAccess = async () => {
@@ -212,12 +251,9 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
             });
             if (!passed) throw readFailure("verification_incomplete");
             await checkAccess();
-            if (!(await waitForPage(tabId, matches, 25000, settleMs, true)))
-              throw readFailure("page_not_verified");
+            if (!(await waitForListing())) throw readFailure("page_not_verified");
           };
           if (await exec(tabId, isBotCheckPage)) await verifyListing();
-          const current = await chrome.tabs.get(tabId);
-          if (!matches(current.url)) throw readFailure("page_not_verified");
           let details;
           // Hydrated detail content can arrive after navigation completes.
           // Retry extraction in the same two windows; never open extra tabs.
@@ -227,6 +263,14 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
           const attempts = siteName === "Facebook" ? 3 : 6;
           for (let attempt = 0; attempt < attempts; attempt++) {
             await checkAccess();
+            const current = await chrome.tabs.get(tabId);
+            if (!matches(current.url)) {
+              if (!redirectedPageReady || !(await redirectedPageReady(current)))
+                throw readFailure("page_not_verified");
+              details = { unavailable: true };
+              failure = "";
+              break;
+            }
             try {
               details = await exec(tabId, extract, [withPhotos]);
               failure = !details ? "empty_result" : details.challenge ? "challenge_detected" : "";
