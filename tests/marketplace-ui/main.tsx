@@ -2,7 +2,10 @@ import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Toaster } from "sonner";
 import { ListingGallery } from "../../src/components/classifieds/ListingGallery";
-import { ListingCardView } from "../../src/components/classifieds/ListingCardView";
+import {
+  ListingCardPhoto,
+  ListingCardView,
+} from "../../src/components/classifieds/ListingCardView";
 import { ComparisonProvider } from "../../src/components/marketplace/Comparison";
 import { CopyButton } from "../../src/components/marketplace/CopyButton";
 import { IdentityPeek } from "../../src/components/marketplace/IdentityPeek";
@@ -180,6 +183,15 @@ function Fixture() {
               src="/delayed-test-photo.png"
               alt="Delayed listing photo"
               className="h-full w-full object-cover"
+            />
+          </div>
+          <div data-test="recovered-card-photo">
+            <ListingCardPhoto
+              listing={{
+                ...cards[0],
+                imageUrl: "/media/listings/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/0?size=card",
+              }}
+              priority
             />
           </div>
         </div>

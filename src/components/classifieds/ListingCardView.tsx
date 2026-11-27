@@ -15,7 +15,7 @@ import {
   type Ref,
 } from "react";
 import { MapPin, Truck } from "@phosphor-icons/react";
-import { listingCardImageUrl } from "@/lib/listing-card-image";
+import { listingCardImageFallbackUrl, listingCardImageUrl } from "@/lib/listing-card-image";
 
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import {
@@ -372,43 +372,53 @@ export function ListingCardPhoto({
   priority?: boolean;
 }) {
   const imageRef = useRef<HTMLImageElement>(null);
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const recoverPhoto = useCallback(
-    (image: HTMLImageElement) => {
-      if (
-        listing.imageUrl &&
-        listingCardImageUrl(listing.imageUrl) !== listing.imageUrl &&
-        image.dataset.originalFallback !== "1"
-      ) {
-        image.dataset.originalFallback = "1";
-        image.src = listing.imageUrl;
-        return;
-      }
-      setFailedUrl(listing.imageUrl);
-    },
-    [listing.imageUrl],
-  );
+  const imageUrl = listing.imageUrl;
+  const [failure, setFailure] = useState<{
+    url: string;
+    phase: "waiting" | "retry" | "unavailable";
+  }>();
+  const phase = failure?.url === imageUrl ? failure?.phase : undefined;
+  const fallback = imageUrl ? listingCardImageFallbackUrl(imageUrl) : null;
+  const src = phase === "retry" ? fallback : imageUrl && listingCardImageUrl(imageUrl);
+  const recoverPhoto = useCallback(() => {
+    if (!imageUrl || phase === "waiting" || phase === "unavailable") return;
+    setFailure({
+      url: imageUrl,
+      phase:
+        phase === "retry" || !fallback
+          ? "unavailable"
+          : fallback === imageUrl
+            ? "retry"
+            : "waiting",
+    });
+  }, [imageUrl, phase, fallback]);
+  useEffect(() => {
+    if (!imageUrl || phase !== "waiting") return;
+    // Let a temporarily busy photo service recover before asking for the original.
+    const timer = window.setTimeout(() => setFailure({ url: imageUrl, phase: "retry" }), 900);
+    return () => window.clearTimeout(timer);
+  }, [imageUrl, phase]);
   // An SSR photo may have failed before React attached its error handler.
   useEffect(() => {
     const image = imageRef.current;
-    if (image?.complete && image.naturalWidth === 0) recoverPhoto(image);
-  }, [recoverPhoto]);
+    if (image?.complete && image.naturalWidth === 0) recoverPhoto();
+  }, [recoverPhoto, src]);
   const ratio = short ? "aspect-[3/2]" : "aspect-[4/3]";
   const logoUrl = listingLogoUrl(listing);
   if (!listing.imageUrl && logoUrl) {
     return <LogoPhoto listing={listing} logoUrl={logoUrl} ratio={ratio} priority={priority} />;
   }
-  if (!listing.imageUrl || failedUrl === listing.imageUrl) {
+  if (!src || phase === "unavailable") {
     return <PlaceholderPhoto listing={listing} ratio={ratio} />;
   }
   return (
     <div className={`relative ${ratio} overflow-hidden bg-secondary`}>
       <PhotoImage
-        key={listing.imageUrl}
+        key={src}
         ref={imageRef}
-        src={listingCardImageUrl(listing.imageUrl)}
+        src={src}
         decoding="async"
-        onError={(event) => recoverPhoto(event.currentTarget)}
+        onError={recoverPhoto}
         alt={listingPreviewTitle(listing)}
         // The first cards on a landing page are its largest paint; load them
         // right away instead of waiting for layout to decide they're visible.

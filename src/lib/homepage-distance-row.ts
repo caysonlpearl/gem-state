@@ -2,6 +2,10 @@ type LocatedCard = {
   id: string;
   city: string;
   state: string;
+  categorySlug?: string | null;
+  job?: unknown;
+  service?: unknown;
+  directory?: unknown;
   externalMerchandise?: unknown;
 };
 
@@ -22,6 +26,11 @@ export function homepageDistanceRow<T extends LocatedCard>(
       card.state !== "ID" ||
       !card.city.trim() ||
       card.externalMerchandise ||
+      card.job ||
+      card.service ||
+      card.directory ||
+      card.categorySlug === "jobs" ||
+      card.categorySlug === "services" ||
       seenIds.has(card.id) ||
       (hasLocalArea && matchesLocation(card))
     )

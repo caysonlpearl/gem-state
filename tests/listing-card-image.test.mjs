@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { listingCardImageUrl, nativeListingCoverUrl } from "../src/lib/listing-card-image.ts";
+import {
+  listingCardImageFallbackUrl,
+  listingCardImageUrl,
+  nativeListingCoverUrl,
+} from "../src/lib/listing-card-image.ts";
 
 test("card thumbnails use the verified Craigslist variant without touching detail URLs", () => {
   const original = "https://images.craigslist.org/00x0x_accRZPM5AdB_0CI0t2_1200x900.jpg";
@@ -31,4 +35,17 @@ test("opaque cover revisions change cache addresses without exposing storage pat
   assert(!nativeListingCoverUrl(id, first).includes("member/photos"));
   assert.equal(nativeListingCoverUrl(id, "untrusted&key=value"), null);
   assert.equal(nativeListingCoverUrl("private/path", first), null);
+});
+
+test("native cards can retry the original at the same visibility-checked listing route", () => {
+  const id = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+  const rev = "a".repeat(64);
+  const original = `/media/listings/${id}/0`;
+  assert.equal(
+    listingCardImageFallbackUrl(nativeListingCoverUrl(id, rev)),
+    `${original}?rev=${rev}`,
+  );
+  assert.equal(listingCardImageFallbackUrl(nativeListingCoverUrl(id)), original);
+  assert.equal(listingCardImageFallbackUrl(original), null);
+  assert.equal(listingCardImageFallbackUrl("https://photo.example/image?size=card"), null);
 });

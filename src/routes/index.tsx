@@ -4,7 +4,7 @@ import { parseLocationSearch } from "@/lib/location-search";
 import { headlineOptions } from "@/config/homepage-headlines";
 import { MarketplaceListingSection } from "@/components/classifieds/MarketplaceListingSection";
 import { MarketplaceHero } from "@/components/classifieds/MarketplaceHero";
-import { gunsComProfile } from "@/config/retailers";
+import { homepageOnlineRows } from "@/lib/homepage-listing-rows";
 import { selectDiscoveryCards } from "@/lib/discovery-ranking";
 import { listingCardImageUrl } from "@/lib/listing-card-image";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
@@ -543,6 +543,7 @@ function HomepageLeadVehicles({
     [firstId, firstImage, onPainted],
   );
 
+  if (leadMotors.length === 0 && !homeLead.inventoryUnavailable) return null;
   return (
     <section ref={sectionRef} className="homepage-lead-vehicles mt-6 sm:mt-14">
       <HomepageLeadHeader where={where} />
@@ -555,14 +556,8 @@ function HomepageLeadVehicles({
         />
       ) : (
         <EmptyState
-          title={
-            homeLead.inventoryUnavailable ? "Featured vehicles couldn’t load." : EMPTY_ROW_TITLE
-          }
-          body={
-            homeLead.inventoryUnavailable
-              ? "Use the link above to browse current car and truck listings."
-              : "Cars and trucks show up here as soon as Idaho sellers post them. Have one to sell? Be one of the first."
-          }
+          title="Featured vehicles couldn’t load."
+          body="Use the link above to browse current car and truck listings."
         />
       )}
     </section>
@@ -943,37 +938,18 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
         action="Browse all classifieds"
       />
 
-      {(home.onlineMerchandise?.length ?? 0) > 0 ? (
-        <>
-          <HomepageListingRow
-            eyebrow={gunsComProfile.name}
-            title="Outdoor gear available online"
-            listings={(home.onlineMerchandise ?? [])
-              .filter((listing) => listing.categorySlug === "outdoor-sporting")
-              .slice(0, LISTING_PREVIEW_LIMIT)}
-            search={{ category: "outdoor-sporting" }}
-            action="Browse outdoor gear"
-          />
-          <HomepageListingRow
-            eyebrow={gunsComProfile.name}
-            title="Apparel available online"
-            listings={(home.onlineMerchandise ?? [])
-              .filter((listing) => listing.categorySlug === "apparel-accessories")
-              .slice(0, LISTING_PREVIEW_LIMIT)}
-            search={{ category: "apparel-accessories" }}
-            action="Browse apparel"
-          />
-          <HomepageListingRow
-            eyebrow={gunsComProfile.name}
-            title="Tools and supplies available online"
-            listings={(home.onlineMerchandise ?? [])
-              .filter((listing) => listing.categorySlug === "tools-equipment")
-              .slice(0, LISTING_PREVIEW_LIMIT)}
-            search={{ category: "tools-equipment" }}
-            action="Browse tools and supplies"
-          />
-        </>
-      ) : null}
+      {homepageOnlineRows.map(({ category, title, action }) => (
+        <HomepageListingRow
+          key={category}
+          eyebrow=""
+          title={title}
+          listings={(home.onlineMerchandise ?? [])
+            .filter((listing) => listing.categorySlug === category)
+            .slice(0, LISTING_PREVIEW_LIMIT)}
+          search={{ category }}
+          action={action}
+        />
+      ))}
 
       <HomepageListingRow
         eyebrow="Bluebird classifieds"
@@ -1040,6 +1016,7 @@ function HomepageListingRow({
   action: string;
   className?: string;
 }) {
+  if (listings.length === 0) return null;
   return (
     <MarketplaceListingSection
       eyebrow={eyebrow}
@@ -1051,23 +1028,12 @@ function HomepageListingRow({
         </Link>
       }
     >
-      {listings.length > 0 ? (
-        <ListingPreviewRail
-          label={title}
-          items={listings}
-          renderCard={(listing) => <ListingCard listing={listing} />}
-          className="mt-3 sm:mt-5"
-        />
-      ) : (
-        // A slim line rather than the full card: with little inventory most
-        // rows are empty, and the vehicles section already shows the card.
-        <p className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-dashed border-border px-5 py-4 text-[13px] text-muted-foreground">
-          Nothing here yet. New listings show up as soon as Idaho sellers post them.
-          <Link to="/sell" className="font-semibold text-primary hover:underline">
-            Post a listing
-          </Link>
-        </p>
-      )}
+      <ListingPreviewRail
+        label={title}
+        items={listings}
+        renderCard={(listing) => <ListingCard listing={listing} />}
+        className="mt-3 sm:mt-5"
+      />
     </MarketplaceListingSection>
   );
 }
@@ -1223,8 +1189,6 @@ function HomepageInfoBand({
     </section>
   );
 }
-
-const EMPTY_ROW_TITLE = "Bluebird is just getting started.";
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return <BluebirdEmptyState headingLevel="h2" className="mt-5" title={title} description={body} />;

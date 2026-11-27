@@ -48,7 +48,9 @@ export async function refreshMerchandisePage(
     if (!response.ok) throw new Error(`provider_http_${response.status}`);
     const body: unknown = await response.json();
     if (!Array.isArray(body) || body.length > pageSize)
-      throw new Error(Array.isArray(body) ? "invalid_response_oversized" : "invalid_response_shape");
+      throw new Error(
+        Array.isArray(body) ? "invalid_response_oversized" : "invalid_response_shape",
+      );
     const byId = new Map(
       body
         .map((r) => normalizeMerchandise(r, scope))
@@ -137,10 +139,20 @@ export async function advanceMerchandiseFeed(db?: Database) {
   const { data, error } = await bounded(
     db
       .from("avantlink_merchandise_scopes")
-      .select("scope_key,completed_at,next_offset,lease_until"),
+      .select("scope_key,completed_at,next_offset,lease_until,generation_started_at"),
   );
   if (error) return { skipped: true, reason: "cache_unavailable" };
   const states = new Map<string, any>((data ?? []).map((r: any) => [r.scope_key, r]));
+  const lastAttempt = (scope: MerchandiseScope) => {
+    const state = states.get(scopeKey(scope));
+    // A page or failed attempt leaves a cooldown timestamp even when the full
+    // scan has never completed. Count it so large scopes cannot starve others.
+    return Math.max(
+      Date.parse(state?.completed_at ?? "") || 0,
+      Date.parse(state?.generation_started_at ?? "") || 0,
+      Date.parse(state?.lease_until ?? "") || 0,
+    );
+  };
   const due = MERCHANDISE_SCOPES.filter((scope) => {
     const s = states.get(scopeKey(scope));
     return (
@@ -148,16 +160,7 @@ export async function advanceMerchandiseFeed(db?: Database) {
       Number(s?.next_offset ?? 0) < 10000 &&
       (s?.next_offset || !s?.completed_at || Date.parse(s.completed_at) < Date.now() - 86400000)
     );
-  }).sort((a, b) => {
-    // Never-fetched sections first, so deep pagination of one large section
-    // cannot starve others (e.g. shotguns, ammunition) for days.
-    const started = (s: MerchandiseScope) => (states.has(scopeKey(s)) ? 1 : 0);
-    return (
-      started(a) - started(b) ||
-      (Date.parse(states.get(scopeKey(a))?.completed_at ?? "") || 0) -
-        (Date.parse(states.get(scopeKey(b))?.completed_at ?? "") || 0)
-    );
-  });
+  }).sort((a, b) => lastAttempt(a) - lastAttempt(b));
   return due[0] ? refreshMerchandisePage(due[0], db) : { skipped: true, reason: "fresh" };
 }
 

@@ -16,7 +16,7 @@ import {
   merchandiseRelatedCards,
   merchandiseDetail,
 } from "../src/lib/avantlink-listings.server.ts";
-import { refreshMerchandisePage } from "../src/lib/avantlink.server.ts";
+import { advanceMerchandiseFeed, refreshMerchandisePage } from "../src/lib/avantlink.server.ts";
 
 // Shape and field names captured from a real Guns.com ProductSearch response.
 const row = {
@@ -82,6 +82,26 @@ function database(handler) {
   };
   return db;
 }
+
+test("an old completed scope is refreshed before the next page of a more recently attempted scope", async () => {
+  const ago = (days) => new Date(Date.now() - days * 86400000).toISOString();
+  const db = database((call) => {
+    if (call.rpc) return { data: { allowed: false, reason: "test" } };
+    assert.equal(call.table, "avantlink_merchandise_scopes");
+    return {
+      data: MERCHANDISE_SCOPES.map((scope, i) => ({
+        scope_key: scope.join("/"),
+        completed_at: i === 7 ? ago(8) : i === 8 ? null : ago(1 / 4),
+        generation_started_at: i === 8 ? ago(9) : ago(8),
+        lease_until: i === 8 ? ago(1 / 4) : null,
+        next_offset: i === 8 ? 250 : 0,
+      })),
+    };
+  });
+  const result = await advanceMerchandiseFeed(db);
+  assert.equal(result.scope, "Gear/Drinkware");
+  assert.equal(db.calls.at(-1).args.p_scope_key, "Gear/Drinkware");
+});
 
 test("normalizes real field names, exact cents, complete descriptions, options and one photo", () => {
   const p = normalizeMerchandise(row);
