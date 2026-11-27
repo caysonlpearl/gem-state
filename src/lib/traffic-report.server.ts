@@ -1,4 +1,3 @@
-import { loadStaffTrafficExclusions } from "./traffic-exclusions.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brand } from "@/config/brand";
 import { eligibleTrafficEvents, summarizeTraffic, type TrafficEvent } from "./traffic-summary";
@@ -21,37 +20,68 @@ const EVENTS = [
   "classified_listing_submit_succeeded",
   "web_vital",
 ] as const;
+const EVENT_PAGE_SIZE = 6000;
+
+async function readTrafficEvents(
+  supabase: SupabaseClient,
+  since: string,
+  until: string,
+  signal: AbortSignal,
+) {
+  const events: TrafficEvent[] = [];
+  let cursor: TrafficEvent | undefined;
+  for (;;) {
+    const { data, error } = await supabase
+      .rpc("traffic_report_event_page", {
+        p_since: since,
+        p_until: until,
+        p_names: [...EVENTS],
+        p_limit: EVENT_PAGE_SIZE,
+        ...(cursor ? { p_after_at: cursor.occurred_at, p_after_id: cursor.id } : {}),
+      })
+      .abortSignal(signal)
+      .retry(false);
+    if (error || !Array.isArray(data))
+      throw new Error("Could not read traffic events. Please retry the report.");
+    const batch = data as TrafficEvent[];
+    events.push(...batch);
+    if (batch.length < EVENT_PAGE_SIZE) return events;
+    const last = batch[batch.length - 1];
+    if (!last.id || !last.occurred_at || last.id === cursor?.id)
+      throw new Error("Could not continue reading traffic events. Please retry the report.");
+    cursor = last;
+  }
+}
 
 export async function loadTrafficReport(
   supabase: SupabaseClient,
   windowDays: number,
   untilTime = Date.now(),
+  requestSignal?: AbortSignal,
 ) {
+  const deadline = AbortSignal.timeout(35_000);
+  const signal = requestSignal ? AbortSignal.any([requestSignal, deadline]) : deadline;
   const since = new Date(untilTime - windowDays * 86_400_000).toISOString();
   const until = new Date(untilTime).toISOString();
   const { data: staff, error: staffError } = await supabase
     .from("user_roles")
     .select("user_id")
-    .in("role", ["admin", "moderator"]);
+    .in("role", ["admin", "moderator"])
+    .abortSignal(signal)
+    .retry(false);
   if (staffError) throw new Error("Could not load staff exclusions. Please retry the report.");
-  const events: TrafficEvent[] = [];
-  for (let offset = 0; ; offset += 500) {
-    const { data: batch, error } = await supabase
-      .from("analytics_events")
-      .select("id, name, props, user_id, session_id, occurred_at")
-      .in("name", [...EVENTS])
-      .eq("is_demo", false)
-      .gte("occurred_at", since)
-      .lt("occurred_at", until)
-      .order("occurred_at", { ascending: true })
-      .order("id", { ascending: true })
-      .range(offset, offset + 499);
-    if (error) throw new Error(error.message);
-    events.push(...((batch ?? []) as TrafficEvent[]));
-    if ((batch?.length ?? 0) < 500) break;
-  }
   const staffIds = new Set((staff ?? []).map((row) => row.user_id as string));
-  const exclusions = await loadStaffTrafficExclusions(supabase, staffIds, untilTime);
+  const { data: exclusions, error: exclusionError } = await supabase
+    .rpc("traffic_report_staff_exclusions", { p_until: until, p_staff_ids: [...staffIds] })
+    .abortSignal(signal)
+    .retry(false);
+  if (
+    exclusionError ||
+    !Array.isArray(exclusions?.browserIds) ||
+    !Array.isArray(exclusions?.visitIds)
+  )
+    throw new Error("Could not verify staff-browser exclusions. Please retry the report.");
+  const events = await readTrafficEvents(supabase, since, until, signal);
   // Operational milestones come from saved records, not a click or a signup attempt.
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const admin = supabaseAdmin as unknown as SupabaseClient;
@@ -78,7 +108,9 @@ export async function loadTrafficReport(
         .gte("approved_at", since)
         .lt("approved_at", until)
         .order("id")
-        .range(offset, offset + 499),
+        .range(offset, offset + 499)
+        .abortSignal(signal)
+        .retry(false),
     ),
     readAll((offset) =>
       admin
@@ -87,7 +119,9 @@ export async function loadTrafficReport(
         .gte("terms_accepted_at", since)
         .lt("terms_accepted_at", until)
         .order("user_id")
-        .range(offset, offset + 499),
+        .range(offset, offset + 499)
+        .abortSignal(signal)
+        .retry(false),
     ),
     readAll((offset) =>
       admin
@@ -96,18 +130,27 @@ export async function loadTrafficReport(
         .gte("claimed_at", since)
         .lt("claimed_at", until)
         .order("id")
-        .range(offset, offset + 499),
+        .range(offset, offset + 499)
+        .abortSignal(signal)
+        .retry(false),
     ),
   ]);
   const realSeller = (id: unknown) => !staffIds.has(String(id));
-  const options = { staffIds, ...exclusions, domain: brand.domain, windowDays: windowDays };
+  const options = {
+    staffIds,
+    excludedBrowserIds: new Set<string>(exclusions.browserIds),
+    excludedVisitIds: new Set<string>(exclusions.visitIds),
+    domain: brand.domain,
+    windowDays,
+  };
+  const eligible = eligibleTrafficEvents(events, options);
   return {
     isAdmin: true,
     period: { since, until },
-    ...summarizeTraffic(events, options),
-    vitals: summarizeVitals(eligibleTrafficEvents(events, options)),
-    funnel: summarizeConversionVisits(eligibleTrafficEvents(events, options)),
-    editorial: summarizeEditorialTraffic(eligibleTrafficEvents(events, options)),
+    ...summarizeTraffic(events, options, eligible),
+    vitals: summarizeVitals(eligible),
+    funnel: summarizeConversionVisits(eligible),
+    editorial: summarizeEditorialTraffic(eligible),
     operations: {
       approvedListings:
         approved?.filter((row) => {

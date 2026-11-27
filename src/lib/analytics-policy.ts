@@ -69,7 +69,9 @@ export function summarizeVitals(events: { name: string; props: unknown }[]): Vit
   const groups = new Map<string, Record<string, unknown>[]>();
   for (const props of latest.values()) {
     const key = `${props.template}:${props.device}:${props.metric}`;
-    groups.set(key, [...(groups.get(key) ?? []), props]);
+    const group = groups.get(key);
+    if (group) group.push(props);
+    else groups.set(key, [props]);
   }
   return [...groups.values()].map((group) => {
     const values = group.map((p) => Number(p.value)).sort((a, b) => a - b);
