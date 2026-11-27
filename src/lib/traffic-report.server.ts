@@ -61,7 +61,8 @@ export async function loadTrafficReport(
 ) {
   const deadline = AbortSignal.timeout(35_000);
   const signal = requestSignal ? AbortSignal.any([requestSignal, deadline]) : deadline;
-  const since = new Date(untilTime - windowDays * 86_400_000).toISOString();
+  const sinceTime = untilTime - windowDays * 86_400_000;
+  const since = new Date(sinceTime).toISOString();
   const until = new Date(untilTime).toISOString();
   const { data: staff, error: staffError } = await supabase
     .from("user_roles")
@@ -71,20 +72,29 @@ export async function loadTrafficReport(
     .retry(false);
   if (staffError) throw new Error("Could not load staff exclusions. Please retry the report.");
   const staffIds = new Set((staff ?? []).map((row) => row.user_id as string));
-  const { data: exclusions, error: exclusionError } = await supabase
-    .rpc("traffic_report_staff_exclusions", { p_until: until, p_staff_ids: [...staffIds] })
-    .abortSignal(signal)
-    .retry(false);
+  // Each half-open range is independently ordered. Several reads can move
+  // forward together without offset scans or overlapping boundary events.
+  const rangeCount = Math.min(4, Math.ceil(windowDays / 4));
+  const rangeBoundary = (index: number) =>
+    new Date(sinceTime + Math.floor(((untilTime - sinceTime) * index) / rangeCount)).toISOString();
+  const eventRanges = Array.from({ length: rangeCount }, (_, index) =>
+    readTrafficEvents(supabase, rangeBoundary(index), rangeBoundary(index + 1), signal),
+  );
+  const [{ data: exclusions, error: exclusionError }, batches] = await Promise.all([
+    supabase
+      .rpc("traffic_report_staff_exclusions", { p_until: until, p_staff_ids: [...staffIds] })
+      .abortSignal(signal)
+      .retry(false),
+    Promise.all(eventRanges),
+  ]);
   if (
     exclusionError ||
     !Array.isArray(exclusions?.browserIds) ||
     !Array.isArray(exclusions?.visitIds)
   )
     throw new Error("Could not verify staff-browser exclusions. Please retry the report.");
-  const events = await readTrafficEvents(supabase, since, until, signal);
+  const events = batches.flat();
   // Operational milestones come from saved records, not a click or a signup attempt.
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const admin = supabaseAdmin as unknown as SupabaseClient;
   const readAll = async (
     query: (offset: number) => PromiseLike<{
       data: unknown[] | null;
@@ -101,7 +111,7 @@ export async function loadTrafficReport(
   };
   const [approved, setups, claimed] = await Promise.all([
     readAll((offset) =>
-      admin
+      supabase
         .from("asks")
         .select("id,seller_id,products!inner(name)")
         .eq("is_demo", false)
@@ -113,7 +123,7 @@ export async function loadTrafficReport(
         .retry(false),
     ),
     readAll((offset) =>
-      admin
+      supabase
         .from("seller_profiles")
         .select("user_id,slug")
         .gte("terms_accepted_at", since)
@@ -124,7 +134,7 @@ export async function loadTrafficReport(
         .retry(false),
     ),
     readAll((offset) =>
-      admin
+      supabase
         .from("managed_import_sellers")
         .select("id,owner_user_id,display_name")
         .gte("claimed_at", since)

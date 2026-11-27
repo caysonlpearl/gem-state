@@ -112,7 +112,10 @@ test("admin reads include stage events and timestamps without weakening the role
   );
   assert.match(source, /has_role/);
   assert.match(source, /if \(isAdmin !== true\)/);
-  assert.match(source, /loadTrafficReport\(\s*supabase as unknown as SupabaseClient/);
+  assert.ok(
+    source.indexOf("if (isAdmin !== true)") < source.indexOf("loadTrafficReport(supabaseAdmin"),
+  );
+  assert.match(source, /loadTrafficReport\(supabaseAdmin,/);
   assert.match(reader, /"search_completed"/);
   assert.match(reader, /"classified_listing_submit_started"/);
   assert.match(reader, /"classified_listing_started"/);
