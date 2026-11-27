@@ -161,7 +161,19 @@ function TrafficPage() {
   const fetchSummary = useServerFn(getTrafficSummary);
   const summary = useQuery({
     queryKey: ["admin-traffic", windowDays],
-    queryFn: () => fetchSummary({ data: { windowDays } }),
+    retry: false,
+    networkMode: "always",
+    queryFn: ({ signal }) => {
+      const deadline = AbortSignal.any([signal, AbortSignal.timeout(45_000)]);
+      deadline.throwIfAborted();
+      return new Promise<Awaited<ReturnType<typeof fetchSummary>>>((resolve, reject) => {
+        const abort = () => reject(deadline.reason);
+        deadline.addEventListener("abort", abort, { once: true });
+        fetchSummary({ data: { windowDays }, signal: deadline })
+          .then(resolve, reject)
+          .finally(() => deadline.removeEventListener("abort", abort));
+      });
+    },
   });
   const data = summary.data;
   const readReviews = useServerFn(getSeoReviewReports);
@@ -225,9 +237,24 @@ function TrafficPage() {
       </div>
 
       {summary.isLoading ? (
-        <p className="mt-8 text-[13px] text-muted-foreground">Loading…</p>
+        <p className="mt-8 text-[13px] text-muted-foreground" role="status">
+          Loading traffic and contacts…
+        </p>
       ) : summary.error ? (
-        <p className="mt-8 text-[13px] text-destructive">Could not load traffic.</p>
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <p className="text-[13px] text-destructive" role="alert">
+            {summary.error.name === "TimeoutError"
+              ? "Traffic and contacts took too long to load."
+              : "Could not load traffic and contacts."}
+          </p>
+          <button
+            type="button"
+            onClick={() => void summary.refetch()}
+            className="min-h-9 rounded-full border border-input px-4 text-[13px] font-medium hover:bg-secondary"
+          >
+            Retry
+          </button>
+        </div>
       ) : !data?.isAdmin ? (
         <p className="mt-8 text-[13px] text-muted-foreground">Administrators only.</p>
       ) : (

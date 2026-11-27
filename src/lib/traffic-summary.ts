@@ -106,6 +106,7 @@ export function eligibleTrafficEvents(events: TrafficEvent[], options: TrafficEx
 export function summarizeTraffic(
   events: TrafficEvent[],
   options: TrafficExclusions & { windowDays: number },
+  eligible = eligibleTrafficEvents(events, options),
 ): Omit<TrafficSummary, "isAdmin"> {
   const { staffIds, domain } = options;
   const summary: Omit<TrafficSummary, "isAdmin"> = {
@@ -136,7 +137,6 @@ export function summarizeTraffic(
   const methods = new Map<string, number>();
   const landings = new Map<string, { visits: number; fromSearchOrAi: number }>();
 
-  const eligible = eligibleTrafficEvents(events, options);
   const browserKey = (event: TrafficEvent) =>
     event.session_id
       ? `browser:${event.session_id}`

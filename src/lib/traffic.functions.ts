@@ -23,10 +23,14 @@ export const getTrafficSummary = createServerFn({ method: "GET" })
     windowDays: Math.min(Math.max(Math.round(Number(input?.windowDays ?? 30)), 1), 180),
   }))
   .handler(async ({ data, context }) => {
-    const { setResponseHeader } = await import("@tanstack/react-start/server");
+    const { getRequest, setResponseHeader } = await import("@tanstack/react-start/server");
     setResponseHeader("Cache-Control", "private, no-store");
     const { supabase, userId } = context;
-    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    const { data: isAdmin, error } = await supabase
+      .rpc("has_role", { _user_id: userId, _role: "admin" })
+      .abortSignal(AbortSignal.timeout(8000))
+      .retry(false);
+    if (error) throw new Error("Could not verify administrator access. Please retry the report.");
     if (isAdmin !== true) {
       return {
         isAdmin: false,
@@ -43,7 +47,12 @@ export const getTrafficSummary = createServerFn({ method: "GET" })
     }
 
     const { loadTrafficReport } = await import("./traffic-report.server");
-    return loadTrafficReport(supabase as unknown as SupabaseClient, data.windowDays);
+    return loadTrafficReport(
+      supabase as unknown as SupabaseClient,
+      data.windowDays,
+      Date.now(),
+      getRequest().signal,
+    );
   });
 
 async function requireTrafficAdmin(context: { supabase: SupabaseClient; userId: string }) {
