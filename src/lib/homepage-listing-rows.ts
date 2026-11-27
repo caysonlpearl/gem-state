@@ -2,6 +2,23 @@ import { classifiedCategories } from "../config/classifieds.ts";
 import type { ListingCardSummary } from "./listing-card-summary.ts";
 
 const dedicatedCategories = new Set(["jobs", "services", "pets", "other-real-estate"]);
+export const homepageOnlineRows = [
+  {
+    category: "outdoor-sporting",
+    title: "Outdoor gear available online",
+    action: "Browse outdoor gear",
+  },
+  {
+    category: "apparel-accessories",
+    title: "Apparel available online",
+    action: "Browse apparel",
+  },
+  {
+    category: "tools-equipment",
+    title: "Tools and supplies available online",
+    action: "Browse tools and supplies",
+  },
+] as const;
 const itemCategories = new Set<string>(
   classifiedCategories
     .filter(

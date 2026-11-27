@@ -27,11 +27,26 @@ try {
         body: await readFile("public/images/mock-vehicles/toyota-tacoma.jpg"),
       });
     });
+    const cardPhotoRequests = [];
+    await page.route("**/media/listings/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/0*", async (route) => {
+      const size = new URL(route.request().url()).searchParams.get("size");
+      cardPhotoRequests.push(size);
+      if (size === "card") return route.fulfill({ status: 503 });
+      return route.fulfill({
+        contentType: "image/jpeg",
+        body: await readFile("public/images/mock-vehicles/toyota-tacoma.jpg"),
+      });
+    });
     await page.goto("http://127.0.0.1:4190", { waitUntil: "domcontentloaded" });
     await page.locator('[data-test="delayed-photo"] [data-photo-state="loading"]').waitFor();
-    await page.getByRole("img", { name: "Photo unavailable" }).waitFor();
+    await page
+      .locator('[data-test="failed-photo"]')
+      .getByRole("img", { name: "Photo unavailable" })
+      .waitFor();
     releasePhoto();
     await page.locator('[data-test="delayed-photo"] [data-photo-state="ready"]').waitFor();
+    await page.locator('[data-test="recovered-card-photo"] [data-photo-state="ready"]').waitFor();
+    assert.deepEqual(cardPhotoRequests, ["card", null]);
     const search = page.getByRole("combobox", { name: "Search fixture" });
     await search.fill("Tacoma");
     assert.equal(await page.getByRole("listbox").getByRole("option").count(), 5);

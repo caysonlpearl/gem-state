@@ -2,7 +2,11 @@ import { discoveryExposureKey, selectDiscoveryCards } from "./discovery-ranking.
 import type { ClassifiedsHome, ClassifiedsHomeLead } from "./classifieds.functions";
 import type { ListingCardSummary } from "./listing-card-summary";
 import { homepageDistanceRow } from "./homepage-distance-row.ts";
-import { isGeneralHomepageListing, isHomepageVehicleListing } from "./homepage-listing-rows.ts";
+import {
+  homepageOnlineRows,
+  isGeneralHomepageListing,
+  isHomepageVehicleListing,
+} from "./homepage-listing-rows.ts";
 
 const HOMEPAGE_ROW_SIZE = 4;
 export const HOMEPAGE_FEED_SIZE = 24;
@@ -39,7 +43,7 @@ export function allocateHomepageRows(
   // Every row below draws from the same small pool, so without this the same
   // few listings repeat row after row. Prefer unseen cards within each seller;
   // a known seller with one matching card can reappear to preserve local variety.
-  // Rows without any fresh eligible inventory keep the honest empty state.
+  // Rows without any eligible inventory are omitted on the homepage.
   const allLocalListings = [...localRecent];
   for (const listing of localMotors) {
     if (!allLocalListings.some((existing) => existing.id === listing.id)) {
@@ -156,7 +160,7 @@ export function initialHomepagePayload(
   const keep = new Set(rows.shownIds);
   for (const card of rows.feedStart.slice(0, HOMEPAGE_FEED_SIZE)) keep.add(card.id);
   // Retail rows have independent category pools and retain their exact cards.
-  for (const category of ["outdoor-sporting", "apparel-accessories", "tools-equipment"])
+  for (const { category } of homepageOnlineRows)
     for (const card of (home.onlineMerchandise ?? [])
       .filter((card) => card.categorySlug === category)
       .slice(0, rowSize))

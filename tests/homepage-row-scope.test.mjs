@@ -14,7 +14,7 @@ import {
 import { allocateHomepageRows } from "../src/lib/homepage-initial-payload.ts";
 import { LISTING_PREVIEW_LIMIT } from "../src/lib/listing-preview.ts";
 import { homepageDistanceRow } from "../src/lib/homepage-distance-row.ts";
-import { isGeneralHomepageListing } from "../src/lib/homepage-listing-rows.ts";
+import { homepageOnlineRows, isGeneralHomepageListing } from "../src/lib/homepage-listing-rows.ts";
 
 const source =
   readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8") +
@@ -41,6 +41,7 @@ function context(extra = {}) {
     isWithinClassifiedRadius,
     isGeneralHomepageListing,
     homepageDistanceRow,
+    homepageOnlineRows,
     allocateHomepageRows,
     LISTING_PREVIEW_LIMIT,
     homepageCategoryHighlights: [],
@@ -49,6 +50,8 @@ function context(extra = {}) {
     HomeFeed: "HomeFeed",
     PersonalizedShopping: "PersonalizedShopping",
     HomepageListingRow: "HomepageListingRow",
+    MarketplaceListingSection: "MarketplaceListingSection",
+    ListingPreviewRail: "ListingPreviewRail",
     HomepageInfoBand: "HomepageInfoBand",
     CategoryArtwork: "CategoryArtwork",
     Link: "Link",
@@ -167,8 +170,38 @@ test("dedicated rows fill from statewide saved inventory without jobs displacing
     );
   const fresh = rows.find((r) => r.props.title === "Fresh local finds").props;
   assert.ok(fresh.listings.every(isGeneralHomepageListing));
+  const around = rows.find((r) => r.props.title === "Around Idaho").props.listings;
+  assert.equal(around.length, LISTING_PREVIEW_LIMIT);
+  assert.ok(around.every((listing) => !["jobs", "services"].includes(listing.categorySlug)));
   const allIds = rows.flatMap((r) => r.props.listings.map((c) => c.id));
   assert.equal(new Set(allIds).size, allIds.length, "rows keep deduplication");
+});
+
+test("homepage omits empty sections and shows available online inventory without the retailer eyebrow", () => {
+  const apparel = card("online-shirt", "apparel-accessories", { externalMerchandise: {} });
+  const home = { recent: [], motors: [], totalActive: 0, onlineMerchandise: [apparel] };
+  const c = context({
+    useSuspenseQuery: () => ({ data: home }),
+    useQuery: () => ({ data: undefined }),
+  });
+  const fn = ast.statements.find(
+    (n) => ts.isFunctionDeclaration(n) && n.name?.text === "HomepageListingRow",
+  );
+  vm.runInContext(
+    ts.transpile(fn.getText(ast).replace("function HomepageListingRow", "function renderRow"), {
+      target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.React,
+    }),
+    c,
+  );
+  const visible = nodes(c.HomeSections({ where: c.homeLocation("", undefined, 25) }))
+    .filter((n) => n.type === "HomepageListingRow")
+    .map((n) => c.renderRow(n.props))
+    .filter(Boolean);
+  assert.equal(visible.length, 1);
+  assert.equal(visible[0].props.title, "Apparel available online");
+  assert.equal(visible[0].props.eyebrow, "");
+  assert.equal(visible[0].props.children.props.items[0], apparel);
 });
 
 function renderedHome(location, point) {

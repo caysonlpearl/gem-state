@@ -11,6 +11,11 @@ const cards = [
   card("lewiston", "Lewiston"),
   card("ut", "Logan", { state: "UT" }),
   card("shipping", "Boise", { externalMerchandise: {} }),
+  card("job", "Nampa", { job: {} }),
+  card("older-job", "Idaho Falls", { categorySlug: "jobs" }),
+  card("service", "Kuna", { service: {} }),
+  card("older-service", "Eagle", { categorySlug: "services" }),
+  card("directory-service", "Meridian", { directory: {} }),
   card("unknown", ""),
 ];
 test("statewide homepage offers multiple Idaho cities instead of requiring out-of-state inventory", () => {
